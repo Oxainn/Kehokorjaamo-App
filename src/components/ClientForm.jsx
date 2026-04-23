@@ -186,7 +186,11 @@ export default function ClientForm({ onComplete }) {
     console.log('Tietosuoja:', data.suostumus_rekisteri)
     const avain = `kehokorjaamo_asiakas_${Date.now()}`
     localStorage.setItem(avain, JSON.stringify(data))
-    onComplete?.(data)
+    if (typeof onComplete === 'function') {
+      onComplete(data)
+    } else {
+      console.error('onComplete prop puuttuu!')
+    }
   }
 
   const ika = laskikaIka(data.syntymaaika)
