@@ -44,6 +44,9 @@ const TYHJÄ = {
   suostumus_rekisteri: false,
   suostumus_luovutus:  false,
   huoltajan_suostumus: '',
+  paivays:          new Date().toISOString().slice(0, 10),
+  allekirjoitus:    '',
+  huoltajan_allekirjoitus: '',
 }
 
 function laskikaIka(syntymaaika) {
@@ -177,6 +180,8 @@ export default function ClientForm({ onComplete }) {
 
   const lähetä = (e) => {
     e.preventDefault()
+    const avain = `kehokorjaamo_asiakas_${Date.now()}`
+    localStorage.setItem(avain, JSON.stringify(data))
     onComplete?.(data)
   }
 
@@ -403,12 +408,139 @@ export default function ClientForm({ onComplete }) {
           </>
         } />
 
-        <button
-          type="submit"
-          className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
-        >
-          Tallenna ja jatka →
-        </button>
+        {/* ── Osio 6: Vahvistus ja allekirjoitus ──────────────────────────── */}
+        <Osio otsikko="Vahvistus ja allekirjoitus" lapset={
+          <>
+            <TextInput
+              label="Päiväys"
+              name="paivays"
+              value={data.paivays}
+              onChange={päivitä}
+              type="date"
+            />
+            <TextInput
+              label="Allekirjoitus"
+              name="allekirjoitus"
+              value={data.allekirjoitus}
+              onChange={päivitä}
+            />
+            {alleKahdeksantoista && (
+              <TextInput
+                label="Huoltajan allekirjoitus"
+                name="huoltajan_allekirjoitus"
+                value={data.huoltajan_allekirjoitus}
+                onChange={päivitä}
+              />
+            )}
+          </>
+        } />
+
+        {/* ── Osio 7: Yhteenveto ──────────────────────────────────────────── */}
+        <Osio otsikko="Yhteenveto" lapset={
+          <div className="flex flex-col gap-3 text-sm">
+            {/* Nimi ja syntymäaika */}
+            <div className="flex justify-between">
+              <span className="text-gray-500">Nimi</span>
+              <span className="font-medium text-gray-800">{data.nimi || '—'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Syntymäaika</span>
+              <span className="font-medium text-gray-800">
+                {data.syntymaaika ? new Date(data.syntymaaika).toLocaleDateString('fi-FI') : '—'}
+                {ika !== null && <span className="text-gray-400 ml-1">({ika} v)</span>}
+              </span>
+            </div>
+
+            {/* Hoitoon tulon syy */}
+            {data.hoitoon_syy && (
+              <div>
+                <span className="text-gray-500 block mb-1">Hoitoon tulon syy</span>
+                <p className="text-gray-700 bg-gray-50 rounded-lg px-3 py-2 leading-relaxed">
+                  {data.hoitoon_syy}
+                </p>
+              </div>
+            )}
+
+            {/* Kipuasteikko */}
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500">Kipuasteikko</span>
+              <span
+                className="font-bold text-base w-8 h-8 rounded-full flex items-center justify-center border-2"
+                style={{
+                  color:           kipuVari(data.kipuaste).teksti,
+                  borderColor:     kipuVari(data.kipuaste).kehys,
+                  backgroundColor: kipuVari(data.kipuaste).tausta,
+                }}
+              >
+                {data.kipuaste}
+              </span>
+            </div>
+
+            {/* Valitut oiretyypit */}
+            {OIRETYYPIT.filter((t) => data.oireet[t.id]?.valittu).length > 0 && (
+              <div>
+                <span className="text-gray-500 block mb-1">Oiretyypit</span>
+                <div className="flex flex-col gap-1">
+                  {OIRETYYPIT.filter((t) => data.oireet[t.id]?.valittu).map((t) => (
+                    <div key={t.id} className="flex items-center gap-2">
+                      <span className={`w-3 h-3 rounded-full ${t.vari} flex-shrink-0`} />
+                      <span className="text-gray-700">{t.nimi}</span>
+                      {data.oireet[t.id]?.sijainti && (
+                        <span className="text-gray-400">— {data.oireet[t.id].sijainti}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Kontraindikaatiot */}
+            {Object.entries(data.kontraindikaatiot)
+              .filter(([, v]) => v)
+              .map(([nimi]) => nimi).length > 0 && (
+              <div>
+                <span className="text-gray-500 block mb-1">Huomioitavat terveystiedot</span>
+                <div className="flex flex-col gap-1">
+                  {Object.entries(data.kontraindikaatiot)
+                    .filter(([, v]) => v)
+                    .map(([nimi]) => {
+                      const ehdoton = EHDOTTOMAT_KONTRA.includes(nimi)
+                      return (
+                        <div key={nimi} className="flex items-center gap-2">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ehdoton ? 'bg-red-500' : 'bg-gray-400'}`} />
+                          <span className={ehdoton ? 'text-red-700 font-medium' : 'text-gray-700'}>
+                            {nimi}{ehdoton && ' *'}
+                          </span>
+                        </div>
+                      )
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
+        } />
+
+        {/* ── Lähetysnappi ────────────────────────────────────────────────── */}
+        {(() => {
+          const voidaanLahettaa = !!data.nimi && !!data.syntymaaika && data.suostumus_rekisteri && !ehdotonValittu
+          return (
+            <button
+              type="submit"
+              disabled={!voidaanLahettaa}
+              style={{
+                opacity:       voidaanLahettaa ? 1 : 0.5,
+                pointerEvents: voidaanLahettaa ? 'auto' : 'none',
+              }}
+              className={`w-full py-3 font-semibold rounded-xl transition-colors shadow-sm ${
+                ehdotonValittu
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'bg-brand-600 hover:bg-brand-700 text-white'
+              }`}
+            >
+              {ehdotonValittu ? 'Hoito ei ole mahdollinen' : 'Vahvista ja jatka →'}
+            </button>
+          )
+        })()}
       </form>
     </section>
   )
