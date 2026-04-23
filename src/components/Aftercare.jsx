@@ -28,7 +28,8 @@ const OSIOT = [
 // ── PDF-generointi ────────────────────────────────────────────────────────────
 
 function generatePDF(findings, treatmentPlan) {
-  const doc   = new jsPDF({ unit: 'mm', format: 'a4' })
+  const doc   = new jsPDF({ unit: 'mm', format: 'a4', putOnlyUsedFonts: true })
+  doc.setLanguage('fi')
   const W     = 210
   const H     = 297
   const mL    = 20
