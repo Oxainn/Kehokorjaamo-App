@@ -29,9 +29,9 @@ function Osio({ otsikko, lapset }) {
 }
 
 export default function TreatmentPlan({ findings = [] }) {
-  const [tulos, setTulos]       = useState(null)
-  const [vaihe, setVaihe]       = useState('odottaa') // odottaa | kopioitu | tulos
-  const [vastaus, setVastaus]   = useState('')
+  const [tulos, setTulos]     = useState(null)
+  const [vaihe, setVaihe]     = useState('odottaa')
+  const [vastaus, setVastaus] = useState('')
 
   const kopioi = async () => {
     const prompt = buildPrompt(findings)
@@ -62,72 +62,95 @@ export default function TreatmentPlan({ findings = [] }) {
         </p>
       </div>
 
-      {/* Ei löydöksiä */}
-      {findings.length === 0 && vaihe === 'odottaa' && (
-        <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 p-10 text-center">
-          <p className="text-gray-400 text-sm">
-            Lisää ensin löydöksiä <strong>Kehokartalla</strong> ja paina
-            <strong> Analysoi löydökset</strong>.
-          </p>
-        </div>
+      {/* ── TILA 1: odottaa ── */}
+      {vaihe === 'odottaa' && (
+        <>
+          {findings.length === 0 ? (
+            <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 p-10 text-center">
+              <p className="text-gray-400 text-sm">
+                Lisää ensin löydöksiä <strong>Kehokartalla</strong> ja paina
+                <strong> Analysoi löydökset</strong>.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+              <p className="text-sm text-gray-600 mb-4">
+                <span className="font-semibold text-gray-800">{findings.length} löydöstä</span> valmiina
+                analysoitavaksi:
+              </p>
+
+              <ul className="space-y-1 mb-5">
+                {findings.map((f, i) => (
+                  <li key={i} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700">{f.alue}</span>
+                    <span className={`font-semibold text-xs px-1.5 py-0.5 rounded
+                      ${f.kipu === 0   ? 'text-blue-600 bg-blue-50'
+                      : f.kipu <= 3   ? 'text-green-700 bg-green-50'
+                      : f.kipu <= 6   ? 'text-orange-700 bg-orange-50'
+                      : 'text-red-700 bg-red-50'}`}
+                    >
+                      VAS {f.kipu}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              <button
+                onClick={kopioi}
+                className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
+              >
+                Analysoi AI:lla →
+              </button>
+              <p className="text-xs text-center text-gray-400 mt-3">
+                Analyysi vie noin 30 sekuntia
+              </p>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Löydökset — odottaa analyysiä */}
-      {findings.length > 0 && vaihe === 'odottaa' && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <p className="text-sm text-gray-600 mb-4">
-            <span className="font-semibold text-gray-800">{findings.length} löydöstä</span> valmiina
-            analysoitavaksi:
-          </p>
-          <ul className="space-y-1 mb-5">
-            {findings.map((f, i) => (
-              <li key={i} className="flex items-center justify-between text-sm">
-                <span className="text-gray-700">{f.alue}</span>
-                <span className={`font-semibold text-xs px-1.5 py-0.5 rounded
-                  ${f.kipu === 0   ? 'text-blue-600 bg-blue-50'
-                  : f.kipu <= 3   ? 'text-green-700 bg-green-50'
-                  : f.kipu <= 6   ? 'text-orange-700 bg-orange-50'
-                  : 'text-red-700 bg-red-50'}`}
-                >
-                  VAS {f.kipu}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <button
-            onClick={kopioi}
-            className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
-          >
-            Analysoi AI:lla →
-          </button>
-        </div>
-      )}
-
-      {/* Vaihe: prompt kopioitu — odottaa vastausta */}
+      {/* ── TILA 2: kopioitu ── */}
       {vaihe === 'kopioitu' && (
         <div className="flex flex-col gap-4">
-          <div className="bg-green-50 border border-green-200 rounded-xl p-5">
-            <p className="text-sm font-semibold text-green-800 mb-1">Prompt kopioitu!</p>
-            <p className="text-sm text-green-700">
-              Liitä Claude.ai-chattiin ja kopioi vastaus takaisin.
-            </p>
+          <div className="bg-brand-50 border border-brand-100 rounded-xl p-4 flex items-center gap-3">
+            <span className="text-brand-600 text-lg">✓</span>
+            <p className="text-sm font-semibold text-brand-800">Prompt kopioitu leikepöydälle</p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-3">
-            <label className="text-sm font-medium text-gray-700">
-              Liitä Clauden vastaus tähän:
-            </label>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+            <ol className="space-y-1 text-sm text-gray-600 mb-5">
+              <li className="flex gap-2">
+                <span className="font-semibold text-brand-600 w-4">1.</span>
+                Avaa <span className="font-medium text-gray-800">Claude.ai</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold text-brand-600 w-4">2.</span>
+                Liitä viesti (<kbd className="bg-gray-100 px-1 rounded text-xs">Ctrl+V</kbd>)
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold text-brand-600 w-4">3.</span>
+                Kopioi Clauden vastaus
+              </li>
+              <li className="flex gap-2">
+                <span className="font-semibold text-brand-600 w-4">4.</span>
+                Liitä alla olevaan kenttään
+              </li>
+            </ol>
+
             <textarea
               value={vastaus}
               onChange={(e) => setVastaus(e.target.value)}
               rows={8}
-              placeholder="Liitä tähän Clauden antama teksti tai JSON..."
+              placeholder="Liitä Clauden vastaus tähän..."
               className="w-full rounded-lg border border-gray-200 p-3 text-sm text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             />
+
             <button
               onClick={käytäVastausta}
               disabled={!vastaus.trim()}
-              className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl transition-colors shadow-sm"
+              className="mt-3 w-full py-3 font-semibold rounded-xl transition-colors shadow-sm
+                disabled:bg-gray-100 disabled:text-gray-400
+                enabled:bg-brand-600 enabled:hover:bg-brand-700 enabled:text-white"
             >
               Käytä vastausta →
             </button>
@@ -142,15 +165,13 @@ export default function TreatmentPlan({ findings = [] }) {
         </div>
       )}
 
-      {/* Tulokset */}
+      {/* ── TILA 3: tulos ── */}
       {vaihe === 'tulos' && tulos && (
         <div className="flex flex-col gap-4">
-          {/* Yhteenveto */}
           <Osio otsikko="Yhteenveto" lapset={
             <p className="text-sm text-gray-700 leading-relaxed">{tulos.yhteenveto}</p>
           } />
 
-          {/* Aiheuttajat */}
           {tulos.aiheuttajat?.length > 0 && (
             <Osio otsikko="Miksi kipu esiintyy juuri näissä kohdissa?" lapset={
               <ul className="space-y-2">
@@ -164,7 +185,6 @@ export default function TreatmentPlan({ findings = [] }) {
             } />
           )}
 
-          {/* Toimenpiteet */}
           {tulos.toimenpiteet?.length > 0 && (
             <Osio otsikko="Käsittelyjärjestys" lapset={
               <ol className="space-y-4">
@@ -193,7 +213,6 @@ export default function TreatmentPlan({ findings = [] }) {
             } />
           )}
 
-          {/* Jälkihoito */}
           {tulos.jalkihoito?.length > 0 && (
             <Osio otsikko="Jälkihoito-ohjeet kotiin" lapset={
               <ul className="space-y-4">
@@ -212,7 +231,6 @@ export default function TreatmentPlan({ findings = [] }) {
             } />
           )}
 
-          {/* Uusi analyysi */}
           <button
             onClick={nollaa}
             className="text-xs text-gray-400 hover:text-gray-600 transition-colors text-center py-2"
