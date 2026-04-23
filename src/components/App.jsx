@@ -13,6 +13,12 @@ const NAV_ITEMS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('bodymap')
+  const [findings, setFindings] = useState([])
+
+  const handleAnalyze = (f) => {
+    setFindings(f)
+    setActiveTab('treatment')
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -42,8 +48,8 @@ export default function App() {
       </nav>
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
-        {activeTab === 'bodymap'   && <BodyMap />}
-        {activeTab === 'treatment' && <TreatmentPlan />}
+        {activeTab === 'bodymap'   && <BodyMap onAnalyze={handleAnalyze} />}
+        {activeTab === 'treatment' && <TreatmentPlan findings={findings} />}
         {activeTab === 'muscles'   && <MuscleLibrary />}
         {activeTab === 'aftercare' && <Aftercare />}
       </main>
