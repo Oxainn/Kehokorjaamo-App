@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import ClientForm from './ClientForm'
+import ClinicalObservations from './ClinicalObservations'
 import BodyMap from './BodyMap'
 import TreatmentPlan from './TreatmentPlan'
 import MuscleLibrary from './MuscleLibrary'
 import Aftercare from './Aftercare'
 
 const NAV_ITEMS = [
-  { id: 'client',    label: 'Asiakastiedot' },
-  { id: 'bodymap',   label: 'Kehokartta' },
-  { id: 'treatment', label: 'Hoitosuunnitelma' },
-  { id: 'muscles',   label: 'Lihakset' },
-  { id: 'aftercare', label: 'Jälkihoito' },
+  { id: 'client',      label: 'Asiakastiedot' },
+  { id: 'clinical',    label: 'Kliiniset havainnot' },
+  { id: 'bodymap',     label: 'Kehokartta' },
+  { id: 'treatment',   label: 'Hoitosuunnitelma' },
+  { id: 'muscles',     label: 'Lihakset' },
+  { id: 'aftercare',   label: 'Jälkihoito' },
 ]
 
 export default function App() {
@@ -22,7 +24,7 @@ export default function App() {
 
   const handleAsiakas = (asiakasData) => {
     setAsiakas(asiakasData)
-    setActiveTab('bodymap')
+    setActiveTab('clinical')
   }
 
   const handleAnalyze = (f) => {
@@ -86,6 +88,7 @@ export default function App() {
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
         {activeTab === 'client'    && <ClientForm onComplete={handleAsiakas} />}
+        {activeTab === 'clinical'  && <ClinicalObservations asiakasData={asiakas} onComplete={() => setActiveTab('bodymap')} />}
         {activeTab === 'bodymap'   && <BodyMap onAnalyze={handleAnalyze} />}
         {activeTab === 'treatment' && <TreatmentPlan findings={findings} onResult={handleResult} />}
         {activeTab === 'muscles'   && <MuscleLibrary highlights={highlights} />}
