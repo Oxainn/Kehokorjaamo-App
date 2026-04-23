@@ -1,13 +1,60 @@
 import { useState } from 'react'
 import { buildPrompt, parseResponse } from '../services/api'
 
-const TYYPPIVARI = {
-  venyttely:  'bg-blue-50 text-blue-700',
-  lämpöhoito: 'bg-orange-50 text-orange-700',
-  kylmähoito: 'bg-cyan-50 text-cyan-700',
-  liike:      'bg-green-50 text-green-700',
-  ergonomia:  'bg-purple-50 text-purple-700',
-  lepo:       'bg-gray-50 text-gray-600',
+const S = {
+  section:       { display: 'flex', flexDirection: 'column', gap: '24px' },
+  heading:       { fontSize: '24px', fontWeight: '600', color: '#1f2937', margin: 0 },
+  subtext:       { marginTop: '4px', color: '#6b7280', fontSize: '14px', margin: '4px 0 0' },
+  card:          { background: '#fff', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,.06)', border: '1px solid #f3f4f6', padding: '20px' },
+  greenCard:     { background: '#f0fdf7', border: '1px solid #d1fae5', borderRadius: '12px', padding: '16px' },
+  emptyBox:      { background: '#f9fafb', borderRadius: '12px', border: '1px dashed #e5e7eb', padding: '40px', textAlign: 'center' },
+  emptyText:     { color: '#9ca3af', fontSize: '14px', margin: 0 },
+  btnGreen:      { background: '#1D9E75', color: '#fff', padding: '12px 24px', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '16px', fontWeight: '600', display: 'block', width: '100%' },
+  btnGreenDim:   { background: '#1D9E75', color: '#fff', padding: '12px 24px', border: 'none', borderRadius: '10px', fontSize: '16px', fontWeight: '600', display: 'block', width: '100%', opacity: 0.4, pointerEvents: 'none', cursor: 'not-allowed' },
+  btnGray:       { background: '#f3f4f6', color: '#6b7280', padding: '4px 10px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '500' },
+  btnBack:       { background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '12px', display: 'block', width: '100%', textAlign: 'center', padding: '8px' },
+  textarea:      { width: '100%', minHeight: '150px', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', fontSize: '14px', color: '#374151', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' },
+  hintText:      { marginTop: '8px', fontSize: '12px', textAlign: 'center', color: '#9ca3af' },
+  label:         { fontSize: '12px', fontWeight: '500', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px', display: 'block' },
+  findingRow:    { display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '14px', marginBottom: '6px' },
+  vasChip:       (kipu) => ({
+    fontSize: '11px', fontWeight: '600', padding: '2px 6px', borderRadius: '4px',
+    background: kipu === 0 ? '#eff6ff' : kipu <= 3 ? '#f0fdf4' : kipu <= 6 ? '#fff7ed' : '#fef2f2',
+    color:      kipu === 0 ? '#2563eb' : kipu <= 3 ? '#15803d'  : kipu <= 6 ? '#c2410c'  : '#b91c1c',
+  }),
+  stepList:      { listStyle: 'none', padding: 0, margin: '0 0 20px', display: 'flex', flexDirection: 'column', gap: '8px' },
+  stepItem:      { display: 'flex', gap: '8px', fontSize: '14px', color: '#4b5563' },
+  stepNum:       { fontWeight: '600', color: '#1D9E75', flexShrink: 0 },
+  sectionTitle:  { fontSize: '16px', fontWeight: '600', color: '#1f2937', margin: '0 0 12px' },
+  bulletList:    { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' },
+  bulletItem:    { display: 'flex', gap: '8px', fontSize: '14px', color: '#374151' },
+  dot:           { color: '#1D9E75', fontWeight: '700', flexShrink: 0 },
+  actionList:    { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' },
+  actionItem:    { display: 'flex', gap: '12px' },
+  badge:         { flexShrink: 0, width: '24px', height: '24px', borderRadius: '50%', background: '#1D9E75', color: '#fff', fontSize: '11px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: '2px' },
+  actionBody:    { flex: 1, minWidth: 0 },
+  actionHead:    { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' },
+  actionName:    { fontSize: '14px', fontWeight: '600', color: '#1f2937' },
+  sidePill:      { fontSize: '11px', background: '#f3f4f6', color: '#6b7280', padding: '2px 6px', borderRadius: '4px' },
+  technique:     { fontSize: '12px', fontWeight: '500', color: '#1D9E75', marginBottom: '4px' },
+  actionDesc:    { fontSize: '14px', color: '#4b5563', lineHeight: '1.5' },
+  afterList:     { listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '16px' },
+  afterItem:     { display: 'flex', gap: '12px' },
+  typePill:      (tyyppi) => {
+    const map = {
+      venyttely:  { background: '#eff6ff', color: '#1d4ed8' },
+      lämpöhoito: { background: '#fff7ed', color: '#c2410c' },
+      kylmähoito: { background: '#ecfeff', color: '#0e7490' },
+      liike:      { background: '#f0fdf4', color: '#15803d' },
+      ergonomia:  { background: '#faf5ff', color: '#7e22ce' },
+      lepo:       { background: '#f9fafb', color: '#4b5563' },
+    }
+    const c = map[tyyppi] ?? { background: '#f3f4f6', color: '#374151' }
+    return { ...c, fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '9999px', flexShrink: 0, textTransform: 'capitalize', whiteSpace: 'nowrap' }
+  },
+  afterBody:     { flex: 1, minWidth: 0 },
+  afterText:     { fontSize: '14px', color: '#374151', lineHeight: '1.5' },
+  afterReps:     { fontSize: '12px', color: '#9ca3af', marginTop: '4px' },
 }
 
 export default function TreatmentPlan({ findings = [], havainnot = null, onResult }) {
@@ -15,7 +62,6 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
   const [vastaus, setVastaus] = useState('')
   const [tulos, setTulos]     = useState(null)
 
-  // ── Vaihe 1 → 2 ──────────────────────────────────────────────────────────
   const analysoi = async () => {
     const prompt = buildPrompt(findings, havainnot)
     await navigator.clipboard.writeText(prompt)
@@ -24,7 +70,6 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
     setVaihe('kopioitu')
   }
 
-  // ── Vaihe 2 → 3 ──────────────────────────────────────────────────────────
   const käytäVastausta = () => {
     console.log("käytäVastausta kutsuttu, vastaus:", vastaus.substring(0, 100))
     const result = parseResponse(vastaus)
@@ -33,7 +78,6 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
     onResult?.(result)
   }
 
-  // ── Palaa alkuun ──────────────────────────────────────────────────────────
   const nollaa = () => {
     setVaihe('odottaa')
     setVastaus('')
@@ -41,105 +85,102 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
   }
 
   return (
-    <section className="flex flex-col gap-6">
+    <section style={S.section}>
       <div>
-        <h2 className="text-2xl font-semibold text-gray-800">Hoitosuunnitelma</h2>
-        <p className="mt-1 text-gray-500 text-sm">
-          AI-avusteinen analyysi kehon kartoituslöydöksistä.
-        </p>
+        <h2 style={S.heading}>Hoitosuunnitelma</h2>
+        <p style={S.subtext}>AI-avusteinen analyysi kehon kartoituslöydöksistä.</p>
       </div>
 
-      {/* ════════════════════════════════════════════════════════════════════
-          VAIHE 1 — odottaa
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ── VAIHE 1 — odottaa ─────────────────────────────────────────────── */}
       {vaihe === 'odottaa' && (
-        <div style={{padding: '20px'}}>
-          <p style={{marginBottom: '16px'}}>
-            Löydökset: {findings.length} kpl
-          </p>
-          <button
-            style={{
-              background: '#1D9E75',
-              color: 'white',
-              padding: '12px 24px',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              display: 'block',
-              width: '100%'
-            }}
-            onClick={() => {
-              console.log("NAPPI PAINETTU")
-              alert("Nappi toimii!")
-              analysoi()
-            }}
-          >
-            Analysoi AI:lla →
-          </button>
-        </div>
+        findings.length === 0 ? (
+          <div style={S.emptyBox}>
+            <p style={S.emptyText}>
+              Tee ensin kehon kartoitus <strong>Kehokartta</strong>-välilehdellä.
+            </p>
+          </div>
+        ) : (
+          <div style={S.card}>
+            <p style={{ fontSize: '14px', color: '#4b5563', marginBottom: '16px' }}>
+              <strong style={{ color: '#1f2937' }}>{findings.length} löydöstä</strong> valmiina analysoitavaksi:
+            </p>
+            <div style={{ marginBottom: '20px' }}>
+              {findings.map((f, i) => (
+                <div key={i} style={S.findingRow}>
+                  <span style={{ color: '#374151' }}>{f.alue}</span>
+                  <span style={S.vasChip(f.kipu)}>VAS {f.kipu}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              style={S.btnGreen}
+              onClick={() => {
+                console.log("NAPPI PAINETTU")
+                analysoi()
+              }}
+            >
+              Analysoi AI:lla →
+            </button>
+            <p style={{ ...S.hintText, marginTop: '12px' }}>Analyysi vie noin 30 sekuntia</p>
+          </div>
+        )
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          VAIHE 2 — kopioitu
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ── VAIHE 2 — kopioitu ────────────────────────────────────────────── */}
       {vaihe === 'kopioitu' && (
-        <div className="flex flex-col gap-4">
-          <div className="bg-brand-50 border border-brand-100 rounded-xl p-4">
-            <p className="text-sm font-semibold text-brand-800">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={S.greenCard}>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#065f46' }}>
               ✓ Prompt kopioitu leikepöydälle
             </p>
           </div>
 
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <ol className="space-y-2 text-sm text-gray-600 mb-5">
-              <li className="flex gap-2">
-                <span className="font-semibold text-brand-600">1.</span>
-                Avaa <strong className="text-gray-800">Claude.ai</strong>
+          <div style={S.card}>
+            <ol style={S.stepList}>
+              <li style={S.stepItem}>
+                <span style={S.stepNum}>1.</span>
+                Avaa <strong style={{ color: '#1f2937' }}>Claude.ai</strong>
               </li>
-              <li className="flex gap-2">
-                <span className="font-semibold text-brand-600">2.</span>
-                Liitä prompt{' '}
-                <kbd className="bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono">Ctrl+V</kbd>
+              <li style={S.stepItem}>
+                <span style={S.stepNum}>2.</span>
+                Liitä prompt <kbd style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace' }}>Ctrl+V</kbd>
               </li>
-              <li className="flex gap-2">
-                <span className="font-semibold text-brand-600">3.</span>
+              <li style={S.stepItem}>
+                <span style={S.stepNum}>3.</span>
                 Kopioi Clauden vastaus
               </li>
-              <li className="flex gap-2">
-                <span className="font-semibold text-brand-600">4.</span>
-                Liitä alle ja paina <strong>Käytä vastausta</strong>
+              <li style={S.stepItem}>
+                <span style={S.stepNum}>4.</span>
+                Liitä alle ja paina <strong style={{ color: '#1f2937' }}>Käytä vastausta</strong>
               </li>
             </ol>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '4px' }}>
               <button
-                type="button"
+                style={S.btnGray}
                 onClick={async () => {
                   const prompt = buildPrompt(findings, havainnot)
                   await navigator.clipboard.writeText(prompt)
                 }}
-                className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
               >
                 Kopioi
               </button>
               <button
-                type="button"
+                style={S.btnGray}
                 onClick={async () => {
                   const text = await navigator.clipboard.readText()
                   setVastaus(text)
                 }}
-                className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
               >
                 Liitä leikepöydältä
               </button>
             </div>
+
             <textarea
               value={vastaus}
               onChange={(e) => setVastaus(e.target.value)}
-              style={{ width: '100%', minHeight: '120px' }}
               placeholder="Liitä Clauden vastaus tähän..."
-              className="rounded-lg border border-gray-200 p-3 text-sm text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              style={S.textarea}
             />
 
             {(() => {
@@ -147,58 +188,39 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
               return (
                 <>
                   <button
-                    type="button"
-                    onClick={käytäVastausta}
-                    style={{
-                      opacity: voidaanKayttaa ? 1 : 0.4,
-                      pointerEvents: voidaanKayttaa ? 'auto' : 'none',
-                      cursor: voidaanKayttaa ? 'pointer' : 'not-allowed',
-                    }}
-                    className="mt-3 w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
+                    style={{ ...( voidaanKayttaa ? S.btnGreen : S.btnGreenDim ), marginTop: '12px' }}
+                    onClick={voidaanKayttaa ? käytäVastausta : undefined}
                   >
                     Käytä vastausta →
                   </button>
                   {!voidaanKayttaa && (
-                    <p className="mt-2 text-xs text-center text-gray-400">
-                      Liitä ensin Clauden vastaus tekstikenttään
-                    </p>
+                    <p style={S.hintText}>Liitä ensin Clauden vastaus tekstikenttään</p>
                   )}
                 </>
               )
             })()}
           </div>
 
-          <button
-            onClick={nollaa}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors text-center py-2"
-          >
-            ← Palaa löydöksiin
-          </button>
+          <button style={S.btnBack} onClick={nollaa}>← Palaa löydöksiin</button>
         </div>
       )}
 
-      {/* ════════════════════════════════════════════════════════════════════
-          VAIHE 3 — tulos
-      ════════════════════════════════════════════════════════════════════ */}
+      {/* ── VAIHE 3 — tulos ───────────────────────────────────────────────── */}
       {vaihe === 'tulos' && tulos && (
-        <div className="flex flex-col gap-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {/* Yhteenveto */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-            <h3 className="font-semibold text-gray-800 text-base mb-3">Yhteenveto</h3>
-            <p className="text-sm text-gray-700 leading-relaxed">{tulos.yhteenveto}</p>
+          <div style={S.card}>
+            <p style={S.sectionTitle}>Yhteenveto</p>
+            <p style={{ fontSize: '14px', color: '#374151', lineHeight: '1.6', margin: 0 }}>{tulos.yhteenveto}</p>
           </div>
 
-          {/* Aiheuttajat */}
           {tulos.aiheuttajat?.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h3 className="font-semibold text-gray-800 text-base mb-3">
-                Miksi kipu esiintyy juuri näissä kohdissa?
-              </h3>
-              <ul className="space-y-2">
+            <div style={S.card}>
+              <p style={S.sectionTitle}>Miksi kipu esiintyy juuri näissä kohdissa?</p>
+              <ul style={S.bulletList}>
                 {tulos.aiheuttajat.map((syy, i) => (
-                  <li key={i} className="flex gap-2 text-sm text-gray-700">
-                    <span className="text-brand-600 font-bold mt-0.5">·</span>
+                  <li key={i} style={S.bulletItem}>
+                    <span style={S.dot}>·</span>
                     <span>{syy}</span>
                   </li>
                 ))}
@@ -206,29 +228,22 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
             </div>
           )}
 
-          {/* Toimenpiteet */}
           {tulos.toimenpiteet?.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h3 className="font-semibold text-gray-800 text-base mb-3">Käsittelyjärjestys</h3>
-              <ol className="space-y-4">
+            <div style={S.card}>
+              <p style={S.sectionTitle}>Käsittelyjärjestys</p>
+              <ol style={S.actionList}>
                 {tulos.toimenpiteet.map((t, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
-                      {t.jarjestys ?? i + 1}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="text-sm font-semibold text-gray-800">{t.rakenne}</span>
+                  <li key={i} style={S.actionItem}>
+                    <span style={S.badge}>{t.jarjestys ?? i + 1}</span>
+                    <div style={S.actionBody}>
+                      <div style={S.actionHead}>
+                        <span style={S.actionName}>{t.rakenne}</span>
                         {t.puoli && t.puoli !== 'molemmat' && (
-                          <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">
-                            {t.puoli}
-                          </span>
+                          <span style={S.sidePill}>{t.puoli}</span>
                         )}
                       </div>
-                      {t.tekniikka && (
-                        <p className="text-xs font-medium text-brand-700 mb-1">{t.tekniikka}</p>
-                      )}
-                      <p className="text-sm text-gray-600 leading-relaxed">{t.selitys}</p>
+                      {t.tekniikka && <p style={S.technique}>{t.tekniikka}</p>}
+                      <p style={S.actionDesc}>{t.selitys}</p>
                     </div>
                   </li>
                 ))}
@@ -236,25 +251,16 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
             </div>
           )}
 
-          {/* Jälkihoito */}
           {tulos.jalkihoito?.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <h3 className="font-semibold text-gray-800 text-base mb-3">
-                Jälkihoito-ohjeet kotiin
-              </h3>
-              <ul className="space-y-4">
+            <div style={S.card}>
+              <p style={S.sectionTitle}>Jälkihoito-ohjeet kotiin</p>
+              <ul style={S.afterList}>
                 {tulos.jalkihoito.map((j, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full capitalize flex-shrink-0 ${
-                      TYYPPIVARI[j.tyyppi] ?? 'bg-gray-100 text-gray-600'
-                    }`}>
-                      {j.tyyppi}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-700 leading-relaxed">{j.ohje}</p>
-                      {j.toistot && (
-                        <p className="text-xs text-gray-400 mt-1">{j.toistot}</p>
-                      )}
+                  <li key={i} style={S.afterItem}>
+                    <span style={S.typePill(j.tyyppi)}>{j.tyyppi}</span>
+                    <div style={S.afterBody}>
+                      <p style={S.afterText}>{j.ohje}</p>
+                      {j.toistot && <p style={S.afterReps}>{j.toistot}</p>}
                     </div>
                   </li>
                 ))}
@@ -262,12 +268,7 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
             </div>
           )}
 
-          <button
-            onClick={nollaa}
-            className="text-xs text-gray-400 hover:text-gray-600 transition-colors text-center py-2"
-          >
-            ← Palaa löydöksiin
-          </button>
+          <button style={S.btnBack} onClick={nollaa}>← Palaa löydöksiin</button>
         </div>
       )}
     </section>
