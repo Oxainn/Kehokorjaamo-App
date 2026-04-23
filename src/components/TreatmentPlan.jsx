@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { analyzeFindings } from '../services/api'
+import { buildPrompt, parseResponse } from '../services/api'
 
 const TYYPPIVARI = {
   venyttely:   'bg-blue-50 text-blue-700',
@@ -29,27 +29,29 @@ function Osio({ otsikko, lapset }) {
 }
 
 export default function TreatmentPlan({ findings = [] }) {
-  const [tulos, setTulos]     = useState(null)
-  const [ladataan, setLadataan] = useState(false)
-  const [virhe, setVirhe]     = useState(null)
+  const [tulos, setTulos]       = useState(null)
+  const [vaihe, setVaihe]       = useState('odottaa') // odottaa | kopioitu | tulos
+  const [vastaus, setVastaus]   = useState('')
 
-  const analysoi = async () => {
-    setLadataan(true)
-    setVirhe(null)
+  const kopioi = async () => {
+    const prompt = buildPrompt(findings)
+    await navigator.clipboard.writeText(prompt)
+    setVaihe('kopioitu')
+    setVastaus('')
     setTulos(null)
-
-    const result = await analyzeFindings(findings)
-
-    setLadataan(false)
-
-    if (result?.virhe) {
-      setVirhe('Analyysi epäonnistui — tarkista yhteys')
-    } else {
-      setTulos(result)
-    }
   }
 
-  const nollaaTulos = () => { setTulos(null); setVirhe(null) }
+  const käytäVastausta = () => {
+    const result = parseResponse(vastaus)
+    setTulos(result)
+    setVaihe('tulos')
+  }
+
+  const nollaa = () => {
+    setTulos(null)
+    setVaihe('odottaa')
+    setVastaus('')
+  }
 
   return (
     <section className="flex flex-col gap-6">
@@ -61,7 +63,7 @@ export default function TreatmentPlan({ findings = [] }) {
       </div>
 
       {/* Ei löydöksiä */}
-      {findings.length === 0 && !tulos && (
+      {findings.length === 0 && vaihe === 'odottaa' && (
         <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 p-10 text-center">
           <p className="text-gray-400 text-sm">
             Lisää ensin löydöksiä <strong>Kehokartalla</strong> ja paina
@@ -70,8 +72,8 @@ export default function TreatmentPlan({ findings = [] }) {
         </div>
       )}
 
-      {/* Löydökset odottaa analyysiä */}
-      {findings.length > 0 && !tulos && !ladataan && (
+      {/* Löydökset — odottaa analyysiä */}
+      {findings.length > 0 && vaihe === 'odottaa' && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <p className="text-sm text-gray-600 mb-4">
             <span className="font-semibold text-gray-800">{findings.length} löydöstä</span> valmiina
@@ -82,7 +84,7 @@ export default function TreatmentPlan({ findings = [] }) {
               <li key={i} className="flex items-center justify-between text-sm">
                 <span className="text-gray-700">{f.alue}</span>
                 <span className={`font-semibold text-xs px-1.5 py-0.5 rounded
-                  ${f.kipu === 0    ? 'text-blue-600 bg-blue-50'
+                  ${f.kipu === 0   ? 'text-blue-600 bg-blue-50'
                   : f.kipu <= 3   ? 'text-green-700 bg-green-50'
                   : f.kipu <= 6   ? 'text-orange-700 bg-orange-50'
                   : 'text-red-700 bg-red-50'}`}
@@ -93,7 +95,7 @@ export default function TreatmentPlan({ findings = [] }) {
             ))}
           </ul>
           <button
-            onClick={analysoi}
+            onClick={kopioi}
             className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
           >
             Analysoi AI:lla →
@@ -101,29 +103,47 @@ export default function TreatmentPlan({ findings = [] }) {
         </div>
       )}
 
-      {/* Latausanimaatio */}
-      {ladataan && (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-10 flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin" />
-          <p className="text-sm text-gray-500 animate-pulse">Analysoidaan löydöksiä...</p>
-        </div>
-      )}
+      {/* Vaihe: prompt kopioitu — odottaa vastausta */}
+      {vaihe === 'kopioitu' && (
+        <div className="flex flex-col gap-4">
+          <div className="bg-green-50 border border-green-200 rounded-xl p-5">
+            <p className="text-sm font-semibold text-green-800 mb-1">Prompt kopioitu!</p>
+            <p className="text-sm text-green-700">
+              Liitä Claude.ai-chattiin ja kopioi vastaus takaisin.
+            </p>
+          </div>
 
-      {/* Virheviesti */}
-      {virhe && (
-        <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex items-start justify-between gap-4">
-          <p className="text-sm text-red-700 font-medium">{virhe}</p>
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-3">
+            <label className="text-sm font-medium text-gray-700">
+              Liitä Clauden vastaus tähän:
+            </label>
+            <textarea
+              value={vastaus}
+              onChange={(e) => setVastaus(e.target.value)}
+              rows={8}
+              placeholder="Liitä tähän Clauden antama teksti tai JSON..."
+              className="w-full rounded-lg border border-gray-200 p-3 text-sm text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            />
+            <button
+              onClick={käytäVastausta}
+              disabled={!vastaus.trim()}
+              className="w-full py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl transition-colors shadow-sm"
+            >
+              Käytä vastausta →
+            </button>
+          </div>
+
           <button
-            onClick={analysoi}
-            className="text-xs text-red-600 hover:text-red-800 underline whitespace-nowrap"
+            onClick={nollaa}
+            className="text-xs text-gray-400 hover:text-gray-600 transition-colors text-center py-2"
           >
-            Yritä uudelleen
+            ← Palaa löydöksiin
           </button>
         </div>
       )}
 
       {/* Tulokset */}
-      {tulos && (
+      {vaihe === 'tulos' && tulos && (
         <div className="flex flex-col gap-4">
           {/* Yhteenveto */}
           <Osio otsikko="Yhteenveto" lapset={
@@ -148,10 +168,10 @@ export default function TreatmentPlan({ findings = [] }) {
           {tulos.toimenpiteet?.length > 0 && (
             <Osio otsikko="Käsittelyjärjestys" lapset={
               <ol className="space-y-4">
-                {tulos.toimenpiteet.map((t) => (
-                  <li key={t.jarjestys} className="flex gap-3">
+                {tulos.toimenpiteet.map((t, i) => (
+                  <li key={i} className="flex gap-3">
                     <span className="flex-shrink-0 w-6 h-6 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center mt-0.5">
-                      {t.jarjestys}
+                      {t.jarjestys ?? i + 1}
                     </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -162,7 +182,9 @@ export default function TreatmentPlan({ findings = [] }) {
                           </span>
                         )}
                       </div>
-                      <p className="text-xs font-medium text-brand-700 mb-1">{t.tekniikka}</p>
+                      {t.tekniikka && (
+                        <p className="text-xs font-medium text-brand-700 mb-1">{t.tekniikka}</p>
+                      )}
                       <p className="text-sm text-gray-600 leading-relaxed">{t.selitys}</p>
                     </div>
                   </li>
@@ -180,7 +202,9 @@ export default function TreatmentPlan({ findings = [] }) {
                     <TyyppiMerkki tyyppi={j.tyyppi} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-700 leading-relaxed">{j.ohje}</p>
-                      <p className="text-xs text-gray-400 mt-1">{j.toistot}</p>
+                      {j.toistot && (
+                        <p className="text-xs text-gray-400 mt-1">{j.toistot}</p>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -190,7 +214,7 @@ export default function TreatmentPlan({ findings = [] }) {
 
           {/* Uusi analyysi */}
           <button
-            onClick={nollaaTulos}
+            onClick={nollaa}
             className="text-xs text-gray-400 hover:text-gray-600 transition-colors text-center py-2"
           >
             ← Palaa löydöksiin
