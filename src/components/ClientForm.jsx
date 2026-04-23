@@ -2,19 +2,36 @@ import { useState, useEffect } from 'react'
 
 const STORAGE_KEY = 'kehokorjaamo_asiakasdata'
 
+const NORMAALI_KONTRA = [
+  'Allergia', 'Diabetes', 'Epilepsia', 'Migreeni',
+  'Masennus', 'Reuma', 'Raskaus', 'Matala / korkea verenpaine',
+  'Spondylolyysi / -listeesi', 'Astma / hengenahdistus',
+  'Sydänsairauksia', 'Tekonivel', 'Osteoporoosi', 'Verenohennuslääkitys',
+  'Kaulavaltimon ahtauma', 'Hermojuuriaukon ahtauma',
+  'Kilpirauhasen sairauksia', 'Psyykkinen sairaus',
+]
+
+const EHDOTTOMAT_KONTRA = [
+  'Verisuoniproteesi', 'Tarttuva (iho)tauti', 'Tulehdus / kuume',
+  'Kasvain / syöpä', 'Tuore vamma', 'Vyöruusu',
+]
+
 const TYHJÄ = {
-  nimi:           '',
-  syntymaaika:    '',
-  lahiosoite:     '',
-  postinumero:    '',
+  nimi:             '',
+  syntymaaika:      '',
+  lahiosoite:       '',
+  postinumero:      '',
   postitoimipaikka: '',
-  sahkoposti:     '',
-  puhelin:        '',
-  ammatti:        '',
-  harrastukset:   '',
-  hoitoon_syy:    '',
-  laakitys:       '',
-  miten_loysi:    '',
+  sahkoposti:       '',
+  puhelin:          '',
+  ammatti:          '',
+  harrastukset:     '',
+  hoitoon_syy:      '',
+  laakitys:         '',
+  miten_loysi:      '',
+  kontraindikaatiot: {},
+  sairaudet:        '',
+  vammat:           '',
   suostumus_rekisteri: false,
   suostumus_luovutus:  false,
   huoltajan_suostumus: '',
@@ -112,6 +129,16 @@ export default function ClientForm({ onComplete }) {
     setData((prev) => ({ ...prev, [name]: value }))
   }
 
+  const toggleKontra = (nimi) => {
+    setData((prev) => ({
+      ...prev,
+      kontraindikaatiot: {
+        ...prev.kontraindikaatiot,
+        [nimi]: !prev.kontraindikaatiot[nimi],
+      },
+    }))
+  }
+
   const toggleTietosuoja = (kenttä) => {
     setData((prev) => ({ ...prev, [kenttä]: !prev[kenttä] }))
   }
@@ -123,6 +150,7 @@ export default function ClientForm({ onComplete }) {
 
   const ika = laskikaIka(data.syntymaaika)
   const alleKahdeksantoista = ika !== null && ika < 18
+  const ehdotonValittu = EHDOTTOMAT_KONTRA.some((e) => data.kontraindikaatiot[e])
 
   return (
     <section className="flex flex-col gap-6">
@@ -168,7 +196,73 @@ export default function ClientForm({ onComplete }) {
           </>
         } />
 
-        {/* ── Osio 2: Tietosuoja ──────────────────────────────────────────── */}
+        {/* ── Osio 2: Terveystiedot ───────────────────────────────────────── */}
+        <Osio otsikko="Terveystiedot" lapset={
+          <>
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                Huomioitavat terveystiedot
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
+                {NORMAALI_KONTRA.map((nimi) => (
+                  <label key={nimi} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!data.kontraindikaatiot[nimi]}
+                      onChange={() => toggleKontra(nimi)}
+                      className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                    />
+                    <span className="text-sm text-gray-700 leading-snug">{nimi}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-red-500 uppercase tracking-wide mb-3">
+                Ehdottomat kontraindikaatiot *
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
+                {EHDOTTOMAT_KONTRA.map((nimi) => (
+                  <label key={nimi} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!data.kontraindikaatiot[nimi]}
+                      onChange={() => toggleKontra(nimi)}
+                      className="w-4 h-4 rounded border-red-300 text-red-600 focus:ring-red-500"
+                    />
+                    <span className="text-sm text-red-700 leading-snug font-medium">{nimi}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {ehdotonValittu && (
+              <div className="bg-red-50 border border-red-300 rounded-xl p-4">
+                <p className="text-sm font-semibold text-red-700">
+                  Hoito ei ole mahdollinen — ota yhteyttä hoitajaan
+                </p>
+              </div>
+            )}
+
+            <TextArea
+              label="Diagnosoidut sairaudet"
+              name="sairaudet"
+              value={data.sairaudet}
+              onChange={päivitä}
+              rows={3}
+            />
+            <TextArea
+              label="Vammat ja muut hoidossa huomioitavat seikat"
+              name="vammat"
+              value={data.vammat}
+              onChange={päivitä}
+              rows={3}
+            />
+          </>
+        } />
+
+        {/* ── Osio 3: Tietosuoja ──────────────────────────────────────────── */}
         <Osio otsikko="Tietosuoja" lapset={
           <>
             <Toggle
