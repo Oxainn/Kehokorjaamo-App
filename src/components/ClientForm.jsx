@@ -180,10 +180,6 @@ export default function ClientForm({ onComplete }) {
 
   const lähetä = (e) => {
     e.preventDefault()
-    console.log('Lomake lähetetään:', data)
-    console.log('Nimi:', data.nimi)
-    console.log('Syntymäaika:', data.syntymaaika)
-    console.log('Tietosuoja:', data.suostumus_rekisteri)
     const avain = `kehokorjaamo_asiakas_${Date.now()}`
     localStorage.setItem(avain, JSON.stringify(data))
     if (typeof onComplete === 'function') {
@@ -530,7 +526,7 @@ export default function ClientForm({ onComplete }) {
 
         {/* ── Lähetysnappi ────────────────────────────────────────────────── */}
         {(() => {
-          const voidaanLahettaa = !!data.nimi && !!data.syntymaaika && data.suostumus_rekisteri && !ehdotonValittu
+          const voidaanLahettaa = !!data.nimi && data.suostumus_rekisteri && !ehdotonValittu
           return (
             <button
               type="submit"
