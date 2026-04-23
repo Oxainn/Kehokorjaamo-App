@@ -22,9 +22,9 @@ export default function App() {
     setActiveTab('treatment')
   }
 
-  const handleTulos = (tulos) => {
-    setTreatmentPlan(tulos)
-    setHighlights(tulos?.toimenpiteet?.map((t) => t.rakenne).filter(Boolean) ?? [])
+  const handleResult = (plan) => {
+    setTreatmentPlan(plan)
+    setHighlights(plan?.toimenpiteet?.map((t) => t.rakenne).filter(Boolean) ?? [])
   }
 
   return (
@@ -56,7 +56,7 @@ export default function App() {
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
         {activeTab === 'bodymap'   && <BodyMap onAnalyze={handleAnalyze} />}
-        {activeTab === 'treatment' && <TreatmentPlan findings={findings} onTulos={handleTulos} />}
+        {activeTab === 'treatment' && <TreatmentPlan findings={findings} onResult={handleResult} />}
         {activeTab === 'muscles'   && <MuscleLibrary highlights={highlights} />}
         {activeTab === 'aftercare' && <Aftercare findings={findings} treatmentPlan={treatmentPlan} />}
       </main>
