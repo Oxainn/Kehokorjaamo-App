@@ -156,16 +156,30 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
               className="rounded-lg border border-gray-200 p-3 text-sm text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
             />
 
-            <button
-              onClick={käytäVastausta}
-              style={{
-                opacity: vastaus.trim() ? 1 : 0.4,
-                pointerEvents: vastaus.trim() ? 'auto' : 'none',
-              }}
-              className="mt-3 w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
-            >
-              Käytä vastausta →
-            </button>
+            {(() => {
+              const voidaanKayttaa = vastaus.trim().length > 50
+              return (
+                <>
+                  <button
+                    type="button"
+                    onClick={käytäVastausta}
+                    style={{
+                      opacity: voidaanKayttaa ? 1 : 0.4,
+                      pointerEvents: voidaanKayttaa ? 'auto' : 'none',
+                      cursor: voidaanKayttaa ? 'pointer' : 'not-allowed',
+                    }}
+                    className="mt-3 w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
+                  >
+                    Käytä vastausta →
+                  </button>
+                  {!voidaanKayttaa && (
+                    <p className="mt-2 text-xs text-center text-gray-400">
+                      Liitä ensin Clauden vastaus tekstikenttään
+                    </p>
+                  )}
+                </>
+              )
+            })()}
           </div>
 
           <button
