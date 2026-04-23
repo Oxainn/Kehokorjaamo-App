@@ -180,6 +180,10 @@ export default function ClientForm({ onComplete }) {
 
   const lähetä = (e) => {
     e.preventDefault()
+    console.log('Lomake lähetetään:', data)
+    console.log('Nimi:', data.nimi)
+    console.log('Syntymäaika:', data.syntymaaika)
+    console.log('Tietosuoja:', data.suostumus_rekisteri)
     const avain = `kehokorjaamo_asiakas_${Date.now()}`
     localStorage.setItem(avain, JSON.stringify(data))
     onComplete?.(data)
@@ -526,16 +530,8 @@ export default function ClientForm({ onComplete }) {
           return (
             <button
               type="submit"
-              disabled={!voidaanLahettaa}
-              style={{
-                opacity:       voidaanLahettaa ? 1 : 0.5,
-                pointerEvents: voidaanLahettaa ? 'auto' : 'none',
-              }}
-              className={`w-full py-3 font-semibold rounded-xl transition-colors shadow-sm ${
-                ehdotonValittu
-                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                  : 'bg-brand-600 hover:bg-brand-700 text-white'
-              }`}
+              disabled={false}
+              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
             >
               {ehdotonValittu ? 'Hoito ei ole mahdollinen' : 'Vahvista ja jatka →'}
             </button>
