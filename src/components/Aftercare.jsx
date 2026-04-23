@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import jsPDF from 'jspdf'
 
 const TYYPPIVARI = {
@@ -158,6 +159,45 @@ function generatePDF(findings, treatmentPlan) {
   doc.save(tiedostonimi)
 }
 
+// ── Tekstimuoto leikepöydälle ─────────────────────────────────────────────────
+
+function buildTextContent(findings, treatmentPlan) {
+  const rivit = []
+  const pvm = new Date().toLocaleDateString('fi-FI', { day: 'numeric', month: 'long', year: 'numeric' })
+
+  rivit.push('KEHOKORJAAMO — JÄLKIHOITO-OHJEET')
+  rivit.push(pvm)
+  rivit.push('')
+
+  if (findings?.length) {
+    rivit.push('LÖYDÖKSET')
+    findings.forEach((f) => {
+      const osat = [`${f.alue} — VAS ${f.kipu}/10`]
+      if (f.kallistus) osat.push(`kallistus: ${f.kallistus}`)
+      if (f.kierto)    osat.push(`kierto: ${f.kierto}`)
+      rivit.push(`• ${osat.join(', ')}`)
+    })
+    rivit.push('')
+  }
+
+  const jalkihoito = treatmentPlan?.jalkihoito ?? []
+  OSIOT.forEach(({ otsikko, tyypit }) => {
+    const ohjeet = jalkihoito.filter((j) => tyypit.includes(j.tyyppi))
+    if (!ohjeet.length) return
+    rivit.push(otsikko.toUpperCase())
+    ohjeet.forEach((ohje) => {
+      rivit.push(`[${ohje.tyyppi}]`)
+      rivit.push(ohje.ohje)
+      if (ohje.toistot) rivit.push(ohje.toistot)
+      rivit.push('')
+    })
+  })
+
+  rivit.push('---')
+  rivit.push('Kalevalapaja x Jari Tossavainen, Espoo')
+  return rivit.join('\n')
+}
+
 // ── Komponentti ───────────────────────────────────────────────────────────────
 
 function TyyppiMerkki({ tyyppi }) {
@@ -199,7 +239,14 @@ function Osio({ otsikko, ohjeet }) {
 }
 
 export default function Aftercare({ findings = [], treatmentPlan = null }) {
+  const [kopioitu, setKopioitu] = useState(false)
   const jalkihoito = treatmentPlan?.jalkihoito ?? []
+
+  const kopioi = async () => {
+    await navigator.clipboard.writeText(buildTextContent(findings, treatmentPlan))
+    setKopioitu(true)
+    setTimeout(() => setKopioitu(false), 2500)
+  }
 
   return (
     <section className="flex flex-col gap-6">
@@ -241,12 +288,30 @@ export default function Aftercare({ findings = [], treatmentPlan = null }) {
             </div>
           )}
 
-          <button
-            onClick={() => generatePDF(findings, treatmentPlan)}
-            className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
-          >
-            Lataa PDF →
-          </button>
+          <div className="flex gap-3 no-print">
+            <button
+              onClick={() => generatePDF(findings, treatmentPlan)}
+              className="flex-1 py-3 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+            >
+              Lataa PDF →
+            </button>
+            <button
+              onClick={kopioi}
+              className={`flex-1 py-3 text-sm font-semibold rounded-xl border transition-colors shadow-sm
+                ${kopioitu
+                  ? 'bg-brand-50 text-brand-700 border-brand-200'
+                  : 'bg-white text-gray-700 border-gray-200 hover:border-brand-400 hover:text-brand-700'
+                }`}
+            >
+              {kopioitu ? 'Ohjeet kopioitu!' : 'Kopioi tekstinä'}
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="flex-1 py-3 bg-white text-gray-700 border border-gray-200 hover:border-brand-400 hover:text-brand-700 text-sm font-semibold rounded-xl transition-colors shadow-sm"
+            >
+              Tulosta
+            </button>
+          </div>
         </>
       )}
     </section>
