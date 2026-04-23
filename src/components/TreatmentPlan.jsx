@@ -53,46 +53,31 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
           VAIHE 1 — odottaa
       ════════════════════════════════════════════════════════════════════ */}
       {vaihe === 'odottaa' && (
-        <>
-          {findings.length === 0 ? (
-            <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 p-10 text-center">
-              <p className="text-gray-400 text-sm">
-                Tee ensin kehon kartoitus <strong>Kehokartta</strong>-välilehdellä.
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <p className="text-sm text-gray-600 mb-4">
-                <span className="font-semibold text-gray-800">{findings.length} löydöstä</span>{' '}
-                valmiina analysoitavaksi:
-              </p>
-              <ul className="space-y-1 mb-5">
-                {findings.map((f, i) => (
-                  <li key={i} className="flex items-center justify-between text-sm">
-                    <span className="text-gray-700">{f.alue}</span>
-                    <span className={`font-semibold text-xs px-1.5 py-0.5 rounded ${
-                      f.kipu === 0   ? 'text-blue-600 bg-blue-50'
-                      : f.kipu <= 3 ? 'text-green-700 bg-green-50'
-                      : f.kipu <= 6 ? 'text-orange-700 bg-orange-50'
-                      : 'text-red-700 bg-red-50'
-                    }`}>
-                      VAS {f.kipu}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={() => { console.log("Analysoi painettu, vaihdetaan tilaan kopioitu"); analysoi() }}
-                className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
-              >
-                Analysoi AI:lla →
-              </button>
-              <p className="text-xs text-center text-gray-400 mt-3">
-                Analyysi vie noin 30 sekuntia
-              </p>
-            </div>
-          )}
-        </>
+        <div style={{padding: '20px'}}>
+          <p style={{marginBottom: '16px'}}>
+            Löydökset: {findings.length} kpl
+          </p>
+          <button
+            style={{
+              background: '#1D9E75',
+              color: 'white',
+              padding: '12px 24px',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              display: 'block',
+              width: '100%'
+            }}
+            onClick={() => {
+              console.log("NAPPI PAINETTU")
+              alert("Nappi toimii!")
+              analysoi()
+            }}
+          >
+            Analysoi AI:lla →
+          </button>
+        </div>
       )}
 
       {/* ════════════════════════════════════════════════════════════════════
