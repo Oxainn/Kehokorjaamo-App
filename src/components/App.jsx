@@ -12,12 +12,17 @@ const NAV_ITEMS = [
 ]
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('bodymap')
-  const [findings, setFindings] = useState([])
+  const [activeTab, setActiveTab]   = useState('bodymap')
+  const [findings, setFindings]     = useState([])
+  const [highlights, setHighlights] = useState([])
 
   const handleAnalyze = (f) => {
     setFindings(f)
     setActiveTab('treatment')
+  }
+
+  const handleTulos = (tulos) => {
+    setHighlights(tulos?.toimenpiteet?.map((t) => t.rakenne).filter(Boolean) ?? [])
   }
 
   return (
@@ -49,8 +54,8 @@ export default function App() {
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
         {activeTab === 'bodymap'   && <BodyMap onAnalyze={handleAnalyze} />}
-        {activeTab === 'treatment' && <TreatmentPlan findings={findings} />}
-        {activeTab === 'muscles'   && <MuscleLibrary />}
+        {activeTab === 'treatment' && <TreatmentPlan findings={findings} onTulos={handleTulos} />}
+        {activeTab === 'muscles'   && <MuscleLibrary highlights={highlights} />}
         {activeTab === 'aftercare' && <Aftercare />}
       </main>
 

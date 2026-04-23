@@ -9,13 +9,31 @@ const OSIOT = [
   { avain: 'kasittelykohta',  otsikko: 'Käsittelykohta' },
 ]
 
-function Lihaskortti({ lihas, auki, onToggle }) {
+function onSuositeltu(lihas, highlights) {
+  if (!highlights.length) return false
+  const nimi = lihas.nimi.toLowerCase()
+  return highlights.some((h) => {
+    const hLower = h.toLowerCase()
+    return hLower.includes(nimi) || nimi.includes(hLower.split(/[\s(]/)[0])
+  })
+}
+
+function Lihaskortti({ lihas, auki, onToggle, suositeltu }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div className={`bg-white rounded-xl shadow-sm overflow-hidden border-2 transition-colors ${
+      suositeltu ? 'border-brand-400' : 'border-transparent shadow-sm ring-1 ring-gray-100'
+    }`}>
       {/* Otsikkorivi */}
       <div className="p-5 pb-4">
-        <h3 className="font-semibold text-gray-800 text-base leading-snug">{lihas.nimi}</h3>
-        <p className="text-xs text-gray-400 mt-0.5 italic">{lihas.anatominen}</p>
+        <div className="flex items-start justify-between gap-2 mb-0.5">
+          <h3 className="font-semibold text-gray-800 text-base leading-snug">{lihas.nimi}</h3>
+          {suositeltu && (
+            <span className="flex-shrink-0 text-xs font-semibold bg-brand-100 text-brand-700 px-2 py-0.5 rounded-full">
+              Suositeltu hoitoon
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-gray-400 italic">{lihas.anatominen}</p>
       </div>
 
       {/* Laajeneva sisältö — grid-rows-trick sujuvaa animaatiota varten */}
@@ -53,17 +71,20 @@ function Lihaskortti({ lihas, auki, onToggle }) {
   )
 }
 
-export default function MuscleLibrary() {
-  const [haku, setHaku]     = useState('')
+export default function MuscleLibrary({ highlights = [] }) {
+  const [haku, setHaku]       = useState('')
   const [avoinna, setAvoinna] = useState(null)
 
-  const suodatettu = anatomia.filter((l) => {
-    const q = haku.toLowerCase()
-    return (
-      l.nimi.toLowerCase().includes(q) ||
-      l.anatominen.toLowerCase().includes(q)
-    )
-  })
+  const suodatettu = anatomia
+    .filter((l) => {
+      const q = haku.toLowerCase()
+      return l.nimi.toLowerCase().includes(q) || l.anatominen.toLowerCase().includes(q)
+    })
+    .sort((a, b) => {
+      const aS = onSuositeltu(a, highlights) ? 1 : 0
+      const bS = onSuositeltu(b, highlights) ? 1 : 0
+      return bS - aS
+    })
 
   const toggle = (id) => setAvoinna((prev) => (prev === id ? null : id))
 
@@ -98,6 +119,7 @@ export default function MuscleLibrary() {
               lihas={lihas}
               auki={avoinna === lihas.id}
               onToggle={() => toggle(lihas.id)}
+              suositeltu={onSuositeltu(lihas, highlights)}
             />
           ))}
         </div>

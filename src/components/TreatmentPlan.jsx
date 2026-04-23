@@ -28,7 +28,7 @@ function Osio({ otsikko, lapset }) {
   )
 }
 
-export default function TreatmentPlan({ findings = [] }) {
+export default function TreatmentPlan({ findings = [], onTulos }) {
   const [tulos, setTulos]     = useState(null)
   const [vaihe, setVaihe]     = useState('odottaa')
   const [vastaus, setVastaus] = useState('')
@@ -45,6 +45,7 @@ export default function TreatmentPlan({ findings = [] }) {
     const result = parseResponse(vastaus)
     setTulos(result)
     setVaihe('tulos')
+    onTulos?.(result)
   }
 
   const nollaa = () => {
