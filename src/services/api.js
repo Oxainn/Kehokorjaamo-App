@@ -9,10 +9,31 @@ function muotoileLöydökset(findings) {
     .join('\n')
 }
 
-export function buildPrompt(findings) {
+function muotoileHavainnot(havainnot) {
+  if (!havainnot) return ''
+  const rivit = []
+  Object.entries(havainnot.havainnot ?? {}).forEach(([alue, teksti]) => {
+    if (teksti?.trim()) rivit.push(`  ${alue}: ${teksti.trim()}`)
+  })
+  const muutokset = []
+  Object.entries(havainnot.muutokset ?? {}).forEach(([alue, tyypit]) => {
+    const valitut = Object.entries(tyypit)
+      .filter(([, v]) => v)
+      .map(([t]) => t)
+    if (valitut.length) muutokset.push(`  ${alue}: ${valitut.join(', ')}`)
+  })
+  if (!rivit.length && !muutokset.length) return ''
+  let osio = '\n\nHoitajan rakenteelliset havainnot:\n'
+  if (rivit.length)    osio += rivit.join('\n')
+  if (muutokset.length) osio += '\nMuutostyypit:\n' + muutokset.join('\n')
+  return osio
+}
+
+export function buildPrompt(findings, havainnot) {
   return (
     'Analysoi nämä kehon kartoituslöydökset jäsenkorjaajan näkökulmasta:\n\n' +
     muotoileLöydökset(findings) +
+    muotoileHavainnot(havainnot) +
     '\n\nEtsi aiheuttajat, ehdota toimenpiteet tärkeysjärjestyksessä, ' +
     'käytä selkokieltä ilman lääketieteellistä jargonia.\n\n' +
     'Palauta vastauksesi AINOASTAAN JSON-muodossa, ei muuta tekstiä ennen tai jälkeen.\n' +

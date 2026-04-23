@@ -10,14 +10,14 @@ const TYYPPIVARI = {
   lepo:       'bg-gray-50 text-gray-600',
 }
 
-export default function TreatmentPlan({ findings = [], onResult }) {
+export default function TreatmentPlan({ findings = [], havainnot = null, onResult }) {
   const [vaihe, setVaihe]     = useState('odottaa')
   const [vastaus, setVastaus] = useState('')
   const [tulos, setTulos]     = useState(null)
 
   // ── Vaihe 1 → 2 ──────────────────────────────────────────────────────────
   const analysoi = async () => {
-    const prompt = buildPrompt(findings)
+    const prompt = buildPrompt(findings, havainnot)
     await navigator.clipboard.writeText(prompt)
     setVastaus('')
     setTulos(null)
@@ -26,8 +26,6 @@ export default function TreatmentPlan({ findings = [], onResult }) {
 
   // ── Vaihe 2 → 3 ──────────────────────────────────────────────────────────
   const käytäVastausta = () => {
-    console.log('Raw input:', vastaus)
-    console.log('Parse attempt:', vastaus.substring(0, 200))
     const result = parseResponse(vastaus)
     setTulos(result)
     setVaihe('tulos')
