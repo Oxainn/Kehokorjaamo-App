@@ -63,11 +63,27 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
   const [tulos, setTulos]     = useState(null)
 
   const analysoi = async () => {
-    const prompt = buildPrompt(findings, havainnot)
-    await navigator.clipboard.writeText(prompt)
-    setVastaus('')
-    setTulos(null)
-    setVaihe('kopioitu')
+    try {
+      const prompt = buildPrompt(findings, havainnot)
+      console.log("Prompt rakennettu:", prompt.substring(0, 100))
+
+      try {
+        await navigator.clipboard.writeText(prompt)
+        console.log("Clipboard onnistui")
+      } catch (clipErr) {
+        console.log("Clipboard epäonnistui:", clipErr)
+      }
+
+      console.log("Vaihdetaan tilaan kopioitu")
+      setVastaus('')
+      setTulos(null)
+      setVaihe('kopioitu')
+      console.log("Tila vaihdettu")
+
+    } catch (err) {
+      console.log("Analysoi virhe:", err)
+      alert("Virhe: " + err.message)
+    }
   }
 
   const käytäVastausta = () => {
