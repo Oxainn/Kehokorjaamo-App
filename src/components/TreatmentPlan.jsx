@@ -126,36 +126,35 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
               </li>
             </ol>
 
-            <div className="relative">
-              <div className="absolute top-2 right-2 flex gap-1 z-10">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    const text = await navigator.clipboard.readText()
-                    setVastaus(text)
-                  }}
-                  className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                >
-                  Liitä leikepöydältä
-                </button>
-                {vastaus && (
-                  <button
-                    type="button"
-                    onClick={() => setVastaus('')}
-                    className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
-                  >
-                    Tyhjennä
-                  </button>
-                )}
-              </div>
-              <textarea
-                value={vastaus}
-                onChange={(e) => setVastaus(e.target.value)}
-                rows={8}
-                placeholder="Liitä Clauden vastaus tähän..."
-                className="w-full rounded-lg border border-gray-200 p-3 pt-9 text-sm text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '4px' }}>
+              <button
+                type="button"
+                onClick={async () => {
+                  const prompt = buildPrompt(findings, havainnot)
+                  await navigator.clipboard.writeText(prompt)
+                }}
+                className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+              >
+                Kopioi
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const text = await navigator.clipboard.readText()
+                  setVastaus(text)
+                }}
+                className="px-2 py-1 text-xs font-medium text-gray-500 bg-gray-100 hover:bg-gray-200 rounded transition-colors"
+              >
+                Liitä leikepöydältä
+              </button>
             </div>
+            <textarea
+              value={vastaus}
+              onChange={(e) => setVastaus(e.target.value)}
+              style={{ width: '100%', minHeight: '120px' }}
+              placeholder="Liitä Clauden vastaus tähän..."
+              className="rounded-lg border border-gray-200 p-3 text-sm text-gray-700 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            />
 
             <button
               onClick={käytäVastausta}
