@@ -110,4 +110,52 @@ export const anatomia = [
     kasittelykohta:
       'Pakaran syvistä kerroksista, ristiluun ja ison sarvennoisen välimaastosta. Asiakas on vatsamakuulla tai kyljellään. Terapeutti käyttää kyynärpäätä ja etenee hitaasti syvemmälle ison pakaralihaksen läpi. Triggeripisteet voivat laukaista säteilykivun asiakkaan tuttuun suuntaan — tämä on diagnostisesti tärkeä merkki. Käsittely yhdistetään usein venyttelyyn: asiakas vetää polven vastakkaiselle puolelle ristiin.',
   },
+
+  {
+    id: 'adduktorit',
+    nimi: 'Lähentäjät',
+    anatominen: 'Musculus adductor longus, brevis, magnus; gracilis; pectineus',
+    sijainti:
+      'Reiden sisäsivulla, häpyluusta ja istuinkyhmystä alas reiden sisäpinnan kautta polveen ja sääriluuhun asti. Muodostavat reiden sisäsivun lihakullun — sen "pehmeän" puolen jota kutsutaan usein reiden sisäosaksi tai nivusalueeksi. Eri lähentäjät sijaitsevat eri syvyyksissä: pectineus ja adductor longus pinnalla, adductor magnus syvimmällä.',
+    tehtava:
+      'Tuovat jalan takaisin keskilinjaan sivulta — esimerkiksi kun suljet jalat yhteen tai ohjaat jalkaa sisäänpäin potkussa. Osallistuvat lonkan koukistukseen ja ojennukseen riippuen lonkan asennosta. Tärkeä rooli lantion vakautuksessa: ne "kiristävät" lantion pohjaa sivusuunnassa ja estävät lantiota levenemästä kävelyssä.',
+    yhteys_lantioon:
+      'Kireys vetää häpyluuta alaspäin ja sisäänpäin, mikä kallistaa lantiota ja voi kuormittaa symfyysiniveltä (häpyluun liitos edessä) sekä SI-niveltä takana. Yksipuolinen kireys voi kiertää lantiota ja aiheuttaa toiminnallisen epäsymmetrian. Erityisesti adductor magnuksen yhteys istuinkyhmyn alueelle voi ylläpitää jatkuvaa vetoa lantion takaosassa.',
+    tuntomerkit:
+      'Kipu tai arkuus reiden sisäsivulla tai nivusalueella, usein terävää tai viiltävää. Voi säteillä nivuseen, häpyluun alueelle tai polven sisäsivulle. Kipu pahenee tyypillisesti sivuaskeleissa, haaravolteissa tai kun koukistat lonkkaa vastustusta vasten. Jotkut kuvaavat "vetoa" reiden sisässä tai "jäykkyyttä" joka estää jalkojen leventämisen.',
+    kasittelykohta:
+      'Reiden sisäsivulta asiakkaan ollessa selällään, lonkka ulkokierrossa ja polvi koukussa jalkapohja alustalla (sammakkoasento). Pintaosat — adductor longus ja gracilis — tavoitetaan helposti sormenpäillä tai kyynärvarren sivureunalla. Adductor magnus syvemmällä vaatii enemmän painetta. Istuinkyhmy-alueella kiinnityskohdat voivat olla herkät — käsitellään rauhallisesti.',
+  },
+
+  {
+    id: 'suoliluun_harjanne_faskia',
+    nimi: 'Suoliluun harjanne ja ristiselän faskia',
+    anatominen: 'Crista iliaca + fascia thoracolumbalis',
+    sijainti:
+      'Suoliluun harjanne on se kaareva luinen reunus jonka tunnet molemmin puolin lantiosi päältä — se on ikään kuin lantiokulhon yläreuna. Ristiselän faskia on paksu, voimakas sidekudoskalvo joka peittää koko alaselän ja ristiluun alueen. Näihin kahteen kiinnittyy lähes kaikki alaselän, pakaran ja vatsan lihakset.',
+    tehtava:
+      'Suoliluun harjanne ei itsessään tee töitä — se on kiinnityspiste. Ristiselän faskia sen sijaan on aktiivinen voimansiirtäjä: se välittää jännityksen selän lihaksilta pakaroihin ja päinvastoin, toimii ikään kuin jännitysverkkona joka yhdistää ylä- ja alavartalon. Kun faskia on kireytyneenä, se rajoittaa kaikkien siihen kiinnittyvien lihasten liikettä.',
+    yhteys_lantioon:
+      'Faskian kireys tai paksuntuminen rajoittaa lannerangan ja lantion liikkuvuutta kokonaisvaltaisesti. Ylikuormittunut tai arpeutunut faskia voi ylläpitää kroonista jäykkyyttä vaikka lihakset itsessään olisivat kunnossa. Suoliluun harjanteen lihasten kiinnityskohtien arkuus on erittäin yleinen löydös alaselkäkipuisilla — erityisesti QL:n ja selkälihasten kiinnityksien kohdalla.',
+    tuntomerkit:
+      'Laaja-alainen, jomotava kipu tai jäykkyys alaselässä ja lantioalueella. Aamujäykkyys joka hellittää liikkuessa. Kipu voi olla vaikea paikallistaa — "koko alaselkä tuntuu jumissa". Suoliluun harjanteen päällä voi olla pistemäistä arkuutta tietyissä kohdissa. Asiakas saattaa kuvailla tunnetta, että "selkä ei nouse suoraksi" tai "lantio tuntuu betoniselta".',
+    kasittelykohta:
+      'Suoliluun harjanteen yläreuna koko matkaltaan molemmin puolin — terapeutti painaa sormenpäillä tai peukalolla harjanteen päältä lihasten kiinnityskohtiin. Ristiselän faskiaa käsitellään laajoin, hitain vedoin kyynärpäällä tai kämmenellä koko alaselän alueella vatsamakuulla. Faskiakäsittely on hidasta: kudos vaatii aikaa pehmetäkseen, joten kiirehtiminen ei toimi.',
+  },
+
+  {
+    id: 'si_nivel',
+    nimi: 'SI-nivel ja ympäröivät ligamentit',
+    anatominen: 'Articulatio sacroiliaca + ligamenta sacroiliaca',
+    sijainti:
+      'SI-nivel (sacroiliac joint, suomeksi risti-suoliluunivel) on kaksi pientä niveltä ristiluun ja suoliluun välissä — yksi kummallakin puolella selkärangan alaosaa. Ne sijaitsevat "kuopan" kohdalla, jonka monilla näkyy nahkaan — noin 3–4 cm selkärangan molemmin puolin lantion korkeudella. Ympäröivät ligamentit ovat kehon vahvimpia — ne pitävät ristiluun tiukasti paikallaan.',
+    tehtava:
+      'SI-nivel ei liiku paljon — vain muutama millimetri ja muutama aste — mutta sen liikkuvuus on välttämätön iskujen vaimentamiseen kävellessä ja juostessa. Se toimii iskunvaimentimena selkärangan ja alaraajojen välissä. Raskauden aikana hormonit löysäävät SI-nivelen ligamentteja, mikä lisää liikkuvuutta mutta myös epävakautta.',
+    yhteys_lantioon:
+      'SI-nivel on lantioalueen kipujen "solmukohta" — lähes kaikki lantioalueen lihasten epätasapainot heijastuvat sinne. Kireä psoas, QL, piriformis tai adduktorit voivat kukin vetää SI-niveltä eri suuntiin ja aiheuttaa toiminnallisen virheasennon (SI-blokkaus). Tämä ei tarkoita että nivel on "poissa paikaltaan" — pikemminkin ympäröivä lihaksisto lukitsee nivelen epäedulliseen asentoon.',
+    tuntomerkit:
+      'Pistävä tai jomotava kipu selkärangan vieressä lantiokorkeudella — tyypillisesti toisella puolella. Kipu voi säteillä pakaraan, reiden takaosaan tai nivuseen, mutta harvoin polvea alemmaksi. Pahenee tyypillisesti yhdellä jalalla seistessä, portaissa, autoon noustessa tai pitkään istuttaessa. Monet kuvaavat, että "kipu on juuri siinä kuopan kohdalla" — ja osoittavat tarkalleen SI-nivelen päälle.',
+    kasittelykohta:
+      'SI-niveltä ei käsitellä suoraan — sitä ympäröivät lihakset ja ligamentit käsitellään epäsuorasti. Terapeutti työskentelee ristiluun reunoilla, suoliluun takaosassa ja ligamenttikiinnityskohdissa. Tärkein lähestymistapa on vapauttaa kaikki SI-niveleen vetävät lihakset (psoas, QL, piriformis, gluteus medius) ja sen jälkeen tehdä nivelliikkuvuustestejä ja mobilisointia. Kivuliaan puolen alle asetettu pyyherulla tai kiila voi helpottaa oiretta hoidon aikana.',
+  },
 ]
