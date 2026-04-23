@@ -1,63 +1,61 @@
 import { useState } from 'react'
 import { anatomia } from '../data/anatomy-fi'
 
-function Lihaskortti({ lihas }) {
-  const [auki, setAuki] = useState(false)
+const OSIOT = [
+  { avain: 'sijainti',        otsikko: 'Sijainti' },
+  { avain: 'tehtava',         otsikko: 'Tehtävä' },
+  { avain: 'yhteys_lantioon', otsikko: 'Yhteys lantioon' },
+  { avain: 'tuntomerkit',     otsikko: 'Näin tunnistat' },
+  { avain: 'kasittelykohta',  otsikko: 'Käsittelykohta' },
+]
 
+function Lihaskortti({ lihas, auki, onToggle }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col gap-3">
-      <div>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      {/* Otsikkorivi */}
+      <div className="p-5 pb-4">
         <h3 className="font-semibold text-gray-800 text-base leading-snug">{lihas.nimi}</h3>
         <p className="text-xs text-gray-400 mt-0.5 italic">{lihas.anatominen}</p>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Sijainti</p>
-        <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">{lihas.sijainti}</p>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tehtävä</p>
-        <p className="text-sm text-gray-700 leading-relaxed line-clamp-2">{lihas.tehtava}</p>
-      </div>
-
-      {auki && (
-        <>
-          {lihas.yhteys_lantioon && (
-            <div className="flex flex-col gap-1.5 pt-2 border-t border-gray-50">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Yhteys lantioon</p>
-              <p className="text-sm text-gray-700 leading-relaxed">{lihas.yhteys_lantioon}</p>
-            </div>
-          )}
-
-          {lihas.tuntomerkit && (
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tuntomerkit</p>
-              <p className="text-sm text-gray-700 leading-relaxed">{lihas.tuntomerkit}</p>
-            </div>
-          )}
-
-          {lihas.kasittelykohta && (
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Käsittelykohta</p>
-              <p className="text-sm text-gray-700 leading-relaxed">{lihas.kasittelykohta}</p>
-            </div>
-          )}
-        </>
-      )}
-
-      <button
-        onClick={() => setAuki(!auki)}
-        className="mt-auto text-sm font-medium text-brand-600 hover:text-brand-800 transition-colors text-left"
+      {/* Laajeneva sisältö — grid-rows-trick sujuvaa animaatiota varten */}
+      <div
+        className={`grid transition-all duration-300 ease-in-out ${
+          auki ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+        }`}
       >
-        {auki ? '↑ Näytä vähemmän' : 'Näytä lisää →'}
-      </button>
+        <div className="overflow-hidden">
+          <div className="flex flex-col gap-4 px-5 pb-5">
+            {OSIOT.map(({ avain, otsikko }) =>
+              lihas[avain] ? (
+                <div key={avain}>
+                  <p className="text-xs font-semibold text-brand-700 uppercase tracking-wide mb-1">
+                    {otsikko}
+                  </p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{lihas[avain]}</p>
+                </div>
+              ) : null
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Nappi */}
+      <div className="px-5 pb-5">
+        <button
+          onClick={onToggle}
+          className="text-sm font-medium text-brand-600 hover:text-brand-800 transition-colors"
+        >
+          {auki ? 'Sulje ↑' : 'Näytä lisää →'}
+        </button>
+      </div>
     </div>
   )
 }
 
 export default function MuscleLibrary() {
-  const [haku, setHaku] = useState('')
+  const [haku, setHaku]     = useState('')
+  const [avoinna, setAvoinna] = useState(null)
 
   const suodatettu = anatomia.filter((l) => {
     const q = haku.toLowerCase()
@@ -66,6 +64,8 @@ export default function MuscleLibrary() {
       l.anatominen.toLowerCase().includes(q)
     )
   })
+
+  const toggle = (id) => setAvoinna((prev) => (prev === id ? null : id))
 
   return (
     <section className="flex flex-col gap-6">
@@ -79,7 +79,7 @@ export default function MuscleLibrary() {
       <input
         type="search"
         value={haku}
-        onChange={(e) => setHaku(e.target.value)}
+        onChange={(e) => { setHaku(e.target.value); setAvoinna(null) }}
         placeholder="Hae lihasta nimellä..."
         className="w-full rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
       />
@@ -93,7 +93,12 @@ export default function MuscleLibrary() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {suodatettu.map((lihas) => (
-            <Lihaskortti key={lihas.id} lihas={lihas} />
+            <Lihaskortti
+              key={lihas.id}
+              lihas={lihas}
+              auki={avoinna === lihas.id}
+              onToggle={() => toggle(lihas.id)}
+            />
           ))}
         </div>
       )}
