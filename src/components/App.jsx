@@ -12,9 +12,10 @@ const NAV_ITEMS = [
 ]
 
 export default function App() {
-  const [activeTab, setActiveTab]   = useState('bodymap')
-  const [findings, setFindings]     = useState([])
-  const [highlights, setHighlights] = useState([])
+  const [activeTab, setActiveTab]       = useState('bodymap')
+  const [findings, setFindings]         = useState([])
+  const [highlights, setHighlights]     = useState([])
+  const [treatmentPlan, setTreatmentPlan] = useState(null)
 
   const handleAnalyze = (f) => {
     setFindings(f)
@@ -22,6 +23,7 @@ export default function App() {
   }
 
   const handleTulos = (tulos) => {
+    setTreatmentPlan(tulos)
     setHighlights(tulos?.toimenpiteet?.map((t) => t.rakenne).filter(Boolean) ?? [])
   }
 
@@ -56,7 +58,7 @@ export default function App() {
         {activeTab === 'bodymap'   && <BodyMap onAnalyze={handleAnalyze} />}
         {activeTab === 'treatment' && <TreatmentPlan findings={findings} onTulos={handleTulos} />}
         {activeTab === 'muscles'   && <MuscleLibrary highlights={highlights} />}
-        {activeTab === 'aftercare' && <Aftercare />}
+        {activeTab === 'aftercare' && <Aftercare findings={findings} treatmentPlan={treatmentPlan} />}
       </main>
 
       <footer className="bg-white border-t border-gray-200 text-center text-xs text-gray-400 py-4">
