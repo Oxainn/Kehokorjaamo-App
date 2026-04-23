@@ -92,29 +92,24 @@ export default function App() {
       </nav>
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
-        {activeTab === 'client'    && <ClientForm onComplete={handleAsiakas} />}
-        {activeTab === 'clinical'  && (
-          <ClinicalObservations
-            asiakasData={asiakas}
-            onComplete={handleHavainnot}
-          />
-        )}
-        {activeTab === 'bodymap'   && <BodyMap onAnalyze={handleAnalyze} />}
-        {activeTab === 'treatment' && (
-          <TreatmentPlan
-            findings={findings}
-            havainnot={havainnot}
-            onResult={handleResult}
-          />
-        )}
-        {activeTab === 'muscles'   && <MuscleLibrary highlights={highlights} />}
-        {activeTab === 'aftercare' && (
-          <Aftercare
-            findings={findings}
-            treatmentPlan={treatmentPlan}
-            asiakas={asiakas}
-          />
-        )}
+        <div style={{ display: activeTab === 'client'    ? 'block' : 'none' }}>
+          <ClientForm onComplete={handleAsiakas} />
+        </div>
+        <div style={{ display: activeTab === 'clinical'  ? 'block' : 'none' }}>
+          <ClinicalObservations asiakasData={asiakas} onComplete={handleHavainnot} />
+        </div>
+        <div style={{ display: activeTab === 'bodymap'   ? 'block' : 'none' }}>
+          <BodyMap onAnalyze={handleAnalyze} />
+        </div>
+        <div style={{ display: activeTab === 'treatment' ? 'block' : 'none' }}>
+          <TreatmentPlan findings={findings} havainnot={havainnot} onResult={handleResult} />
+        </div>
+        <div style={{ display: activeTab === 'muscles'   ? 'block' : 'none' }}>
+          <MuscleLibrary highlights={highlights} />
+        </div>
+        <div style={{ display: activeTab === 'aftercare' ? 'block' : 'none' }}>
+          <Aftercare findings={findings} treatmentPlan={treatmentPlan} asiakas={asiakas} />
+        </div>
       </main>
 
       <footer className="bg-white border-t border-gray-200 text-center text-xs text-gray-400 py-4">
