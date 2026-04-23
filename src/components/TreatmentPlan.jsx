@@ -26,6 +26,7 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
 
   // ── Vaihe 2 → 3 ──────────────────────────────────────────────────────────
   const käytäVastausta = () => {
+    console.log("käytäVastausta kutsuttu, vastaus:", vastaus.substring(0, 100))
     const result = parseResponse(vastaus)
     setTulos(result)
     setVaihe('tulos')
@@ -81,7 +82,7 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
                 ))}
               </ul>
               <button
-                onClick={analysoi}
+                onClick={() => { console.log("Analysoi painettu, vaihdetaan tilaan kopioitu"); analysoi() }}
                 className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
               >
                 Analysoi AI:lla →
