@@ -58,8 +58,7 @@ export default function TreatmentPlan({ findings = [], onResult }) {
           {findings.length === 0 ? (
             <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 p-10 text-center">
               <p className="text-gray-400 text-sm">
-                Lisää ensin löydöksiä <strong>Kehokartalla</strong> ja paina
-                <strong> Analysoi löydökset</strong>.
+                Tee ensin kehon kartoitus <strong>Kehokartta</strong>-välilehdellä.
               </p>
             </div>
           ) : (
