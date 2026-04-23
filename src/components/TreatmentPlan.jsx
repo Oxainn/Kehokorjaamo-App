@@ -42,6 +42,8 @@ export default function TreatmentPlan({ findings = [], onResult }) {
   }
 
   const käytäVastausta = () => {
+    console.log('Raw input:', vastaus)
+    console.log('Parse attempt:', vastaus.substring(0, 200))
     const result = parseResponse(vastaus)
     setTulos(result)
     setVaihe('tulos')
