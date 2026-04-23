@@ -16,6 +16,13 @@ const EHDOTTOMAT_KONTRA = [
   'Kasvain / syöpä', 'Tuore vamma', 'Vyöruusu',
 ]
 
+const OIRETYYPIT = [
+  { id: 1, nimi: 'Kipu',          vari: 'bg-red-500',    kehys: 'border-red-400'    },
+  { id: 2, nimi: 'Lihasjännitys', vari: 'bg-orange-400', kehys: 'border-orange-400' },
+  { id: 3, nimi: 'Puutuminen',    vari: 'bg-blue-500',   kehys: 'border-blue-400'   },
+  { id: 4, nimi: 'Tunnottomuus',  vari: 'bg-gray-400',   kehys: 'border-gray-400'   },
+]
+
 const TYHJÄ = {
   nimi:             '',
   syntymaaika:      '',
@@ -32,6 +39,8 @@ const TYHJÄ = {
   kontraindikaatiot: {},
   sairaudet:        '',
   vammat:           '',
+  kipuaste:         0,
+  oireet:           {},
   suostumus_rekisteri: false,
   suostumus_luovutus:  false,
   huoltajan_suostumus: '',
@@ -139,8 +148,31 @@ export default function ClientForm({ onComplete }) {
     }))
   }
 
+  const toggleOire = (id) => {
+    setData((prev) => ({
+      ...prev,
+      oireet: {
+        ...prev.oireet,
+        [id]: prev.oireet[id] ? { ...prev.oireet[id], valittu: !prev.oireet[id].valittu } : { valittu: true, sijainti: '' },
+      },
+    }))
+  }
+
+  const päivitäOireSijainti = (id, sijainti) => {
+    setData((prev) => ({
+      ...prev,
+      oireet: { ...prev.oireet, [id]: { ...prev.oireet[id], sijainti } },
+    }))
+  }
+
   const toggleTietosuoja = (kenttä) => {
     setData((prev) => ({ ...prev, [kenttä]: !prev[kenttä] }))
+  }
+
+  const kipuVari = (arvo) => {
+    if (arvo <= 3) return { kehys: '#16a34a', tausta: '#dcfce7', teksti: '#15803d' }
+    if (arvo <= 6) return { kehys: '#ea580c', tausta: '#ffedd5', teksti: '#c2410c' }
+    return { kehys: '#dc2626', tausta: '#fee2e2', teksti: '#b91c1c' }
   }
 
   const lähetä = (e) => {
@@ -259,6 +291,87 @@ export default function ClientForm({ onComplete }) {
               onChange={päivitä}
               rows={3}
             />
+          </>
+        } />
+
+        {/* ── Osio 4: Kiputilanne ─────────────────────────────────────────── */}
+        <Osio otsikko="Kiputilanne" lapset={
+          <>
+            <div className="flex items-center gap-6">
+              {/* Värillinen numero-ympyrä */}
+              <div
+                className="flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold border-4 transition-colors"
+                style={{
+                  backgroundColor: kipuVari(data.kipuaste).tausta,
+                  borderColor:     kipuVari(data.kipuaste).kehys,
+                  color:           kipuVari(data.kipuaste).teksti,
+                }}
+              >
+                {data.kipuaste}
+              </div>
+
+              {/* Slider */}
+              <div className="flex-1">
+                <input
+                  type="range"
+                  min={0}
+                  max={10}
+                  value={data.kipuaste}
+                  onChange={(e) => setData((prev) => ({ ...prev, kipuaste: Number(e.target.value) }))}
+                  className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, ${kipuVari(data.kipuaste).kehys} 0%, ${kipuVari(data.kipuaste).kehys} ${data.kipuaste * 10}%, #e5e7eb ${data.kipuaste * 10}%, #e5e7eb 100%)`,
+                  }}
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>Ei kipua</span>
+                  <span>Pahin mahdollinen</span>
+                </div>
+              </div>
+            </div>
+          </>
+        } />
+
+        {/* ── Osio 5: Kehon merkinnät ──────────────────────────────────────── */}
+        <Osio otsikko="Kehon merkinnät" lapset={
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {OIRETYYPIT.map((tyyppi) => {
+                const valittu = !!data.oireet[tyyppi.id]?.valittu
+                return (
+                  <button
+                    key={tyyppi.id}
+                    type="button"
+                    onClick={() => toggleOire(tyyppi.id)}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-colors ${
+                      valittu ? `${tyyppi.kehys} bg-white` : 'border-gray-100 bg-gray-50 hover:border-gray-300'
+                    }`}
+                  >
+                    <span className={`w-9 h-9 rounded-full ${tyyppi.vari} text-white text-sm font-bold flex items-center justify-center`}>
+                      {tyyppi.id}
+                    </span>
+                    <span className="text-xs font-medium text-gray-700">{tyyppi.nimi}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Sijainti-kenttä valituille oireille */}
+            {OIRETYYPIT.filter((t) => data.oireet[t.id]?.valittu).map((tyyppi) => (
+              <div key={tyyppi.id}>
+                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
+                  <span className={`inline-block w-4 h-4 rounded-full ${tyyppi.vari} mr-1.5 align-middle`} />
+                  {tyyppi.nimi} — missä kehon kohdassa?
+                </label>
+                <input
+                  type="text"
+                  value={data.oireet[tyyppi.id]?.sijainti ?? ''}
+                  onChange={(e) => päivitäOireSijainti(tyyppi.id, e.target.value)}
+                  placeholder="esim. vasen hartia, alaselkä..."
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                />
+              </div>
+            ))}
           </>
         } />
 
