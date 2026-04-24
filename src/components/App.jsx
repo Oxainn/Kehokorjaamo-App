@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import ClientForm from './ClientForm'
 import ClinicalObservations from './ClinicalObservations'
 import BodyMap from './BodyMap'
@@ -74,11 +74,19 @@ export default function App() {
   const [paneAuki, setPaneAuki]           = useState(false)
   const [clientFormKey, setClientFormKey] = useState(0)
   const [esitäytöData, setEsitäytöData]   = useState(null)
+  const esitäytöRef                       = useRef(null)
 
   useEffect(() => {
-    setEsitiedot(tarkistaEsitiedot())
-    const intervalli = setInterval(() => setEsitiedot(tarkistaEsitiedot()), 10_000)
-    return () => clearInterval(intervalli)
+    const tarkista = () => setEsitiedot(tarkistaEsitiedot())
+    tarkista()
+    // Päivitä kun käyttäjä palaa /esitiedot-välilehdeltä
+    window.addEventListener('focus', tarkista)
+    // Päivitä kun toinen välilehti kirjoittaa localStorageen
+    window.addEventListener('storage', tarkista)
+    return () => {
+      window.removeEventListener('focus', tarkista)
+      window.removeEventListener('storage', tarkista)
+    }
   }, [])
 
   const handleAsiakas = (asiakasData) => {
@@ -108,16 +116,19 @@ export default function App() {
     setPaneAuki(false)
 
     const asiakasData = {
-      nimi:        `${esitietoEntry.etunimi} ${esitietoEntry.sukunimi}`.trim(),
-      syntymaaika: esitietoEntry.syntymaaika ?? '',
-      puhelin:     esitietoEntry.puhelin     ?? '',
-      sahkoposti:  esitietoEntry.sahkoposti  ?? '',
-      hoitoon_syy: esitietoEntry.hoitoon_syy ?? '',
-      kipuaste:    esitietoEntry.kipuaste     ?? 0,
+      nimi:        `${esitietoEntry.etunimi ?? ''} ${esitietoEntry.sukunimi ?? ''}`.trim(),
+      syntymaaika: esitietoEntry.syntymaaika  ?? '',
+      puhelin:     esitietoEntry.puhelin      ?? '',
+      sahkoposti:  esitietoEntry.sahkoposti   ?? '',
+      hoitoon_syy: esitietoEntry.hoitoon_syy  ?? '',
+      kipuaste:    esitietoEntry.kipuaste      ?? 0,
       kontraindikaatiot: esitietoEntry.kontraindikaatiot ?? {},
-      sairaudet:   esitietoEntry.lisatiedot  ?? '',
+      sairaudet:   esitietoEntry.lisatiedot   ?? '',
     }
 
+    // Ref takaa että ClientForm saa datan heti mountissa
+    // ennen kuin React-tila ehtii propagoitua
+    esitäytöRef.current = asiakasData
     setEsitäytöData(asiakasData)
     setClientFormKey(k => k + 1)
     setActiveTab('client')
@@ -200,7 +211,7 @@ export default function App() {
         <div style={{ display: activeTab === 'client'    ? 'block' : 'none' }}>
           <ClientForm
             key={clientFormKey}
-            esitäytö={esitäytöData}
+            esitäytö={esitäytöRef.current ?? esitäytöData}
             onComplete={handleAsiakas}
           />
         </div>
