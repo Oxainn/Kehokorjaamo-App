@@ -62,26 +62,11 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
   const [vastaus, setVastaus] = useState('')
   const [tulos, setTulos]     = useState(null)
 
-  const analysoi = () => {
-    const prompt = buildPrompt(findings, havainnot)
-    console.log("Prompt rakennettu:", prompt.substring(0, 100))
+  const prompt = buildPrompt(findings, havainnot)
 
-    // Fire-and-forget — don't block state transition on clipboard
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(prompt)
-        .then(() => console.log("Clipboard onnistui"))
-        .catch(err => console.log("Clipboard epäonnistui:", err))
-    }
-
-    console.log("Vaihdetaan tilaan kopioitu")
-    setVastaus('')
-    setTulos(null)
-    setVaihe('kopioitu')
-    console.log("Tila vaihdettu")
-  }
+  const näytäPrompt = () => setVaihe('prompt')
 
   const käytäVastausta = () => {
-    console.log("käytäVastausta kutsuttu, vastaus:", vastaus.substring(0, 100))
     const result = parseResponse(vastaus)
     setTulos(result)
     setVaihe('tulos')
@@ -122,83 +107,56 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
                 </div>
               ))}
             </div>
-            <button
-              style={S.btnGreen}
-              onClick={() => {
-                console.log("NAPPI PAINETTU")
-                analysoi()
-              }}
-            >
-              Analysoi AI:lla →
+            <button style={S.btnGreen} onClick={näytäPrompt}>
+              Näytä prompt →
             </button>
-            <p style={{ ...S.hintText, marginTop: '12px' }}>Analyysi vie noin 30 sekuntia</p>
           </div>
         )
       )}
 
-      {/* ── VAIHE 2 — kopioitu ────────────────────────────────────────────── */}
+      {/* ── VAIHE 2 — prompt ─────────────────────────────────────────────── */}
+      {vaihe === 'prompt' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={S.card}>
+            <p style={{ margin: '0 0 8px', fontSize: '14px', color: '#4b5563' }}>
+              Kopioi yllä oleva teksti, liitä <strong style={{ color: '#1f2937' }}>Claude.ai</strong>:hin ja kopioi vastaus.
+            </p>
+            <textarea
+              readOnly
+              value={prompt}
+              style={{ ...S.textarea, minHeight: '220px', background: '#f9fafb', color: '#374151', cursor: 'text' }}
+              onFocus={(e) => e.target.select()}
+            />
+            <button
+              style={{ ...S.btnGreen, marginTop: '12px' }}
+              onClick={() => setVaihe('kopioitu')}
+            >
+              Olen kopioinut vastauksen →
+            </button>
+          </div>
+          <button style={S.btnBack} onClick={nollaa}>← Palaa löydöksiin</button>
+        </div>
+      )}
+
+      {/* ── VAIHE 3 — kopioitu ────────────────────────────────────────────── */}
       {vaihe === 'kopioitu' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          <div style={S.greenCard}>
-            <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#065f46' }}>
-              ✓ Prompt kopioitu leikepöydälle
-            </p>
-          </div>
-
           <div style={S.card}>
-            <ol style={S.stepList}>
-              <li style={S.stepItem}>
-                <span style={S.stepNum}>1.</span>
-                Avaa <strong style={{ color: '#1f2937' }}>Claude.ai</strong>
-              </li>
-              <li style={S.stepItem}>
-                <span style={S.stepNum}>2.</span>
-                Liitä prompt <kbd style={{ background: '#f3f4f6', padding: '2px 6px', borderRadius: '4px', fontSize: '12px', fontFamily: 'monospace' }}>Ctrl+V</kbd>
-              </li>
-              <li style={S.stepItem}>
-                <span style={S.stepNum}>3.</span>
-                Kopioi Clauden vastaus
-              </li>
-              <li style={S.stepItem}>
-                <span style={S.stepNum}>4.</span>
-                Liitä alle ja paina <strong style={{ color: '#1f2937' }}>Käytä vastausta</strong>
-              </li>
-            </ol>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '4px' }}>
-              <button
-                style={S.btnGray}
-                onClick={async () => {
-                  const prompt = buildPrompt(findings, havainnot)
-                  await navigator.clipboard.writeText(prompt)
-                }}
-              >
-                Kopioi
-              </button>
-              <button
-                style={S.btnGray}
-                onClick={async () => {
-                  const text = await navigator.clipboard.readText()
-                  setVastaus(text)
-                }}
-              >
-                Liitä leikepöydältä
-              </button>
-            </div>
-
+            <p style={{ margin: '0 0 12px', fontSize: '14px', color: '#4b5563' }}>
+              Liitä Clauden vastaus alla olevaan kenttään:
+            </p>
             <textarea
               value={vastaus}
               onChange={(e) => setVastaus(e.target.value)}
               placeholder="Liitä Clauden vastaus tähän..."
               style={S.textarea}
             />
-
             {(() => {
               const voidaanKayttaa = vastaus.trim().length > 50
               return (
                 <>
                   <button
-                    style={{ ...( voidaanKayttaa ? S.btnGreen : S.btnGreenDim ), marginTop: '12px' }}
+                    style={{ ...(voidaanKayttaa ? S.btnGreen : S.btnGreenDim), marginTop: '12px' }}
                     onClick={voidaanKayttaa ? käytäVastausta : undefined}
                   >
                     Käytä vastausta →
@@ -210,8 +168,7 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
               )
             })()}
           </div>
-
-          <button style={S.btnBack} onClick={nollaa}>← Palaa löydöksiin</button>
+          <button style={S.btnBack} onClick={() => setVaihe('prompt')}>← Takaisin promptiin</button>
         </div>
       )}
 
