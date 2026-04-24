@@ -15,6 +15,12 @@ const NAV_ITEMS = [
   { id: 'aftercare', label: 'Jälkihoito' },
 ]
 
+function lueEsitiedot() {
+  return Object.keys(localStorage)
+    .filter(k => k.startsWith('esitiedot_'))
+    .map(k => ({ ...JSON.parse(localStorage.getItem(k)), _key: k }))
+    .sort((a, b) => b._key.localeCompare(a._key))
+}
 
 function EsitiedotPane({ lista, onAvaa, onPoista, onSulje }) {
   if (!lista.length) return null
@@ -84,13 +90,7 @@ export default function App() {
   const esitäytöRef                       = useRef(null)
 
   useEffect(() => {
-    const tarkista = () => {
-      const lista = Object.keys(localStorage)
-        .filter(k => k.startsWith('esitiedot_'))
-        .map(k => ({ ...JSON.parse(localStorage.getItem(k)), _key: k }))
-        .sort((a, b) => b._key.localeCompare(a._key))
-      setEsitiedot(lista)
-    }
+    const tarkista = () => setEsitiedot(lueEsitiedot())
     tarkista()
     window.addEventListener('storage', tarkista)
     window.addEventListener('focus', tarkista)
@@ -125,12 +125,12 @@ export default function App() {
 
   const poistaEsitiedot = (esitietoEntry) => {
     localStorage.removeItem(esitietoEntry._key)
-    setEsitiedot(tarkistaEsitiedot())
+    setEsitiedot(lueEsitiedot())
   }
 
   const avaaNäkymä = (esitietoEntry) => {
     localStorage.removeItem(esitietoEntry._key)
-    setEsitiedot(tarkistaEsitiedot())
+    setEsitiedot(lueEsitiedot())
     setPaneAuki(false)
 
     const asiakasData = {
