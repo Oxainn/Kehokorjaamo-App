@@ -138,8 +138,10 @@ export default function Esitiedot() {
     e.preventDefault()
     if (!voidaanLähettää) return
 
-    const canvas = canvasRef.current
-    const piirros = canvas ? canvas.toDataURL('image/png') : null
+    const canvas = document.getElementById('piirtokerros')
+    console.log("Canvas löytyy:", !!canvas)
+    const piirrosData = canvas?.toDataURL('image/png')
+    console.log("Piirros pituus:", piirrosData?.length)
 
     const avain = 'esitiedot_' + Date.now()
     const tallennettava = {
@@ -153,9 +155,10 @@ export default function Esitiedot() {
       kipuaste:         data.kipuaste,
       kontraindikaatiot: data.kontraindikaatiot,
       lisatiedot:       data.lisatiedot,
-      piirros:          piirros,
+      piirros:          piirrosData,
       aikaleima:        new Date().toISOString(),
     }
+    console.log("Data tallennetaan:", Object.keys(tallennettava))
     localStorage.setItem(avain, JSON.stringify(tallennettava))
 
     window.open('https://vello.fi/kalevalapaja', '_blank')
@@ -333,6 +336,7 @@ export default function Esitiedot() {
                 />
                 <canvas
                   ref={canvasRef}
+                  id="piirtokerros"
                   style={{
                     position: 'absolute',
                     top: 0, left: 0,
