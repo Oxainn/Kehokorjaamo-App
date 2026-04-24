@@ -158,6 +158,7 @@ export default function App() {
       kipuaste:    esitietoEntry.kipuaste      ?? 0,
       kontraindikaatiot: esitietoEntry.kontraindikaatiot ?? {},
       sairaudet:   esitietoEntry.lisatiedot   ?? '',
+      piirros:     esitietoEntry.piirros      ?? null,
     }
 
     // Ref takaa että ClientForm saa datan heti mountissa

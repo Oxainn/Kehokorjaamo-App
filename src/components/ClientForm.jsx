@@ -135,6 +135,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
   })
 
   const canvasRef        = useRef(null)
+  const piirrosDataRef   = useRef(esitäytö?.piirros ?? null)
   const [valittuPiirto, setValittuPiirto] = useState(1)
 
   const piirraPiste = (e) => {
@@ -161,6 +162,13 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
     if (canvas.width !== canvas.offsetWidth) {
       canvas.width  = canvas.offsetWidth
       canvas.height = canvas.offsetHeight
+    }
+    if (piirrosDataRef.current) {
+      const src = piirrosDataRef.current
+      piirrosDataRef.current = null
+      const img = new Image()
+      img.onload = () => canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      img.src = src
     }
   }
 

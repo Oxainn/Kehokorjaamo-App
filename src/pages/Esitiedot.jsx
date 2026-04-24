@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 const NORMAALI_KONTRA = [
   'Allergia', 'Diabetes', 'Epilepsia', 'Migreeni',
@@ -13,6 +13,15 @@ const EHDOTTOMAT_KONTRA = [
   'Verisuoniproteesi', 'Tarttuva (iho)tauti', 'Tulehdus / kuume',
   'Kasvain / syöpä', 'Tuore vamma', 'Vyöruusu',
 ]
+
+const OIRETYYPIT = [
+  { id: 1, nimi: 'Kipu',          vari: 'bg-red-500',    kehys: 'border-red-400'    },
+  { id: 2, nimi: 'Lihasjännitys', vari: 'bg-orange-400', kehys: 'border-orange-400' },
+  { id: 3, nimi: 'Puutuminen',    vari: 'bg-blue-500',   kehys: 'border-blue-400'   },
+  { id: 4, nimi: 'Tunnottomuus',  vari: 'bg-gray-400',   kehys: 'border-gray-400'   },
+]
+
+const PIIRTOVÄRIT = { 1: '#ef4444', 2: '#f97316', 3: '#3b82f6', 4: '#9ca3af' }
 
 const TYHJÄ = {
   etunimi:        '',
@@ -70,8 +79,10 @@ function Osio({ otsikko, lapset }) {
 }
 
 export default function Esitiedot() {
-  const [data, setData]       = useState(TYHJÄ)
+  const [data, setData]           = useState(TYHJÄ)
   const [lähetetty, setLähetetty] = useState(false)
+  const [valittuPiirto, setValittuPiirto] = useState(1)
+  const canvasRef = useRef(null)
 
   const päivitä = (e) => {
     const { name, value } = e.target
@@ -88,12 +99,47 @@ export default function Esitiedot() {
     }))
   }
 
+  const piirraPiste = (e) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx    = canvas.getContext('2d')
+    const rect   = canvas.getBoundingClientRect()
+    const scaleX = canvas.width  / rect.width
+    const scaleY = canvas.height / rect.height
+    Array.from(e.touches ?? [e]).forEach(t => {
+      const x = (t.clientX - rect.left) * scaleX
+      const y = (t.clientY - rect.top)  * scaleY
+      ctx.beginPath()
+      ctx.arc(x, y, 8, 0, Math.PI * 2)
+      ctx.fillStyle = PIIRTOVÄRIT[valittuPiirto] + 'cc'
+      ctx.fill()
+    })
+  }
+
+  const alustaCanvas = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    if (canvas.width !== canvas.offsetWidth) {
+      canvas.width  = canvas.offsetWidth
+      canvas.height = canvas.offsetHeight
+    }
+  }
+
+  const tyhjennäCanvas = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+  }
+
   const ehdotonValittu = EHDOTTOMAT_KONTRA.some(e => data.kontraindikaatiot[e])
   const voidaanLähettää = data.etunimi.trim() && data.sukunimi.trim() && !ehdotonValittu
 
   const lähetä = (e) => {
     e.preventDefault()
     if (!voidaanLähettää) return
+
+    const canvas = canvasRef.current
+    const piirros = canvas ? canvas.toDataURL('image/png') : null
 
     const avain = 'esitiedot_' + Date.now()
     const tallennettava = {
@@ -107,6 +153,7 @@ export default function Esitiedot() {
       kipuaste:         data.kipuaste,
       kontraindikaatiot: data.kontraindikaatiot,
       lisatiedot:       data.lisatiedot,
+      piirros:          piirros,
       aikaleima:        new Date().toISOString(),
     }
     localStorage.setItem(avain, JSON.stringify(tallennettava))
@@ -240,7 +287,74 @@ export default function Esitiedot() {
             </>
           } />
 
-          {/* ── Osio 3: Kontraindikaatiot ────────────────────────────────── */}
+          {/* ── Osio 3: Kehon merkinnät ──────────────────────────────────── */}
+          <Osio otsikko="Kehon merkinnät" lapset={
+            <>
+              <p className="text-xs text-gray-500">
+                Valitse oiretyyppi ja merkitse sijainti kehokuvaan sormella.
+              </p>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {OIRETYYPIT.map(tyyppi => {
+                  const aktiivinen = valittuPiirto === tyyppi.id
+                  return (
+                    <button
+                      key={tyyppi.id}
+                      type="button"
+                      onClick={() => setValittuPiirto(tyyppi.id)}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-colors ${
+                        aktiivinen ? `${tyyppi.kehys} bg-white shadow-sm` : 'border-gray-100 bg-gray-50 hover:border-gray-300'
+                      }`}
+                    >
+                      <span className={`w-9 h-9 rounded-full ${tyyppi.vari} text-white text-sm font-bold flex items-center justify-center`}>
+                        {tyyppi.id}
+                      </span>
+                      <span className="text-xs font-medium text-gray-700">{tyyppi.nimi}</span>
+                    </button>
+                  )
+                })}
+              </div>
+
+              <div
+                style={{
+                  position: 'relative',
+                  width: '100%',
+                  marginTop: '8px',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  overflow: 'hidden',
+                }}
+              >
+                <img
+                  src="/hahmokuvat.svg"
+                  style={{ width: '100%', display: 'block' }}
+                  alt="Kehon merkintäalue"
+                  onLoad={alustaCanvas}
+                />
+                <canvas
+                  ref={canvasRef}
+                  style={{
+                    position: 'absolute',
+                    top: 0, left: 0,
+                    width: '100%', height: '100%',
+                    touchAction: 'none',
+                  }}
+                  onTouchStart={e => { e.preventDefault(); alustaCanvas(); piirraPiste(e) }}
+                  onTouchMove={e => { e.preventDefault(); piirraPiste(e) }}
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={tyhjennäCanvas}
+                className="text-xs text-gray-400 hover:text-red-500 transition-colors self-start"
+              >
+                Tyhjennä piirros
+              </button>
+            </>
+          } />
+
+          {/* ── Osio 4: Kontraindikaatiot ────────────────────────────────── */}
           <Osio otsikko="Terveystiedot" lapset={
             <>
               <div>
@@ -294,7 +408,7 @@ export default function Esitiedot() {
             </>
           } />
 
-          {/* ── Osio 4: Lisätiedot ───────────────────────────────────────── */}
+          {/* ── Osio 5: Lisätiedot ───────────────────────────────────────── */}
           <Osio otsikko="Lisätiedot" lapset={
             <Kenttä label="Muuta huomioitavaa">
               <textarea
