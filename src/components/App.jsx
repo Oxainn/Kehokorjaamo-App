@@ -15,12 +15,6 @@ const NAV_ITEMS = [
   { id: 'aftercare', label: 'Jälkihoito' },
 ]
 
-function tarkistaEsitiedot() {
-  return Object.keys(localStorage)
-    .filter(k => k.startsWith('esitiedot_'))
-    .map(k => ({ key: k, ...JSON.parse(localStorage.getItem(k)) }))
-    .sort((a, b) => b.key.localeCompare(a.key))
-}
 
 function EsitiedotPane({ lista, onAvaa, onPoista, onSulje }) {
   if (!lista.length) return null
@@ -37,7 +31,7 @@ function EsitiedotPane({ lista, onAvaa, onPoista, onSulje }) {
       </div>
       <ul className="divide-y divide-gray-100 max-h-[28rem] overflow-y-auto">
         {lista.map(e => (
-          <li key={e.key} className="px-4 py-4">
+          <li key={e._key} className="px-4 py-4">
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-800">
@@ -90,15 +84,21 @@ export default function App() {
   const esitäytöRef                       = useRef(null)
 
   useEffect(() => {
-    const tarkista = () => setEsitiedot(tarkistaEsitiedot())
+    const tarkista = () => {
+      const lista = Object.keys(localStorage)
+        .filter(k => k.startsWith('esitiedot_'))
+        .map(k => ({ ...JSON.parse(localStorage.getItem(k)), _key: k }))
+        .sort((a, b) => b._key.localeCompare(a._key))
+      setEsitiedot(lista)
+    }
     tarkista()
-    // Päivitä kun käyttäjä palaa /esitiedot-välilehdeltä
-    window.addEventListener('focus', tarkista)
-    // Päivitä kun toinen välilehti kirjoittaa localStorageen
     window.addEventListener('storage', tarkista)
+    window.addEventListener('focus', tarkista)
+    const interval = setInterval(tarkista, 3000)
     return () => {
-      window.removeEventListener('focus', tarkista)
       window.removeEventListener('storage', tarkista)
+      window.removeEventListener('focus', tarkista)
+      clearInterval(interval)
     }
   }, [])
 
@@ -124,12 +124,12 @@ export default function App() {
   }
 
   const poistaEsitiedot = (esitietoEntry) => {
-    localStorage.removeItem(esitietoEntry.key)
+    localStorage.removeItem(esitietoEntry._key)
     setEsitiedot(tarkistaEsitiedot())
   }
 
   const avaaNäkymä = (esitietoEntry) => {
-    localStorage.removeItem(esitietoEntry.key)
+    localStorage.removeItem(esitietoEntry._key)
     setEsitiedot(tarkistaEsitiedot())
     setPaneAuki(false)
 
