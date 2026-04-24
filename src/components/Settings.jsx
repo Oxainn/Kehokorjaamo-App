@@ -369,9 +369,67 @@ export default function Settings() {
         id="tallennus" otsikko="Tiedot ja tallennus" ikoni="💾"
         auki={aukiOsio === 'tallennus'} onToggle={toggle}
         lapset={
-          <p className="text-sm text-gray-400 py-2">
-            Varmuuskopiointi ja tietojen vienti — tulossa pian.
-          </p>
+          <>
+            {/* Versio-info */}
+            <div className="flex items-center justify-between py-2 border-b border-gray-50">
+              <span className="text-sm text-gray-500">Versio</span>
+              <span className="text-sm font-medium text-gray-800">Kehokorjaamo App V1</span>
+            </div>
+
+            {/* Tallennustieto */}
+            <div className="flex items-center justify-between py-2 border-b border-gray-50">
+              <span className="text-sm text-gray-500">Tallennus</span>
+              <span className="text-sm font-medium text-gray-700">Tiedot tallennettu tällä laitteella</span>
+            </div>
+
+            {/* Toimintanapit */}
+            <div className="flex flex-col gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Haluatko varmasti tyhjentää kaikki asiakastiedot? Tätä ei voi peruuttaa.')) {
+                    Object.keys(localStorage)
+                      .filter(k => k.startsWith('kehokorjaamo_asiakas') || k.startsWith('esitiedot_'))
+                      .forEach(k => localStorage.removeItem(k))
+                    alert('Asiakastiedot tyhjennetty.')
+                  }
+                }}
+                className="px-5 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-lg transition-colors self-start"
+              >
+                Tyhjennä kaikki asiakastiedot
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const kaikki = {}
+                  Object.keys(localStorage).forEach(k => {
+                    try { kaikki[k] = JSON.parse(localStorage.getItem(k)) }
+                    catch { kaikki[k] = localStorage.getItem(k) }
+                  })
+                  const blob = new Blob([JSON.stringify(kaikki, null, 2)], { type: 'application/json' })
+                  const url  = URL.createObjectURL(blob)
+                  const a    = document.createElement('a')
+                  a.href     = url
+                  a.download = `kehokorjaamo-vientitiedot-${new Date().toISOString().slice(0,10)}.json`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }}
+                className="px-5 py-2.5 border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-lg transition-colors self-start"
+              >
+                Vie tiedot JSON-tiedostona
+              </button>
+            </div>
+
+            {/* Tuleva: pilvipalvelu */}
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 flex items-center justify-between mt-1">
+              <div>
+                <p className="text-sm font-medium text-gray-400">Pilvitallennus (Supabase)</p>
+                <p className="text-xs text-gray-400 mt-0.5">Tiedot synkronoituvat kaikille laitteille</p>
+              </div>
+              <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-medium">V2</span>
+            </div>
+          </>
         }
       />
     </div>

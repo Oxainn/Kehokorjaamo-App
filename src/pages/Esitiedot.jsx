@@ -162,7 +162,12 @@ export default function Esitiedot() {
     console.log("Data tallennetaan:", Object.keys(tallennettava))
     localStorage.setItem(avain, JSON.stringify(tallennettava))
 
-    window.open('https://vello.fi/kalevalapaja', '_blank')
+    const asetukset = JSON.parse(localStorage.getItem('kehokorjaamo_asetukset') || '{}')
+    const varausUrl = asetukset.integraatiot?.vello
+      || asetukset.integraatiot?.calendly
+      || asetukset.integraatiot?.omanettisivu
+      || 'https://vello.fi/kalevalapaja'
+    window.open(varausUrl, '_blank')
 
     setLähetetty(true)
   }
