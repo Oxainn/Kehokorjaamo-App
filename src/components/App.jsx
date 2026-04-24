@@ -5,6 +5,7 @@ import BodyMap from './BodyMap'
 import TreatmentPlan from './TreatmentPlan'
 import MuscleLibrary from './MuscleLibrary'
 import Aftercare from './Aftercare'
+import Settings from './Settings'
 
 const NAV_ITEMS = [
   { id: 'client',    label: 'Asiakastiedot' },
@@ -13,6 +14,7 @@ const NAV_ITEMS = [
   { id: 'treatment', label: 'Hoitosuunnitelma' },
   { id: 'muscles',   label: 'Lihakset' },
   { id: 'aftercare', label: 'Jälkihoito' },
+  { id: 'settings',  label: 'Asetukset' },
 ]
 
 function lueEsitiedot() {
@@ -263,6 +265,9 @@ export default function App() {
         </div>
         <div style={{ display: activeTab === 'aftercare' ? 'block' : 'none' }}>
           <Aftercare findings={findings} treatmentPlan={treatmentPlan} asiakas={asiakas} />
+        </div>
+        <div style={{ display: activeTab === 'settings'  ? 'block' : 'none' }}>
+          <Settings />
         </div>
       </main>
 
