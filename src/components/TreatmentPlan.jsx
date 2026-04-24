@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { buildPrompt, parseResponse } from '../services/api'
 
 const S = {
@@ -62,28 +62,29 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
   const [vastaus, setVastaus] = useState('')
   const [tulos, setTulos]     = useState(null)
 
-  const analysoi = async () => {
-    try {
-      const prompt = buildPrompt(findings, havainnot)
-      console.log("Prompt rakennettu:", prompt.substring(0, 100))
+  // Reset state whenever findings change (CSS-mounted component persists state between sessions)
+  useEffect(() => {
+    setVaihe('odottaa')
+    setVastaus('')
+    setTulos(null)
+  }, [findings])
 
-      try {
-        await navigator.clipboard.writeText(prompt)
-        console.log("Clipboard onnistui")
-      } catch (clipErr) {
-        console.log("Clipboard epäonnistui:", clipErr)
-      }
+  const analysoi = () => {
+    const prompt = buildPrompt(findings, havainnot)
+    console.log("Prompt rakennettu:", prompt.substring(0, 100))
 
-      console.log("Vaihdetaan tilaan kopioitu")
-      setVastaus('')
-      setTulos(null)
-      setVaihe('kopioitu')
-      console.log("Tila vaihdettu")
-
-    } catch (err) {
-      console.log("Analysoi virhe:", err)
-      alert("Virhe: " + err.message)
+    // Fire-and-forget — don't block state transition on clipboard
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(prompt)
+        .then(() => console.log("Clipboard onnistui"))
+        .catch(err => console.log("Clipboard epäonnistui:", err))
     }
+
+    console.log("Vaihdetaan tilaan kopioitu")
+    setVastaus('')
+    setTulos(null)
+    setVaihe('kopioitu')
+    console.log("Tila vaihdettu")
   }
 
   const käytäVastausta = () => {
