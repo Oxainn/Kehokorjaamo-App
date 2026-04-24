@@ -137,6 +137,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
   const canvasRef        = useRef(null)
   const piirrosDataRef   = useRef(esitäytö?.piirros ?? null)
   const [valittuPiirto, setValittuPiirto] = useState(1)
+  const [piirtää, setPiirtää]             = useState(false)
 
   const piirraPiste = (e) => {
     const canvas = canvasRef.current
@@ -443,6 +444,10 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
                 }}
                 onTouchStart={(e) => { e.preventDefault(); alustaCanvas(); piirraPiste(e) }}
                 onTouchMove={(e) => { e.preventDefault(); piirraPiste(e) }}
+                onMouseDown={(e) => { setPiirtää(true); alustaCanvas(); piirraPiste(e) }}
+                onMouseMove={(e) => { if (piirtää) piirraPiste(e) }}
+                onMouseUp={() => setPiirtää(false)}
+                onMouseLeave={() => setPiirtää(false)}
               />
             </div>
 

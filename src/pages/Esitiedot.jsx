@@ -82,6 +82,7 @@ export default function Esitiedot() {
   const [data, setData]           = useState(TYHJÄ)
   const [lähetetty, setLähetetty] = useState(false)
   const [valittuPiirto, setValittuPiirto] = useState(1)
+  const [piirtää, setPiirtää]             = useState(false)
   const canvasRef = useRef(null)
 
   const päivitä = (e) => {
@@ -345,6 +346,10 @@ export default function Esitiedot() {
                   }}
                   onTouchStart={e => { e.preventDefault(); alustaCanvas(); piirraPiste(e) }}
                   onTouchMove={e => { e.preventDefault(); piirraPiste(e) }}
+                  onMouseDown={e => { setPiirtää(true); alustaCanvas(); piirraPiste(e) }}
+                  onMouseMove={e => { if (piirtää) piirraPiste(e) }}
+                  onMouseUp={() => setPiirtää(false)}
+                  onMouseLeave={() => setPiirtää(false)}
                 />
               </div>
 
