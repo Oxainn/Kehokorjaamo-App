@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1471 1069" width="1471" height="1069">
+  <rect width="1471" height="1069" fill="#f0f0f0"/>
+  <text x="735" y="534" text-anchor="middle" dominant-baseline="middle"
+        font-family="Arial, sans-serif" font-size="32" fill="#999">
+    Korvaa tämä oikealla Hahmokuvat.svg-tiedostolla
+  </text>
+  <text x="735" y="580" text-anchor="middle" dominant-baseline="middle"
+        font-family="Arial, sans-serif" font-size="20" fill="#bbb">
+    Kopioi: cp hahmokuvat.svg public/hahmokuvat.svg
+  </text>
+  <!-- Edestä: yksinkertainen hahmosiluetti vasemmalla -->
+  <!-- Takaa: yksinkertainen hahmosiluetti oikealla -->
+</svg>

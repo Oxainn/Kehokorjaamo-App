@@ -134,19 +134,27 @@ export default function BodyMap({ onAnalyze }) {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* SVG kehokaavio */}
-        <div className="flex flex-col items-center gap-3 flex-shrink-0">
-          <svg viewBox="0 0 200 492" className="w-40 sm:w-48" xmlns="http://www.w3.org/2000/svg">
-            {ALUEET.map(alue => (
-              <SvgAlue
-                key={alue.id}
-                alue={alue}
-                löydös={löydökset[alue.id]}
-                isSelected={alue.id === valittu}
-                onClick={() => klikkaaAlue(alue.id)}
-              />
-            ))}
-          </svg>
+        {/* Kehokaavio: pohjakuva + SVG-overlay */}
+        <div className="flex flex-col items-center gap-3 flex-shrink-0 w-full lg:w-auto">
+          <div style={{ position: 'relative', width: '100%', maxWidth: '600px' }}>
+            <img
+              src="/hahmokuvat.svg"
+              alt="Kehokaavio"
+              style={{ width: '100%', display: 'block' }}
+            />
+            <svg
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+              viewBox="0 0 1471 1069"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {/* Testipisteet — tarkista koordinaatit oikeaan hahmokuvaan */}
+              <circle cx={730} cy={80}  r={20} fill="red" opacity={0.5} />
+              <circle cx={730} cy={220} r={20} fill="red" opacity={0.5} />
+              <circle cx={730} cy={480} r={20} fill="red" opacity={0.5} />
+              <circle cx={700} cy={720} r={20} fill="red" opacity={0.5} />
+              <circle cx={700} cy={950} r={20} fill="red" opacity={0.5} />
+            </svg>
+          </div>
 
           <div className="flex flex-wrap justify-center gap-x-3 gap-y-1.5 text-xs text-gray-500">
             {LEGENDA.map(({ color, label }) => (
