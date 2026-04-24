@@ -20,6 +20,7 @@ export default function App() {
   const [asiakas, setAsiakas]             = useState(null)
   const [havainnot, setHavainnot]         = useState(null)
   const [findings, setFindings]           = useState([])
+  const [analysisKey, setAnalysisKey]     = useState(0)
   const [highlights, setHighlights]       = useState([])
   const [treatmentPlan, setTreatmentPlan] = useState(null)
 
@@ -35,6 +36,7 @@ export default function App() {
 
   const handleAnalyze = (f) => {
     setFindings(f)
+    setAnalysisKey(k => k + 1)
     setActiveTab('treatment')
   }
 
@@ -102,7 +104,7 @@ export default function App() {
           <BodyMap onAnalyze={handleAnalyze} />
         </div>
         <div style={{ display: activeTab === 'treatment' ? 'block' : 'none' }}>
-          <TreatmentPlan findings={findings} havainnot={havainnot} onResult={handleResult} />
+          <TreatmentPlan key={analysisKey} findings={findings} havainnot={havainnot} onResult={handleResult} />
         </div>
         <div style={{ display: activeTab === 'muscles'   ? 'block' : 'none' }}>
           <MuscleLibrary highlights={highlights} />

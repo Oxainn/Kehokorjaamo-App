@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { buildPrompt, parseResponse } from '../services/api'
 
 const S = {
@@ -61,13 +61,6 @@ export default function TreatmentPlan({ findings = [], havainnot = null, onResul
   const [vaihe, setVaihe]     = useState('odottaa')
   const [vastaus, setVastaus] = useState('')
   const [tulos, setTulos]     = useState(null)
-
-  // Reset state whenever findings change (CSS-mounted component persists state between sessions)
-  useEffect(() => {
-    setVaihe('odottaa')
-    setVastaus('')
-    setTulos(null)
-  }, [findings])
 
   const analysoi = () => {
     const prompt = buildPrompt(findings, havainnot)
