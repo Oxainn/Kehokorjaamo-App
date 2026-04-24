@@ -22,20 +22,25 @@ function tarkistaEsitiedot() {
     .sort((a, b) => b.key.localeCompare(a.key))
 }
 
-function EsitiedotPane({ lista, onAvaa, onSulje }) {
+function EsitiedotPane({ lista, onAvaa, onPoista, onSulje }) {
   if (!lista.length) return null
   return (
-    <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
+    <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-800">Odottavat esitiedot</span>
-        <button onClick={onSulje} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+        <span className="text-sm font-semibold text-gray-800">
+          Odottavat esitiedot
+          <span className="ml-2 bg-orange-100 text-orange-700 text-xs font-bold px-2 py-0.5 rounded-full">
+            {lista.length}
+          </span>
+        </span>
+        <button onClick={onSulje} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
       </div>
-      <ul className="divide-y divide-gray-50 max-h-96 overflow-y-auto">
+      <ul className="divide-y divide-gray-100 max-h-[28rem] overflow-y-auto">
         {lista.map(e => (
-          <li key={e.key} className="px-4 py-3">
-            <div className="flex items-start justify-between gap-2">
+          <li key={e.key} className="px-4 py-4">
+            <div className="flex items-start justify-between gap-2 mb-2">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-gray-800 truncate">
+                <p className="text-sm font-semibold text-gray-800">
                   {e.etunimi} {e.sukunimi}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
@@ -44,17 +49,25 @@ function EsitiedotPane({ lista, onAvaa, onSulje }) {
                     hour: '2-digit', minute: '2-digit',
                   })}
                 </p>
-                {e.hoitoon_syy && (
-                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">{e.hoitoon_syy}</p>
-                )}
               </div>
               <button
-                onClick={() => onAvaa(e)}
-                className="flex-shrink-0 px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                onClick={() => onPoista(e)}
+                className="flex-shrink-0 text-xs text-gray-400 hover:text-red-500 transition-colors"
               >
-                Avaa
+                Poista
               </button>
             </div>
+            {e.hoitoon_syy && (
+              <p className="text-xs text-gray-500 leading-relaxed mb-3 line-clamp-3">
+                {e.hoitoon_syy}
+              </p>
+            )}
+            <button
+              onClick={() => onAvaa(e)}
+              className="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg transition-colors"
+            >
+              Avaa asiakkaana →
+            </button>
           </li>
         ))}
       </ul>
@@ -110,6 +123,11 @@ export default function App() {
     setHighlights(plan?.toimenpiteet?.map(t => t.rakenne).filter(Boolean) ?? [])
   }
 
+  const poistaEsitiedot = (esitietoEntry) => {
+    localStorage.removeItem(esitietoEntry.key)
+    setEsitiedot(tarkistaEsitiedot())
+  }
+
   const avaaNäkymä = (esitietoEntry) => {
     localStorage.removeItem(esitietoEntry.key)
     setEsitiedot(tarkistaEsitiedot())
@@ -151,15 +169,13 @@ export default function App() {
                   onClick={() => setPaneAuki(v => !v)}
                   className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors"
                 >
-                  <span className="w-4 h-4 bg-white text-orange-500 rounded-full text-xs font-bold flex items-center justify-center leading-none">
-                    {esitiedot.length}
-                  </span>
-                  {esitiedot.length === 1 ? 'uusi asiakas' : 'uutta asiakasta'}
+                  {esitiedot.length} uutta
                 </button>
                 {paneAuki && (
                   <EsitiedotPane
                     lista={esitiedot}
                     onAvaa={avaaNäkymä}
+                    onPoista={poistaEsitiedot}
                     onSulje={() => setPaneAuki(false)}
                   />
                 )}

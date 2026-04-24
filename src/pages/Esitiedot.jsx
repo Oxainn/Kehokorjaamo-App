@@ -95,7 +95,9 @@ export default function Esitiedot() {
     e.preventDefault()
     if (!voidaanLähettää) return
 
+    const avain = 'esitiedot_' + Date.now()
     const tallennettava = {
+      _key:             avain,
       etunimi:          data.etunimi,
       sukunimi:         data.sukunimi,
       syntymaaika:      data.syntymaaika,
@@ -107,7 +109,7 @@ export default function Esitiedot() {
       lisatiedot:       data.lisatiedot,
       aikaleima:        new Date().toISOString(),
     }
-    localStorage.setItem('esitiedot_' + Date.now(), JSON.stringify(tallennettava))
+    localStorage.setItem(avain, JSON.stringify(tallennettava))
 
     window.open('https://vello.fi/kalevalapaja', '_blank')
 
