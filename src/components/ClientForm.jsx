@@ -121,8 +121,9 @@ function Osio({ otsikko, lapset }) {
   )
 }
 
-export default function ClientForm({ onComplete }) {
+export default function ClientForm({ onComplete, esitäytö = null }) {
   const [data, setData] = useState(() => {
+    if (esitäytö) return { ...TYHJÄ, ...esitäytö }
     try {
       const tallennettu = localStorage.getItem(STORAGE_KEY)
       return tallennettu ? JSON.parse(tallennettu) : TYHJÄ
