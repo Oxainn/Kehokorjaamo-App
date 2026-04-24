@@ -8,6 +8,4 @@
         font-family="Arial, sans-serif" font-size="20" fill="#bbb">
     Kopioi: cp hahmokuvat.svg public/hahmokuvat.svg
   </text>
-  <!-- Edestä: yksinkertainen hahmosiluetti vasemmalla -->
-  <!-- Takaa: yksinkertainen hahmosiluetti oikealla -->
 </svg>
