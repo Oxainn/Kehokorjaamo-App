@@ -22,7 +22,7 @@ function lueEsitiedot() {
     .sort((a, b) => b._key.localeCompare(a._key))
 }
 
-function EsitiedotPane({ lista, onAvaa, onPoista, onSulje }) {
+function EsitiedotPane({ lista, onAvaa, onPoista, onTyhjennä, onSulje }) {
   if (!lista.length) return null
   return (
     <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
@@ -33,7 +33,15 @@ function EsitiedotPane({ lista, onAvaa, onPoista, onSulje }) {
             {lista.length}
           </span>
         </span>
-        <button onClick={onSulje} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onTyhjennä}
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+          >
+            Tyhjennä kaikki
+          </button>
+          <button onClick={onSulje} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+        </div>
       </div>
       <ul className="divide-y divide-gray-100 max-h-[28rem] overflow-y-auto">
         {lista.map(e => (
@@ -123,6 +131,14 @@ export default function App() {
     setHighlights(plan?.toimenpiteet?.map(t => t.rakenne).filter(Boolean) ?? [])
   }
 
+  const tyhjennäKaikki = () => {
+    Object.keys(localStorage)
+      .filter(k => k.startsWith('esitiedot_'))
+      .forEach(k => localStorage.removeItem(k))
+    setEsitiedot([])
+    setPaneAuki(false)
+  }
+
   const poistaEsitiedot = (esitietoEntry) => {
     localStorage.removeItem(esitietoEntry._key)
     setEsitiedot(lueEsitiedot())
@@ -176,6 +192,7 @@ export default function App() {
                     lista={esitiedot}
                     onAvaa={avaaNäkymä}
                     onPoista={poistaEsitiedot}
+                    onTyhjennä={tyhjennäKaikki}
                     onSulje={() => setPaneAuki(false)}
                   />
                 )}
