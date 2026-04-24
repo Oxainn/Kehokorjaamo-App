@@ -1,10 +1,14 @@
-function muotoileLöydökset(findings) {
+function muotoileRyhmä(findings, tyyppi) {
   return findings
-    .map((f, i) => {
-      const osat = [`${i + 1}. ${f.alue} — kipu VAS ${f.kipu}/10`]
-      if (f.kallistus) osat.push(`kallistus: ${f.kallistus}`)
-      if (f.kierto)    osat.push(`kierto: ${f.kierto}`)
-      return osat.join(', ')
+    .filter(f => f.tyyppi === tyyppi)
+    .map(f => {
+      const osat = [`  • ${f.alue} — kipu VAS ${f.kipu}/10`]
+      if (f.kirjaukset) {
+        Object.entries(f.kirjaukset)
+          .filter(([, v]) => v !== null)
+          .forEach(([k, v]) => osat.push(`    ${k}: ${v}`))
+      }
+      return osat.join('\n')
     })
     .join('\n')
 }
@@ -23,19 +27,37 @@ function muotoileHavainnot(havainnot) {
     if (valitut.length) muutokset.push(`  ${alue}: ${valitut.join(', ')}`)
   })
   if (!rivit.length && !muutokset.length) return ''
-  let osio = '\n\nHoitajan rakenteelliset havainnot:\n'
-  if (rivit.length)    osio += rivit.join('\n')
-  if (muutokset.length) osio += '\nMuutostyypit:\n' + muutokset.join('\n')
-  return osio
+  let osio = 'Hoitajan rakenteelliset havainnot:\n'
+  if (rivit.length)     osio += rivit.join('\n') + '\n'
+  if (muutokset.length) osio += 'Muutostyypit:\n' + muutokset.join('\n') + '\n'
+  return osio + '\n'
 }
 
 export function buildPrompt(findings, havainnot) {
-  return (
-    'Analysoi nämä kehon kartoituslöydökset jäsenkorjaajan näkökulmasta:\n\n' +
-    muotoileLöydökset(findings) +
-    muotoileHavainnot(havainnot) +
-    '\n\nEtsi aiheuttajat, ehdota toimenpiteet tärkeysjärjestyksessä, ' +
-    'käytä selkokieltä ilman lääketieteellistä jargonia.\n\n' +
+  const primaari   = muotoileRyhmä(findings, 'primaari')
+  const lantioSeur = muotoileRyhmä(findings, 'lantio-seuraus')
+  const selkaSeur  = muotoileRyhmä(findings, 'selkaranka-seuraus')
+
+  let teksti = 'Analysoi nämä kehon kartoituslöydökset jäsenkorjaajan näkökulmasta.\n\n'
+
+  if (primaari) {
+    teksti += 'PRIMAARISET LÖYDÖKSET (juurisyy):\n' + primaari + '\n\n'
+  }
+  if (lantioSeur) {
+    teksti += 'LANTION AIHEUTTAMAT SEURAUKSET:\n' + lantioSeur + '\n\n'
+  }
+  if (selkaSeur) {
+    teksti += 'SELKÄRANGAN SEURAUKSET:\n' + selkaSeur + '\n\n'
+  }
+
+  teksti += muotoileHavainnot(havainnot)
+
+  teksti +=
+    'Analyysiohjeet:\n' +
+    '- Lantio ja SI-nivel ovat juurisyy — aloita aina niiden hoidosta\n' +
+    '- Selitä mitkä seurauslöydökset johtuvat lantiosta\n' +
+    '- Huomioi, että monet seuraukset korjaantuvat lantion korjauksen myötä\n' +
+    '- Käytä selkokieltä ilman lääketieteellistä jargonia\n\n' +
     'Palauta vastauksesi AINOASTAAN JSON-muodossa, ei muuta tekstiä ennen tai jälkeen.\n' +
     'Käytä tätä rakennetta:\n' +
     '{\n' +
@@ -58,7 +80,8 @@ export function buildPrompt(findings, havainnot) {
     '    }\n' +
     '  ]\n' +
     '}'
-  )
+
+  return teksti
 }
 
 function muunnaData(data) {
