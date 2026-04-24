@@ -94,6 +94,23 @@ export default function Esitiedot() {
   const lähetä = (e) => {
     e.preventDefault()
     if (!voidaanLähettää) return
+
+    const tallennettava = {
+      etunimi:          data.etunimi,
+      sukunimi:         data.sukunimi,
+      syntymaaika:      data.syntymaaika,
+      puhelin:          data.puhelin,
+      sahkoposti:       data.sahkoposti,
+      hoitoon_syy:      data.hoitoon_syy,
+      kipuaste:         data.kipuaste,
+      kontraindikaatiot: data.kontraindikaatiot,
+      lisatiedot:       data.lisatiedot,
+      aikaleima:        new Date().toISOString(),
+    }
+    localStorage.setItem('esitiedot_' + Date.now(), JSON.stringify(tallennettava))
+
+    window.open('https://vello.fi/kalevalapaja', '_blank')
+
     setLähetetty(true)
   }
 
