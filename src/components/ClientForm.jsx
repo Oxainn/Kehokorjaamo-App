@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const STORAGE_KEY = 'kehokorjaamo_asiakasdata'
 
@@ -22,6 +22,8 @@ const OIRETYYPIT = [
   { id: 3, nimi: 'Puutuminen',    vari: 'bg-blue-500',   kehys: 'border-blue-400'   },
   { id: 4, nimi: 'Tunnottomuus',  vari: 'bg-gray-400',   kehys: 'border-gray-400'   },
 ]
+
+const PIIRTOVÄRIT = { 1: '#ef4444', 2: '#f97316', 3: '#3b82f6', 4: '#9ca3af' }
 
 const TYHJÄ = {
   nimi:             '',
@@ -131,6 +133,42 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
       return TYHJÄ
     }
   })
+
+  const canvasRef        = useRef(null)
+  const [valittuPiirto, setValittuPiirto] = useState(1)
+
+  const piirraPiste = (e) => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx    = canvas.getContext('2d')
+    const rect   = canvas.getBoundingClientRect()
+    const scaleX = canvas.width  / rect.width
+    const scaleY = canvas.height / rect.height
+    const touches = e.touches ?? [e]
+    Array.from(touches).forEach(t => {
+      const x = (t.clientX - rect.left) * scaleX
+      const y = (t.clientY - rect.top)  * scaleY
+      ctx.beginPath()
+      ctx.arc(x, y, 8, 0, Math.PI * 2)
+      ctx.fillStyle = PIIRTOVÄRIT[valittuPiirto] + 'cc'
+      ctx.fill()
+    })
+  }
+
+  const alustaCanvas = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    if (canvas.width !== canvas.offsetWidth) {
+      canvas.width  = canvas.offsetWidth
+      canvas.height = canvas.offsetHeight
+    }
+  }
+
+  const tyhjennäCanvas = () => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
+  }
 
   // Tallennetaan localStorageen automaattisesti
   useEffect(() => {
@@ -345,16 +383,20 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
         {/* ── Osio 5: Kehon merkinnät ──────────────────────────────────────── */}
         <Osio otsikko="Kehon merkinnät" lapset={
           <>
+            <p className="text-xs text-gray-500">
+              Valitse oiretyyppi ja merkitse sijainti kehokuvaan sormella.
+            </p>
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {OIRETYYPIT.map((tyyppi) => {
-                const valittu = !!data.oireet[tyyppi.id]?.valittu
+                const aktiivinen = valittuPiirto === tyyppi.id
                 return (
                   <button
                     key={tyyppi.id}
                     type="button"
-                    onClick={() => toggleOire(tyyppi.id)}
+                    onClick={() => setValittuPiirto(tyyppi.id)}
                     className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-colors ${
-                      valittu ? `${tyyppi.kehys} bg-white` : 'border-gray-100 bg-gray-50 hover:border-gray-300'
+                      aktiivinen ? `${tyyppi.kehys} bg-white shadow-sm` : 'border-gray-100 bg-gray-50 hover:border-gray-300'
                     }`}
                   >
                     <span className={`w-9 h-9 rounded-full ${tyyppi.vari} text-white text-sm font-bold flex items-center justify-center`}>
@@ -366,22 +408,43 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
               })}
             </div>
 
-            {/* Sijainti-kenttä valituille oireille */}
-            {OIRETYYPIT.filter((t) => data.oireet[t.id]?.valittu).map((tyyppi) => (
-              <div key={tyyppi.id}>
-                <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-                  <span className={`inline-block w-4 h-4 rounded-full ${tyyppi.vari} mr-1.5 align-middle`} />
-                  {tyyppi.nimi} — missä kehon kohdassa?
-                </label>
-                <input
-                  type="text"
-                  value={data.oireet[tyyppi.id]?.sijainti ?? ''}
-                  onChange={(e) => päivitäOireSijainti(tyyppi.id, e.target.value)}
-                  placeholder="esim. vasen hartia, alaselkä..."
-                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-                />
-              </div>
-            ))}
+            {/* Hahmokuva piirtoalustana */}
+            <div
+              style={{
+                position: 'relative',
+                width: '100%',
+                marginTop: '8px',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                overflow: 'hidden',
+              }}
+            >
+              <img
+                src="/hahmokuvat.svg"
+                style={{ width: '100%', display: 'block' }}
+                alt="Kehon merkintäalue"
+                onLoad={alustaCanvas}
+              />
+              <canvas
+                ref={canvasRef}
+                style={{
+                  position: 'absolute',
+                  top: 0, left: 0,
+                  width: '100%', height: '100%',
+                  touchAction: 'none',
+                }}
+                onTouchStart={(e) => { e.preventDefault(); alustaCanvas(); piirraPiste(e) }}
+                onTouchMove={(e) => { e.preventDefault(); piirraPiste(e) }}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={tyhjennäCanvas}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors self-start"
+            >
+              Tyhjennä piirros
+            </button>
           </>
         } />
 
