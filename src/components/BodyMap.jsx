@@ -162,12 +162,26 @@ export default function BodyMap({ onAnalyze }) {
               viewBox="0 0 1471 1069"
               xmlns="http://www.w3.org/2000/svg"
             >
-              {/* Testipisteet — koordinaatit tarkistetaan oikealla hahmokuvalla */}
-              <circle cx={730} cy={80}  r={20} fill="red" opacity={0.5} />
-              <circle cx={730} cy={220} r={20} fill="red" opacity={0.5} />
-              <circle cx={730} cy={480} r={20} fill="red" opacity={0.5} />
-              <circle cx={700} cy={720} r={20} fill="red" opacity={0.5} />
-              <circle cx={700} cy={950} r={20} fill="red" opacity={0.5} />
+              {/* Testipisteet — edestä-näkymä (x 740–1100) */}
+              {[
+                { id: 'paa',    cx: 920, cy: 80  },
+                { id: 'hartiat', cx: 920, cy: 230 },
+                { id: 'lantio', cx: 920, cy: 480 },
+                { id: 'polvi_v', cx: 890, cy: 700 },
+                { id: 'nilkka_v', cx: 885, cy: 930 },
+              ].map(({ id, cx, cy }) => {
+                const onValittu = valittu === id
+                return (
+                  <g key={id} onClick={() => klikkaaAlue(id)} style={{ cursor: 'pointer' }}>
+                    <circle cx={cx} cy={cy} r={30} fill="transparent" />
+                    <circle
+                      cx={cx} cy={cy} r={10}
+                      fill={onValittu ? '#1D9E75' : '#CBD5E1'}
+                      stroke="white" strokeWidth={2}
+                    />
+                  </g>
+                )
+              })}
             </svg>
           </div>
 
