@@ -1,35 +1,28 @@
 import { useState } from 'react'
+import { KIRJAUSRAKENNE } from '../data/findings-structure.js'
 
-const ALUEET = [
-  { id: 'paa',      label: 'Pää',               shape: 'ellipse', props: { cx: 100, cy: 32, rx: 24, ry: 28 } },
-  { id: 'kaula',    label: 'Kaula',              shape: 'rect',    props: { x: 91, y: 59, width: 18, height: 21, rx: 3 } },
-  { id: 'hartiat',  label: 'Hartiat / yläselkä', shape: 'path',    props: { d: 'M52,80 L148,80 L144,152 L56,152 Z' } },
-  { id: 'keskilka', label: 'Keskilkä',           shape: 'rect',    props: { x: 62, y: 152, width: 76, height: 50, rx: 2 } },
-  { id: 'lantio',   label: 'Lantio / alaselkä',  shape: 'rect',    props: { x: 62, y: 202, width: 76, height: 50, rx: 2 } },
-  { id: 'lonkka_v', label: 'Lonkka V',           shape: 'path',    props: { d: 'M58,252 L100,252 L100,292 L54,292 Z' } },
-  { id: 'lonkka_o', label: 'Lonkka O',           shape: 'path',    props: { d: 'M100,252 L142,252 L146,292 L100,292 Z' } },
-  { id: 'reisi_v',  label: 'Reisi V',            shape: 'rect',    props: { x: 52, y: 292, width: 44, height: 76, rx: 2 } },
-  { id: 'reisi_o',  label: 'Reisi O',            shape: 'rect',    props: { x: 104, y: 292, width: 44, height: 76, rx: 2 } },
-  { id: 'polvi_v',  label: 'Polvi V',            shape: 'rect',    props: { x: 54, y: 368, width: 40, height: 28, rx: 2 } },
-  { id: 'polvi_o',  label: 'Polvi O',            shape: 'rect',    props: { x: 106, y: 368, width: 40, height: 28, rx: 2 } },
-  { id: 'saari_v',  label: 'Sääri V',            shape: 'rect',    props: { x: 56, y: 396, width: 36, height: 64, rx: 2 } },
-  { id: 'saari_o',  label: 'Sääri O',            shape: 'rect',    props: { x: 108, y: 396, width: 36, height: 64, rx: 2 } },
-  { id: 'jalka_v',  label: 'Jalka V',            shape: 'rect',    props: { x: 44, y: 460, width: 50, height: 24, rx: 3 } },
-  { id: 'jalka_o',  label: 'Jalka O',            shape: 'rect',    props: { x: 106, y: 460, width: 50, height: 24, rx: 3 } },
-]
-
-const TYHJÄ = { kallistus: null, kierto: null, kipu: 0 }
-
-const KALLISTUS_OPT = [
-  { arvo: 'vasen', teksti: '← Vasen' },
-  { arvo: null,    teksti: 'Ei' },
-  { arvo: 'oikea', teksti: 'Oikea →' },
-]
-
-const KIERTO_OPT = [
-  { arvo: 'eteen',  teksti: '↺ Eteen' },
-  { arvo: null,     teksti: 'Ei' },
-  { arvo: 'taakse', teksti: 'Taakse ↻' },
+const RYHMÄT = [
+  {
+    tyyppi: 'primaari',
+    otsikko: 'Primaari',
+    reunus: 'border-green-400',
+    pilli: 'bg-green-100 text-green-800',
+    bg: 'bg-green-50',
+  },
+  {
+    tyyppi: 'lantio-seuraus',
+    otsikko: 'Lantion seuraukset',
+    reunus: 'border-orange-400',
+    pilli: 'bg-orange-100 text-orange-800',
+    bg: 'bg-orange-50',
+  },
+  {
+    tyyppi: 'selkaranka-seuraus',
+    otsikko: 'Selkärangan seuraukset',
+    reunus: 'border-blue-400',
+    pilli: 'bg-blue-100 text-blue-800',
+    bg: 'bg-blue-50',
+  },
 ]
 
 const LEGENDA = [
@@ -47,39 +40,44 @@ function kipuVäri(kipu) {
   return '#fca5a5'
 }
 
-function SvgAlue({ alue, löydös, isSelected, onClick }) {
-  const fill        = löydös ? kipuVäri(löydös.kipu) : '#e5e7eb'
-  const stroke      = isSelected ? '#1d4ed8' : '#9ca3af'
-  const strokeWidth = isSelected ? 2.5 : 1
-
-  const common = {
-    fill, stroke, strokeWidth, onClick,
-    style: { cursor: 'pointer' },
-    className: 'transition-all duration-150 hover:opacity-75',
-  }
-
-  if (alue.shape === 'ellipse') return <ellipse {...common} {...alue.props} />
-  if (alue.shape === 'rect')    return <rect    {...common} {...alue.props} />
-  if (alue.shape === 'path')    return <path    {...common} {...alue.props} />
-  return null
+function ryhmäInfo(tyyppi) {
+  return RYHMÄT.find(r => r.tyyppi === tyyppi) ?? RYHMÄT[0]
 }
 
-function ToggleGroup({ label, options, value, onChange }) {
+function tyhjäLöydös(alue) {
+  const kirjaukset = {}
+  alue.kirjaukset.forEach(k => { kirjaukset[k.id] = null })
+  return { tyyppi: alue.tyyppi, kipu: 0, kirjaukset }
+}
+
+function KirjausKenttä({ kirjaus, arvo, onChange }) {
   return (
     <div className="mb-4">
-      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{label}</p>
-      <div className="flex gap-2">
-        {options.map(({ arvo, teksti }) => (
+      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+        {kirjaus.nimi}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          onClick={() => onChange(kirjaus.id, null)}
+          className={`px-3 py-1.5 text-sm rounded-lg border font-medium transition-colors
+            ${arvo === null
+              ? 'bg-gray-400 text-white border-gray-400'
+              : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+            }`}
+        >
+          Ei
+        </button>
+        {kirjaus.vaihtoehdot.map(v => (
           <button
-            key={String(arvo)}
-            onClick={() => onChange(arvo)}
-            className={`flex-1 py-2 text-sm rounded-lg border font-medium transition-colors
-              ${value === arvo
+            key={v}
+            onClick={() => onChange(kirjaus.id, v)}
+            className={`px-3 py-1.5 text-sm rounded-lg border font-medium transition-colors
+              ${arvo === v
                 ? 'bg-brand-600 text-white border-brand-600'
                 : 'bg-white text-gray-600 border-gray-200 hover:border-brand-600 hover:text-brand-700'
               }`}
           >
-            {teksti}
+            {v}
           </button>
         ))}
       </div>
@@ -93,14 +91,28 @@ export default function BodyMap({ onAnalyze }) {
 
   const klikkaaAlue = (id) => {
     setValittu(id)
-    setLöydökset(prev => prev[id] ? prev : { ...prev, [id]: { ...TYHJÄ } })
+    if (!löydökset[id]) {
+      const alue = KIRJAUSRAKENNE.find(a => a.id === id)
+      setLöydökset(prev => ({ ...prev, [id]: tyhjäLöydös(alue) }))
+    }
   }
 
-  const päivitä = (kenttä, arvo) => {
+  const päivitäKirjaus = (kirjausId, arvo) => {
     if (!valittu) return
     setLöydökset(prev => ({
       ...prev,
-      [valittu]: { ...prev[valittu], [kenttä]: arvo },
+      [valittu]: {
+        ...prev[valittu],
+        kirjaukset: { ...prev[valittu].kirjaukset, [kirjausId]: arvo },
+      },
+    }))
+  }
+
+  const päivitäKipu = (arvo) => {
+    if (!valittu) return
+    setLöydökset(prev => ({
+      ...prev,
+      [valittu]: { ...prev[valittu], kipu: arvo },
     }))
   }
 
@@ -114,27 +126,30 @@ export default function BodyMap({ onAnalyze }) {
 
   const analysoi = () => {
     const findings = Object.entries(löydökset).map(([id, data]) => ({
-      alue: ALUEET.find(a => a.id === id)?.label ?? id,
-      ...data,
+      alue: KIRJAUSRAKENNE.find(a => a.id === id)?.nimi ?? id,
+      tyyppi: data.tyyppi,
+      kipu: data.kipu,
+      kirjaukset: data.kirjaukset,
     }))
     onAnalyze?.(findings)
   }
 
-  const valittuAlue = ALUEET.find(a => a.id === valittu)
-  const valittuData = valittu ? löydökset[valittu] : null
-  const löydösMäärä = Object.keys(löydökset).length
+  const valittuMääritys = KIRJAUSRAKENNE.find(a => a.id === valittu)
+  const valittuData     = valittu ? löydökset[valittu] : null
+  const löydösMäärä     = Object.keys(löydökset).length
 
   return (
     <section className="flex flex-col gap-6">
       <div>
         <h2 className="text-2xl font-semibold text-gray-800">Kehokartta</h2>
         <p className="mt-1 text-gray-500 text-sm">
-          Klikkaa kehon aluetta lisätäksesi löydöksen.
+          Valitse kehon alue kirjataksesi löydöksen.
         </p>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6 items-start">
-        {/* Kehokaavio: pohjakuva + SVG-overlay */}
+
+        {/* Vasen: kehokaavio */}
         <div className="flex flex-col items-center gap-3 flex-shrink-0 w-full lg:w-auto">
           <div style={{ position: 'relative', width: '100%', maxWidth: '600px' }}>
             <img
@@ -147,7 +162,7 @@ export default function BodyMap({ onAnalyze }) {
               viewBox="0 0 1471 1069"
               xmlns="http://www.w3.org/2000/svg"
             >
-              {/* Testipisteet — tarkista koordinaatit oikeaan hahmokuvaan */}
+              {/* Testipisteet — koordinaatit tarkistetaan oikealla hahmokuvalla */}
               <circle cx={730} cy={80}  r={20} fill="red" opacity={0.5} />
               <circle cx={730} cy={220} r={20} fill="red" opacity={0.5} />
               <circle cx={730} cy={480} r={20} fill="red" opacity={0.5} />
@@ -171,32 +186,80 @@ export default function BodyMap({ onAnalyze }) {
 
         {/* Oikea paneeli */}
         <div className="flex-1 min-w-0 flex flex-col gap-4">
-          {/* Aluekohtainen muokkain */}
-          {valittu && valittuData ? (
+
+          {/* Alueet ryhmittäin */}
+          {RYHMÄT.map(ryhmä => {
+            const alueet = KIRJAUSRAKENNE.filter(a => a.tyyppi === ryhmä.tyyppi)
+            return (
+              <div
+                key={ryhmä.tyyppi}
+                className={`rounded-xl border-2 ${ryhmä.reunus} ${ryhmä.bg} p-4`}
+              >
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-3">
+                  {ryhmä.otsikko}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {alueet.map(alue => {
+                    const löydös   = löydökset[alue.id]
+                    const isActive = alue.id === valittu
+                    return (
+                      <button
+                        key={alue.id}
+                        onClick={() => klikkaaAlue(alue.id)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-all
+                          ${isActive
+                            ? 'bg-gray-800 text-white border-gray-800'
+                            : löydös
+                              ? 'bg-white border-gray-300 text-gray-700'
+                              : 'bg-white border-gray-200 text-gray-500 hover:border-gray-400'
+                          }`}
+                        style={löydös && !isActive
+                          ? { borderColor: kipuVäri(löydös.kipu) }
+                          : {}
+                        }
+                      >
+                        {alue.nimi}
+                        {löydös && (
+                          <span className="ml-1.5 text-xs opacity-70">
+                            VAS {löydös.kipu}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+
+          {/* Valitun alueen muokkain */}
+          {valittu && valittuData && valittuMääritys ? (
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-              <div className="flex items-center justify-between mb-5">
-                <h3 className="font-semibold text-gray-800">{valittuAlue?.label}</h3>
+              <div className="flex items-start justify-between mb-1">
+                <div>
+                  <h3 className="font-semibold text-gray-800">{valittuMääritys.nimi}</h3>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Mittaa: {valittuMääritys.mittaus}
+                  </p>
+                </div>
                 <button
                   onClick={() => poista(valittu)}
-                  className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                  className="text-xs text-red-400 hover:text-red-600 transition-colors ml-4 flex-shrink-0"
                 >
                   Poista löydös
                 </button>
               </div>
 
-              <ToggleGroup
-                label="Kallistus"
-                options={KALLISTUS_OPT}
-                value={valittuData.kallistus}
-                onChange={(arvo) => päivitä('kallistus', arvo)}
-              />
-
-              <ToggleGroup
-                label="Kierto"
-                options={KIERTO_OPT}
-                value={valittuData.kierto}
-                onChange={(arvo) => päivitä('kierto', arvo)}
-              />
+              <div className="mt-4">
+                {valittuMääritys.kirjaukset.map(kirjaus => (
+                  <KirjausKenttä
+                    key={kirjaus.id}
+                    kirjaus={kirjaus}
+                    arvo={valittuData.kirjaukset[kirjaus.id]}
+                    onChange={päivitäKirjaus}
+                  />
+                ))}
+              </div>
 
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
@@ -217,7 +280,7 @@ export default function BodyMap({ onAnalyze }) {
                     return (
                       <button
                         key={i}
-                        onClick={() => päivitä('kipu', i)}
+                        onClick={() => päivitäKipu(i)}
                         className={`flex-1 py-1.5 text-xs font-semibold rounded border transition-colors ${cls}`}
                       >
                         {i}
@@ -232,9 +295,9 @@ export default function BodyMap({ onAnalyze }) {
               </div>
             </div>
           ) : (
-            <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 p-8 text-center">
+            <div className="bg-gray-50 rounded-xl border border-dashed border-gray-200 p-6 text-center">
               <p className="text-sm text-gray-400">
-                Klikkaa kehon aluetta lisätäksesi löydöksen.
+                Valitse alue yllä kirjataksesi löydöksen.
               </p>
             </div>
           )}
@@ -250,40 +313,47 @@ export default function BodyMap({ onAnalyze }) {
               </h3>
 
               <ul className="divide-y divide-gray-50 -mx-2 mb-4">
-                {Object.entries(löydökset).map(([id, data]) => {
-                  const alue    = ALUEET.find(a => a.id === id)
-                  const isActive = id === valittu
-                  return (
-                    <li
-                      key={id}
-                      onClick={() => setValittu(id)}
-                      className={`flex items-center justify-between px-2 py-2.5 rounded-lg cursor-pointer transition-colors
-                        ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
-                    >
-                      <span className="text-sm font-medium text-gray-700">{alue?.label}</span>
-                      <div className="flex items-center gap-1.5 text-xs">
-                        {data.kallistus && (
-                          <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                            {data.kallistus === 'vasen' ? '←' : '→'} {data.kallistus}
+                {KIRJAUSRAKENNE
+                  .filter(a => löydökset[a.id])
+                  .map(alue => {
+                    const data     = löydökset[alue.id]
+                    const isActive = alue.id === valittu
+                    const rInfo    = ryhmäInfo(alue.tyyppi)
+                    const kirjatut = Object.entries(data.kirjaukset)
+                      .filter(([, v]) => v !== null)
+                    return (
+                      <li
+                        key={alue.id}
+                        onClick={() => setValittu(alue.id)}
+                        className={`flex items-center justify-between px-2 py-2.5 rounded-lg cursor-pointer transition-colors
+                          ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${rInfo.pilli}`}>
+                            {rInfo.otsikko.split(' ')[0]}
                           </span>
-                        )}
-                        {data.kierto && (
-                          <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
-                            {data.kierto === 'eteen' ? '↺' : '↻'} {data.kierto}
+                          <span className="text-sm font-medium text-gray-700 truncate">
+                            {alue.nimi}
                           </span>
-                        )}
-                        <span className={`font-bold px-1.5 py-0.5 rounded
-                          ${data.kipu === 0   ? 'text-blue-600 bg-blue-50'
-                          : data.kipu <= 3 ? 'text-green-700 bg-green-50'
-                          : data.kipu <= 6 ? 'text-orange-700 bg-orange-50'
-                          : 'text-red-700 bg-red-50'}`}
-                        >
-                          VAS {data.kipu}
-                        </span>
-                      </div>
-                    </li>
-                  )
-                })}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs ml-2 flex-shrink-0">
+                          {kirjatut.map(([kid, v]) => (
+                            <span key={kid} className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">
+                              {v}
+                            </span>
+                          ))}
+                          <span className={`font-bold px-1.5 py-0.5 rounded
+                            ${data.kipu === 0   ? 'text-blue-600 bg-blue-50'
+                            : data.kipu <= 3 ? 'text-green-700 bg-green-50'
+                            : data.kipu <= 6 ? 'text-orange-700 bg-orange-50'
+                            : 'text-red-700 bg-red-50'}`}
+                          >
+                            VAS {data.kipu}
+                          </span>
+                        </div>
+                      </li>
+                    )
+                  })}
               </ul>
 
               <button
