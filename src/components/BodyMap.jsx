@@ -151,7 +151,7 @@ export default function BodyMap({ onAnalyze }) {
 
         {/* Vasen: kehokaavio */}
         <div className="flex flex-col items-center gap-3 flex-shrink-0 w-full lg:w-auto">
-          <div style={{ position: 'relative', width: '100%', maxWidth: '600px' }}>
+          <div style={{ position: 'relative', width: '100%', maxWidth: '600px', margin: '0 auto' }}>
             <img
               src="/hahmokuvat.svg"
               alt="Kehokaavio"
@@ -160,6 +160,7 @@ export default function BodyMap({ onAnalyze }) {
             <svg
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
               viewBox="0 0 1471 1069"
+              preserveAspectRatio="xMidYMid meet"
               xmlns="http://www.w3.org/2000/svg"
             >
               {/* Testipisteet — edestä-näkymä (x 740–1100) */}
