@@ -110,6 +110,8 @@ export default function ProductBoard() {
   const [visioTallennettu, setVisioTallennettu] = useState(false)
   const [kopioituId, setKopioituId]     = useState(null)
   const [uusiIdea, setUusiIdea]         = useState('')
+  const [ideaInput, setIdeaInput]       = useState('')
+  const [lisättyVahvistus, setLisättyVahvistus] = useState('')
   const [uusiTehtävä, setUusiTehtävä]   = useState('')
   const [uusiPrio, setUusiPrio]         = useState('keski')
   const [uusiCL, setUusiCL]             = useState('')
@@ -226,12 +228,55 @@ Tee seuraavat asiat järjestyksessä:
 
 5. TEE COMMIT selkeällä viestillä ja push mainiin
 
+6. EHDOTA IDEOITA SOVELLUKSEEN:
+   Listaa 2-4 konkreettista kehitysideaa jotka liittyvät tähän muutokseen.
+   Kirjoita ideat TÄSMÄLLEEN tässä muodossa jotta ne voidaan liittää suoraan sovellukseen — ei teknistä jargonia, selkokielellä:
+
+   IDEAT_ALKAA
+   - Idea yksi selkokielellä
+   - Idea kaksi selkokielellä
+   - Idea kolme selkokielellä
+   IDEAT_LOPPUU
+
 Projektin konteksti:
 - React + Vite + Tailwind
 - Vercel hosting
 - LocalStorage tallennus (Supabase tulossa)
 - Käytetään tabletilla vastaanotolla
 - Suomenkielinen UI`
+  }
+
+  const lisääIdeatTekstistä = () => {
+    const teksti = ideaInput.trim()
+    if (!teksti) return
+    const alku  = teksti.indexOf('IDEAT_ALKAA')
+    const loppu = teksti.indexOf('IDEAT_LOPPUU')
+    let rivit = []
+    if (alku !== -1 && loppu !== -1 && loppu > alku) {
+      rivit = teksti
+        .slice(alku + 'IDEAT_ALKAA'.length, loppu)
+        .split('\n')
+        .map(r => r.trim())
+        .filter(r => r.startsWith('- '))
+        .map(r => r.slice(2).trim())
+        .filter(Boolean)
+    } else {
+      rivit = teksti
+        .split('\n')
+        .map(r => r.trim())
+        .filter(r => r.startsWith('- '))
+        .map(r => r.slice(2).trim())
+        .filter(Boolean)
+    }
+    if (rivit.length === 0) return
+    const uudet = rivit.map(r => ({
+      id: uid(), teksti: r,
+      lisätty: new Date().toISOString(), tila: 'idea',
+    }))
+    setPb(prev => ({ ...prev, ideat: [...prev.ideat, ...uudet] }))
+    setIdeaInput('')
+    setLisättyVahvistus(`Lisätty ${rivit.length} ideaa!`)
+    setTimeout(() => setLisättyVahvistus(''), 3000)
   }
 
   const kopioi = (t) => {
@@ -308,9 +353,9 @@ Projektin konteksti:
         }
       />
 
-      {/* ── 2: Ominaisuustoiveet ─────────────────────────────────────────── */}
+      {/* ── 2: Koodaajan kehitys- ja korjausideat ──────────────────────── */}
       <AccordionOsio
-        id="ideat" otsikko="Ominaisuustoiveet" ikoni="💡"
+        id="ideat" otsikko="Koodaajan kehitys- ja korjausideat" ikoni="💡"
         badge={pb.ideat.length} auki={aukiOsio === 'ideat'} onToggle={toggle}
         lapset={
           <>
@@ -330,6 +375,31 @@ Projektin konteksti:
               >
                 + Lisää idea
               </button>
+            </div>
+
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Liitä Coden ehdotukset
+              </p>
+              <textarea
+                value={ideaInput}
+                onChange={e => setIdeaInput(e.target.value)}
+                placeholder="Liitä tähän Coden ehdotukset..."
+                rows={4}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+              />
+              <div className="flex items-center gap-3 mt-2">
+                <button
+                  type="button"
+                  onClick={lisääIdeatTekstistä}
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                >
+                  Lisää ideat
+                </button>
+                {lisättyVahvistus && (
+                  <span className="text-sm text-green-600 font-medium">{lisättyVahvistus}</span>
+                )}
+              </div>
             </div>
 
             {pb.ideat.length === 0 ? (
