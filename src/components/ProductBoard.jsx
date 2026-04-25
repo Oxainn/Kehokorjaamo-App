@@ -31,6 +31,7 @@ const OLETUS_CHANGELOG = [
   { id: 'cl-4', teksti: 'Hoitosuunnitelma Claude-sillalla',                    valmistunut: '2026-03-20T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-5', teksti: 'Piirtoalusta kehokuvaan',                             valmistunut: '2026-04-01T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-6', teksti: 'GitHub + Vercel automaattideploy',                    valmistunut: '2026-04-10T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-7', teksti: 'Allergia-lisätietokenttä terveystietoihin',           valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
 ]
 
 function luePB() {
@@ -106,6 +107,16 @@ export default function ProductBoard() {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(pb))
   }, [pb])
+
+  // Injektoi uudet system-entryt olemassa olevaan changelogiin kerran mountissa
+  useEffect(() => {
+    setPb(prev => {
+      const olemassaIdt = new Set(prev.changelog.map(c => c.id))
+      const uudet = OLETUS_CHANGELOG.filter(e => !olemassaIdt.has(e.id))
+      if (uudet.length === 0) return prev
+      return { ...prev, changelog: [...prev.changelog, ...uudet] }
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (id) => setAukiOsio(prev => prev === id ? null : id)
 
