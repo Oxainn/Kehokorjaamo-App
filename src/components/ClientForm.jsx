@@ -64,7 +64,7 @@ function laskikaIka(syntymaaika) {
   return ika
 }
 
-function TextInput({ label, name, value, onChange, type = 'text', required = false }) {
+function TextInput({ label, name, value, onChange, type = 'text', required = false, error }) {
   return (
     <div>
       <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
@@ -75,8 +75,13 @@ function TextInput({ label, name, value, onChange, type = 'text', required = fal
         name={name}
         value={value}
         onChange={onChange}
-        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+        className={`w-full rounded-lg border px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:border-transparent ${
+          error
+            ? 'border-red-400 focus:ring-red-400'
+            : 'border-gray-200 focus:ring-brand-500'
+        }`}
       />
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
   )
 }
@@ -98,21 +103,24 @@ function TextArea({ label, name, value, onChange, rows = 3 }) {
   )
 }
 
-function Toggle({ label, checked, onChange }) {
+function Toggle({ label, checked, onChange, error }) {
   return (
-    <div className="flex items-start gap-3">
-      <button
-        type="button"
-        onClick={() => onChange(!checked)}
-        className={`flex-shrink-0 w-11 h-6 rounded-full transition-colors mt-0.5 ${
-          checked ? 'bg-brand-600' : 'bg-gray-200'
-        }`}
-      >
-        <span className={`block w-4 h-4 bg-white rounded-full shadow transition-transform mx-1 ${
-          checked ? 'translate-x-5' : 'translate-x-0'
-        }`} />
-      </button>
-      <span className="text-sm text-gray-700 leading-snug">{label}</span>
+    <div>
+      <div className="flex items-start gap-3">
+        <button
+          type="button"
+          onClick={() => onChange(!checked)}
+          className={`flex-shrink-0 w-11 h-6 rounded-full transition-colors mt-0.5 ${
+            checked ? 'bg-brand-600' : error ? 'bg-red-200' : 'bg-gray-200'
+          }`}
+        >
+          <span className={`block w-4 h-4 bg-white rounded-full shadow transition-transform mx-1 ${
+            checked ? 'translate-x-5' : 'translate-x-0'
+          }`} />
+        </button>
+        <span className="text-sm text-gray-700 leading-snug">{label}</span>
+      </div>
+      {error && <p className="mt-1 text-xs text-red-500 ml-14">{error}</p>}
     </div>
   )
 }
@@ -136,6 +144,8 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
       return TYHJÄ
     }
   })
+
+  const [yritettyLähettää, setYritettyLähettää] = useState(false)
 
   const canvasRef        = useRef(null)
   const piirrosDataRef   = useRef(esitäytö?.piirros ?? null)
@@ -231,6 +241,8 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
 
   const lähetä = (e) => {
     e.preventDefault()
+    setYritettyLähettää(true)
+    if (!data.nimi.trim() || !data.suostumus_rekisteri || ehdotonValittu) return
     const avain = `kehokorjaamo_asiakas_${Date.now()}`
     localStorage.setItem(avain, JSON.stringify(data))
     if (typeof onComplete === 'function') {
@@ -243,6 +255,11 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
   const ika = laskikaIka(data.syntymaaika)
   const alleKahdeksantoista = ika !== null && ika < 18
   const ehdotonValittu = EHDOTTOMAT_KONTRA.some((e) => data.kontraindikaatiot[e])
+
+  const virheet = yritettyLähettää ? {
+    nimi:      !data.nimi.trim()           ? 'Nimi on pakollinen'                        : '',
+    suostumus: !data.suostumus_rekisteri   ? 'Suostumus rekisteriin on pakollinen'       : '',
+  } : {}
 
   return (
     <section className="flex flex-col gap-6">
@@ -258,7 +275,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
         {/* ── Osio 1: Perustiedot ─────────────────────────────────────────── */}
         <Osio otsikko="Perustiedot" lapset={
           <>
-            <TextInput label="Nimi" name="nimi" value={data.nimi} onChange={päivitä} required />
+            <TextInput label="Nimi" name="nimi" value={data.nimi} onChange={päivitä} required error={virheet.nimi} />
             <TextInput
               label="Syntymäaika"
               name="syntymaaika"
@@ -528,6 +545,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
               label="Tietojani saa säilyttää asiakasrekisterissä"
               checked={data.suostumus_rekisteri}
               onChange={() => toggleTietosuoja('suostumus_rekisteri')}
+              error={virheet.suostumus}
             />
             <Toggle
               label="Tietoni saa luovuttaa hoitaville tahoille"
@@ -662,18 +680,12 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
         } />
 
         {/* ── Lähetysnappi ────────────────────────────────────────────────── */}
-        {(() => {
-          const voidaanLahettaa = !!data.nimi && data.suostumus_rekisteri && !ehdotonValittu
-          return (
-            <button
-              type="submit"
-              disabled={false}
-              className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
-            >
-              {ehdotonValittu ? 'Hoito ei ole mahdollinen' : 'Vahvista ja jatka →'}
-            </button>
-          )
-        })()}
+        <button
+          type="submit"
+          className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
+        >
+          {ehdotonValittu ? 'Hoito ei ole mahdollinen' : 'Vahvista ja jatka →'}
+        </button>
       </form>
     </section>
   )

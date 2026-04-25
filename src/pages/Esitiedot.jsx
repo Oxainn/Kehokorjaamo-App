@@ -45,7 +45,7 @@ function kipuVari(arvo) {
   return           { kehys: '#dc2626', tausta: '#fee2e2', teksti: '#b91c1c' }
 }
 
-function Kenttä({ label, required, children }) {
+function Kenttä({ label, required, error, children }) {
   return (
     <div>
       <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
@@ -53,20 +53,23 @@ function Kenttä({ label, required, children }) {
         {required && <span className="text-red-400 ml-0.5">*</span>}
       </label>
       {children}
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
   )
 }
 
-function TextInput({ label, name, value, onChange, type = 'text', required = false, placeholder = '' }) {
+function TextInput({ label, name, value, onChange, type = 'text', required = false, placeholder = '', error }) {
   return (
-    <Kenttä label={label} required={required}>
+    <Kenttä label={label} required={required} error={error}>
       <input
         type={type}
         name={name}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+        className={`w-full rounded-lg border px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:border-transparent ${
+          error ? 'border-red-400 focus:ring-red-400' : 'border-gray-200 focus:ring-green-500'
+        }`}
       />
     </Kenttä>
   )
@@ -82,8 +85,9 @@ function Osio({ otsikko, lapset }) {
 }
 
 export default function Esitiedot() {
-  const [data, setData]           = useState(TYHJÄ)
-  const [lähetetty, setLähetetty] = useState(false)
+  const [data, setData]               = useState(TYHJÄ)
+  const [lähetetty, setLähetetty]     = useState(false)
+  const [yritettyLähettää, setYritettyLähettää] = useState(false)
   const [valittuPiirto, setValittuPiirto] = useState(1)
   const [piirtää, setPiirtää]             = useState(false)
   const canvasRef = useRef(null)
@@ -140,6 +144,7 @@ export default function Esitiedot() {
 
   const lähetä = (e) => {
     e.preventDefault()
+    setYritettyLähettää(true)
     if (!voidaanLähettää) return
 
     const canvas = document.getElementById('piirtokerros')
@@ -226,11 +231,13 @@ export default function Esitiedot() {
                   label="Etunimi" name="etunimi"
                   value={data.etunimi} onChange={päivitä}
                   required placeholder="Matti"
+                  error={yritettyLähettää && !data.etunimi.trim() ? 'Etunimi on pakollinen' : ''}
                 />
                 <TextInput
                   label="Sukunimi" name="sukunimi"
                   value={data.sukunimi} onChange={päivitä}
                   required placeholder="Meikäläinen"
+                  error={yritettyLähettää && !data.sukunimi.trim() ? 'Sukunimi on pakollinen' : ''}
                 />
               </div>
               <TextInput
@@ -502,12 +509,11 @@ export default function Esitiedot() {
           {/* ── Lähetä-nappi ─────────────────────────────────────────────── */}
           <button
             type="submit"
-            disabled={!voidaanLähettää}
             className="w-full py-4 rounded-2xl font-semibold text-base transition-colors shadow-sm"
             style={{
-              background:    voidaanLähettää ? '#1D9E75' : '#d1d5db',
-              color:         voidaanLähettää ? '#fff'    : '#9ca3af',
-              cursor:        voidaanLähettää ? 'pointer' : 'not-allowed',
+              background: '#1D9E75',
+              color:      '#fff',
+              cursor:     'pointer',
             }}
           >
             {ehdotonValittu
@@ -515,12 +521,6 @@ export default function Esitiedot() {
               : 'Lähetä esitiedot ja varaa aika →'
             }
           </button>
-
-          {!data.etunimi.trim() && (
-            <p className="text-center text-xs text-gray-400">
-              Täytä vähintään etu- ja sukunimi lähettääksesi lomakkeen.
-            </p>
-          )}
 
         </form>
       </main>
