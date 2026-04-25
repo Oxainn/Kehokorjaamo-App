@@ -6,6 +6,7 @@ import TreatmentPlan from './TreatmentPlan'
 import MuscleLibrary from './MuscleLibrary'
 import Aftercare from './Aftercare'
 import Settings from './Settings'
+import ProductBoard from './ProductBoard'
 
 const NAV_ITEMS = [
   { id: 'client',    label: 'Asiakastiedot' },
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { id: 'muscles',   label: 'Lihakset' },
   { id: 'aftercare', label: 'Jälkihoito' },
   { id: 'settings',  label: 'Asetukset' },
+  { id: 'board',     label: 'Product Board' },
 ]
 
 function lueEsitiedot() {
@@ -268,6 +270,9 @@ export default function App() {
         </div>
         <div style={{ display: activeTab === 'settings'  ? 'block' : 'none' }}>
           <Settings />
+        </div>
+        <div style={{ display: activeTab === 'board'     ? 'block' : 'none' }}>
+          <ProductBoard />
         </div>
       </main>
 
