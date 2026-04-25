@@ -196,11 +196,46 @@ export default function ProductBoard() {
   const poistaTehtävä = (id) =>
     setPb(prev => ({ ...prev, tehtävät: prev.tehtävät.filter(t => t.id !== id) }))
 
+  const rakennaPrompti = (tehtävä) => {
+    const prioLabel = PRIORITEETIT.find(p => p.id === tehtävä.prioriteetti)?.label ?? tehtävä.prioriteetti
+    return `Kehokorjaamo App — toteuta seuraava tehtävä:
+
+TEHTÄVÄ: ${tehtävä.teksti}
+PRIORITEETTI: ${prioLabel}
+
+Tee seuraavat asiat järjestyksessä:
+
+1. TOTEUTA muutos — kirjoita tai muokkaa tarvittavat tiedostot
+
+2. TARKISTA toimintaketju — varmista että:
+   - Muutos toimii yksin
+   - Muutos toimii yhdessä muiden komponenttien kanssa
+   - Tiedonsiirto toimii läpi koko ketjun
+     (esim. esitiedot → asiakaslomake → hoitosuunnitelma → jälkihoito)
+   - Mobiili ja tablet toimivat
+
+3. TESTAA reunatapaukset:
+   - Mitä jos kentät ovat tyhjiä?
+   - Mitä jos data puuttuu?
+   - Mitä jos käyttäjä peruuttaa?
+
+4. EHDOTA jatkokehitystä:
+   - Mitä hyödyllisiä lisäominaisuuksia tähän voisi liittää?
+   - Mitä muita komponentteja tämä muutos saattaa vaatia päivitystä?
+   - Onko tässä tietoturva tai käytettävyyshuomioita?
+
+5. TEE COMMIT selkeällä viestillä ja push mainiin
+
+Projektin konteksti:
+- React + Vite + Tailwind
+- Vercel hosting
+- LocalStorage tallennus (Supabase tulossa)
+- Käytetään tabletilla vastaanotolla
+- Suomenkielinen UI`
+  }
+
   const kopioi = (t) => {
-    const prioLabel = PRIORITEETIT.find(p => p.id === t.prioriteetti)?.label ?? t.prioriteetti
-    const prompt =
-      `Kehokorjaamo App — toteuta seuraava tehtävä:\n\n${t.teksti}\n\nPrioriteetti: ${prioLabel}\n\nToteuta muutos, tee commit ja push mainiin.`
-    navigator.clipboard.writeText(prompt).then(() => {
+    navigator.clipboard.writeText(rakennaPrompti(t)).then(() => {
       setKopioituId(t.id)
       setTimeout(() => setKopioituId(null), 2000)
     })
