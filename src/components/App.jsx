@@ -160,9 +160,10 @@ export default function App() {
       sahkoposti:  esitietoEntry.sahkoposti   ?? '',
       hoitoon_syy: esitietoEntry.hoitoon_syy  ?? '',
       kipuaste:    esitietoEntry.kipuaste      ?? 0,
-      kontraindikaatiot: esitietoEntry.kontraindikaatiot ?? {},
-      sairaudet:   esitietoEntry.lisatiedot   ?? '',
-      piirros:     esitietoEntry.piirros      ?? null,
+      kontraindikaatiot:  esitietoEntry.kontraindikaatiot  ?? {},
+      allergia_lisatieto: esitietoEntry.allergia_lisatieto ?? '',
+      sairaudet:          esitietoEntry.lisatiedot         ?? '',
+      piirros:            esitietoEntry.piirros            ?? null,
     }
 
     // Ref takaa että ClientForm saa datan heti mountissa

@@ -32,6 +32,7 @@ const TYHJÄ = {
   hoitoon_syy:    '',
   kipuaste:       0,
   kontraindikaatiot: {},
+  allergia_lisatieto: '',
   lisatiedot:     '',
 }
 
@@ -154,8 +155,9 @@ export default function Esitiedot() {
       sahkoposti:       data.sahkoposti,
       hoitoon_syy:      data.hoitoon_syy,
       kipuaste:         data.kipuaste,
-      kontraindikaatiot: data.kontraindikaatiot,
-      lisatiedot:       data.lisatiedot,
+      kontraindikaatiot:  data.kontraindikaatiot,
+      allergia_lisatieto: data.allergia_lisatieto,
+      lisatiedot:         data.lisatiedot,
       piirros:          piirrosData,
       aikaleima:        new Date().toISOString(),
     }
@@ -375,8 +377,30 @@ export default function Esitiedot() {
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
                   Huomioitavat terveystiedot — rastita kaikki, jotka koskevat sinua
                 </p>
+                {/* Allergia erikseen lisätietokentällä */}
+                <div className="flex flex-col gap-2 mb-2">
+                  <label className="flex items-center gap-2 cursor-pointer py-0.5">
+                    <input
+                      type="checkbox"
+                      checked={!!data.kontraindikaatiot['Allergia']}
+                      onChange={() => toggleKontra('Allergia')}
+                      className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="text-sm text-gray-700">Allergia</span>
+                  </label>
+                  {!!data.kontraindikaatiot['Allergia'] && (
+                    <input
+                      type="text"
+                      name="allergia_lisatieto"
+                      value={data.allergia_lisatieto}
+                      onChange={päivitä}
+                      placeholder="Tarkenna allergia (esim. pähkinät, siitepöly, lääkeaine...)"
+                      className="ml-6 w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  )}
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2">
-                  {NORMAALI_KONTRA.map(nimi => (
+                  {NORMAALI_KONTRA.filter(n => n !== 'Allergia').map(nimi => (
                     <label key={nimi} className="flex items-center gap-2 cursor-pointer py-0.5">
                       <input
                         type="checkbox"
