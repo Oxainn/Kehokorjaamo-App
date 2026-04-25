@@ -39,7 +39,9 @@ const TYHJÄ = {
   laakitys:         '',
   miten_loysi:      '',
   kontraindikaatiot: {},
-  allergia_lisatieto: '',
+  allergia_lisatieto:  '',
+  tekonivel_lisatieto: '',
+  raskaus_lisatieto:   '',
   sairaudet:        '',
   vammat:           '',
   kipuaste:         0,
@@ -315,8 +317,52 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
                   />
                 )}
               </div>
+              {/* Tekonivel erikseen lisätietokentällä */}
+              <div className="flex flex-col gap-2 mb-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!data.kontraindikaatiot['Tekonivel']}
+                    onChange={() => toggleKontra('Tekonivel')}
+                    className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="text-sm text-gray-700 leading-snug">Tekonivel</span>
+                </label>
+                {!!data.kontraindikaatiot['Tekonivel'] && (
+                  <input
+                    type="text"
+                    name="tekonivel_lisatieto"
+                    value={data.tekonivel_lisatieto}
+                    onChange={päivitä}
+                    placeholder="Tarkenna tekonivel (esim. lonkka vasen, polvi oikea, olkapää...)"
+                    className="ml-6 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                )}
+              </div>
+              {/* Raskaus erikseen lisätietokentällä */}
+              <div className="flex flex-col gap-2 mb-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={!!data.kontraindikaatiot['Raskaus']}
+                    onChange={() => toggleKontra('Raskaus')}
+                    className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <span className="text-sm text-gray-700 leading-snug">Raskaus</span>
+                </label>
+                {!!data.kontraindikaatiot['Raskaus'] && (
+                  <input
+                    type="text"
+                    name="raskaus_lisatieto"
+                    value={data.raskaus_lisatieto}
+                    onChange={päivitä}
+                    placeholder="Raskausviikot / lisätietoja"
+                    className="ml-6 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                )}
+              </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-2">
-                {NORMAALI_KONTRA.filter(n => n !== 'Allergia').map((nimi) => (
+                {NORMAALI_KONTRA.filter(n => n !== 'Allergia' && n !== 'Tekonivel' && n !== 'Raskaus').map((nimi) => (
                   <label key={nimi} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
