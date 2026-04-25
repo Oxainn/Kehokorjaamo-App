@@ -295,69 +295,60 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
                 Huomioitavat terveystiedot
               </p>
-              {/* Allergia erikseen lisätietokentällä */}
-              <div className="flex flex-col gap-2 mb-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!!data.kontraindikaatiot['Allergia']}
-                    onChange={() => toggleKontra('Allergia')}
-                    className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                  />
-                  <span className="text-sm text-gray-700 leading-snug">Allergia</span>
-                </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} className="mb-1">
+                <input
+                  type="checkbox"
+                  checked={!!data.kontraindikaatiot['Allergia']}
+                  onChange={() => toggleKontra('Allergia')}
+                  className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 flex-shrink-0"
+                />
+                <span className="text-sm text-gray-700 leading-snug flex-shrink-0">Allergia</span>
                 {!!data.kontraindikaatiot['Allergia'] && (
                   <input
                     type="text"
                     name="allergia_lisatieto"
                     value={data.allergia_lisatieto}
                     onChange={päivitä}
-                    placeholder="Tarkenna allergia (esim. pähkinät, siitepöly, lääkeaine...)"
-                    className="ml-6 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                    placeholder="esim. pähkinät, siitepöly, lääkeaine..."
+                    style={{ flex: 1, fontSize: '13px', padding: '4px 8px', border: '1px solid #e2e8f0', borderRadius: '6px' }}
                   />
                 )}
               </div>
-              {/* Tekonivel erikseen lisätietokentällä */}
-              <div className="flex flex-col gap-2 mb-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!!data.kontraindikaatiot['Tekonivel']}
-                    onChange={() => toggleKontra('Tekonivel')}
-                    className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                  />
-                  <span className="text-sm text-gray-700 leading-snug">Tekonivel</span>
-                </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} className="mb-1">
+                <input
+                  type="checkbox"
+                  checked={!!data.kontraindikaatiot['Tekonivel']}
+                  onChange={() => toggleKontra('Tekonivel')}
+                  className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 flex-shrink-0"
+                />
+                <span className="text-sm text-gray-700 leading-snug flex-shrink-0">Tekonivel</span>
                 {!!data.kontraindikaatiot['Tekonivel'] && (
                   <input
                     type="text"
                     name="tekonivel_lisatieto"
                     value={data.tekonivel_lisatieto}
                     onChange={päivitä}
-                    placeholder="Tarkenna tekonivel (esim. lonkka vasen, polvi oikea, olkapää...)"
-                    className="ml-6 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                    placeholder="esim. lonkka vasen, polvi oikea, olkapää..."
+                    style={{ flex: 1, fontSize: '13px', padding: '4px 8px', border: '1px solid #e2e8f0', borderRadius: '6px' }}
                   />
                 )}
               </div>
-              {/* Raskaus erikseen lisätietokentällä */}
-              <div className="flex flex-col gap-2 mb-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={!!data.kontraindikaatiot['Raskaus']}
-                    onChange={() => toggleKontra('Raskaus')}
-                    className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                  />
-                  <span className="text-sm text-gray-700 leading-snug">Raskaus</span>
-                </label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} className="mb-1">
+                <input
+                  type="checkbox"
+                  checked={!!data.kontraindikaatiot['Raskaus']}
+                  onChange={() => toggleKontra('Raskaus')}
+                  className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 flex-shrink-0"
+                />
+                <span className="text-sm text-gray-700 leading-snug flex-shrink-0">Raskaus</span>
                 {!!data.kontraindikaatiot['Raskaus'] && (
                   <input
                     type="text"
                     name="raskaus_lisatieto"
                     value={data.raskaus_lisatieto}
                     onChange={päivitä}
-                    placeholder="Raskausviikot / lisätietoja"
-                    className="ml-6 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                    placeholder="raskausviikot / lisätietoja"
+                    style={{ flex: 1, fontSize: '13px', padding: '4px 8px', border: '1px solid #e2e8f0', borderRadius: '6px' }}
                   />
                 )}
               </div>
