@@ -36,6 +36,13 @@ const OLETUS_TEHTÄVÄT = [
 // Tehtävät jotka on valmistunut — poistetaan olemassa olevista listoista
 const VALMISTUNEET_IDT = new Set(['dt-m1', 'dt-k2'])
 
+const OLETUS_IDEAT = [
+  { id: 'di-1', teksti: 'Tallenna PDF automaattisesti hoitokerran päätteeksi asiakkaalle sähköpostilla', lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
+  { id: 'di-2', teksti: 'Esikatselu-näkymä ennen tulostusta jossa voi valita mitä osioita otetaan mukaan', lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
+  { id: 'di-3', teksti: 'QR-koodi PDF:ään jonka asiakas skannaa ja näkee omat tietonsa mobiilissa',         lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
+  { id: 'di-4', teksti: 'Tulostusasettelu: vaaka- tai pystysuunta valittavissa, logo näkyy yläkulmassa',   lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
+]
+
 const OLETUS_CHANGELOG = [
   { id: 'cl-1', teksti: 'Asiakastietolomake',                                  valmistunut: '2026-03-01T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-2', teksti: 'Esitietolomake + Vello-integraatio',                  valmistunut: '2026-03-10T00:00:00.000Z', versio: 'V1' },
@@ -105,7 +112,7 @@ export default function ProductBoard() {
     const s = luePB()
     return {
       visio:     s.visio     ?? OLETUS_VISIO,
-      ideat:     s.ideat     ?? [],
+      ideat:     s.ideat     ?? OLETUS_IDEAT,
       tehtävät:  s.tehtävät  ?? OLETUS_TEHTÄVÄT,
       changelog: s.changelog ?? OLETUS_CHANGELOG,
     }
@@ -130,13 +137,16 @@ export default function ProductBoard() {
     setPb(prev => {
       const clIdt   = new Set(prev.changelog.map(c => c.id))
       const tehtIdt = new Set(prev.tehtävät.map(t => t.id))
+      const ideaIdt = new Set(prev.ideat.map(i => i.id))
       const uudetCL   = OLETUS_CHANGELOG.filter(e => !clIdt.has(e.id))
       const uudetTeht = OLETUS_TEHTÄVÄT.filter(t => !tehtIdt.has(t.id))
+      const uudetIdeat = OLETUS_IDEAT.filter(i => !ideaIdt.has(i.id))
       const poistettavia = prev.tehtävät.some(t => VALMISTUNEET_IDT.has(t.id))
-      if (uudetCL.length === 0 && uudetTeht.length === 0 && !poistettavia) return prev
+      if (uudetCL.length === 0 && uudetTeht.length === 0 && uudetIdeat.length === 0 && !poistettavia) return prev
       return {
         ...prev,
         changelog: uudetCL.length > 0 ? [...prev.changelog, ...uudetCL] : prev.changelog,
+        ideat: uudetIdeat.length > 0 ? [...prev.ideat, ...uudetIdeat] : prev.ideat,
         tehtävät: [
           ...prev.tehtävät.filter(t => !VALMISTUNEET_IDT.has(t.id)),
           ...uudetTeht,
