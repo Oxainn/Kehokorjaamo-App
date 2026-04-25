@@ -34,7 +34,7 @@ const OLETUS_TEHTÄVÄT = [
 ]
 
 // Tehtävät jotka on valmistunut — poistetaan olemassa olevista listoista
-const VALMISTUNEET_IDT = new Set(['dt-m1', 'dt-k2'])
+const VALMISTUNEET_IDT = new Set(['dt-m1', 'dt-k2', 'dt-k5'])
 
 const OLETUS_IDEAT = [
   { id: 'di-1', teksti: 'Tallenna PDF automaattisesti hoitokerran päätteeksi asiakkaalle sähköpostilla', lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
@@ -54,6 +54,7 @@ const OLETUS_CHANGELOG = [
   { id: 'cl-8', teksti: 'Lomakkeiden validointi ja virheilmoitukset',          valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-9', teksti: 'Koodaajan ideat liitetään suoraan sovellukseen',      valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-10', teksti: 'Lomakkeiden tulostus / PDF-vienti (window.print)',   valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-11', teksti: 'Kehon merkinnät anatomisiin vyöhykkeisiin (SVG snap)', valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
 ]
 
 function luePB() {

@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
 
 const STORAGE_KEY = 'kehokorjaamo_asiakasdata'
 
@@ -45,7 +46,7 @@ const TYHJÄ = {
   sairaudet:        '',
   vammat:           '',
   kipuaste:         0,
-  oireet:           {},
+  merkinnät:        {},
   suostumus_rekisteri: false,
   suostumus_luovutus:  false,
   huoltajan_suostumus: '',
@@ -76,7 +77,7 @@ const S = { // inline style helpers for print view
   label:  { color: '#666', minWidth: '130px', flexShrink: 0 },
 }
 
-function PrintView({ data, ika, piirros }) {
+function PrintView({ data, ika }) {
   const kontraValitut = Object.entries(data.kontraindikaatiot).filter(([, v]) => v).map(([k]) => k)
   const normaalit  = kontraValitut.filter(n => !EHDOTTOMAT_KONTRA.includes(n))
   const ehdottomat = kontraValitut.filter(n =>  EHDOTTOMAT_KONTRA.includes(n))
@@ -121,11 +122,17 @@ function PrintView({ data, ika, piirros }) {
             </div>
             <span style={{ color: '#555' }}>/ 10 (VAS)</span>
           </div>
-          {OIRETYYPIT.filter(t => data.oireet[t.id]?.valittu).map(t => (
-            <div key={t.id} style={{ marginBottom: '2px' }}>
-              {t.nimi}{data.oireet[t.id]?.sijainti ? ` — ${data.oireet[t.id].sijainti}` : ''}
-            </div>
-          ))}
+          {Object.keys(data.merkinnät ?? {}).length > 0 && (() => {
+            const tyypit = {}
+            KEHON_VYÖHYKKEET.forEach(z => {
+              const t = (data.merkinnät ?? {})[z.id]
+              if (t) { if (!tyypit[t]) tyypit[t] = []; tyypit[t].push(z.nimi) }
+            })
+            return Object.entries(tyypit).map(([tyyppiId, nimet]) => {
+              const oire = OIRETYYPIT.find(o => o.id === Number(tyyppiId))
+              return <div key={tyyppiId} style={{ marginBottom: '2px' }}>{oire?.nimi}: {nimet.join(', ')}</div>
+            })
+          })()}
         </div>
       </div>
 
@@ -164,28 +171,44 @@ function PrintView({ data, ika, piirros }) {
       )}
 
       {/* Kehon merkinnät + tietosuoja/allekirjoitus rinnakkain */}
-      <div style={{ display: 'grid', gridTemplateColumns: piirros ? '1fr 1fr' : '1fr', gap: '0 32px', marginTop: '4px' }}>
-        {piirros && (
-          <div>
-            <div style={S.osasto}>Kehon merkinnät</div>
-            <img src={piirros} alt="Kehon merkinnät" style={{ width: '100%', border: '1px solid #ddd', borderRadius: '4px' }} />
-          </div>
-        )}
-        <div>
-          {data.harrastukset && <Rivi label="Harrastukset" arvo={data.harrastukset} />}
-          <div style={S.osasto}>Tietosuoja</div>
-          <div style={{ marginBottom: '3px' }}>{data.suostumus_rekisteri ? '☑' : '☐'} Tietoja saa säilyttää rekisterissä</div>
-          <div style={{ marginBottom: '10px' }}>{data.suostumus_luovutus ? '☑' : '☐'} Tietoja saa luovuttaa hoitaville tahoille</div>
-          <div style={S.osasto}>Allekirjoitus</div>
-          <Rivi label="Päiväys" arvo={data.paivays ? new Date(data.paivays).toLocaleDateString('fi-FI') : null} />
-          {data.allekirjoitus && (
-            <div style={{ marginTop: '6px' }}>
-              <div style={{ color: '#666', marginBottom: '2px' }}>Allekirjoitus:</div>
-              <div style={{ fontStyle: 'italic', fontSize: '14px', borderBottom: '1px solid #999', paddingBottom: '2px', display: 'inline-block', minWidth: '200px' }}>{data.allekirjoitus}</div>
+      {(() => {
+        const merkinnät = data.merkinnät ?? {}
+        const hasMerkinnät = Object.keys(merkinnät).length > 0
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: hasMerkinnät ? '1fr 1fr' : '1fr', gap: '0 32px', marginTop: '4px' }}>
+            {hasMerkinnät && (
+              <div>
+                <div style={S.osasto}>Kehon merkinnät</div>
+                <div style={{ position: 'relative', width: '100%' }}>
+                  <img src="/hahmokuvat.svg" alt="" style={{ width: '100%', display: 'block' }} />
+                  <svg viewBox="0 0 1471 1069" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+                    {KEHON_VYÖHYKKEET.filter(z => merkinnät[z.id]).map(z => (
+                      <circle key={z.id} cx={z.cx} cy={z.cy} r={32}
+                        fill={PIIRTOVÄRIT[merkinnät[z.id]] + 'cc'}
+                        stroke={PIIRTOVÄRIT[merkinnät[z.id]]}
+                        strokeWidth={3} />
+                    ))}
+                  </svg>
+                </div>
+              </div>
+            )}
+            <div>
+              {data.harrastukset && <Rivi label="Harrastukset" arvo={data.harrastukset} />}
+              <div style={S.osasto}>Tietosuoja</div>
+              <div style={{ marginBottom: '3px' }}>{data.suostumus_rekisteri ? '☑' : '☐'} Tietoja saa säilyttää rekisterissä</div>
+              <div style={{ marginBottom: '10px' }}>{data.suostumus_luovutus ? '☑' : '☐'} Tietoja saa luovuttaa hoitaville tahoille</div>
+              <div style={S.osasto}>Allekirjoitus</div>
+              <Rivi label="Päiväys" arvo={data.paivays ? new Date(data.paivays).toLocaleDateString('fi-FI') : null} />
+              {data.allekirjoitus && (
+                <div style={{ marginTop: '6px' }}>
+                  <div style={{ color: '#666', marginBottom: '2px' }}>Allekirjoitus:</div>
+                  <div style={{ fontStyle: 'italic', fontSize: '14px', borderBottom: '1px solid #999', paddingBottom: '2px', display: 'inline-block', minWidth: '200px' }}>{data.allekirjoitus}</div>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      </div>
+          </div>
+        )
+      })()}
 
       {/* Footer */}
       <div style={{ borderTop: '1px solid #ddd', marginTop: '16px', paddingTop: '6px', color: '#888', fontSize: '10px', textAlign: 'center' }}>
@@ -277,50 +300,18 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
   })
 
   const [yritettyLähettää, setYritettyLähettää] = useState(false)
-
-  const canvasRef        = useRef(null)
-  const piirrosDataRef   = useRef(esitäytö?.piirros ?? null)
   const [valittuPiirto, setValittuPiirto] = useState(1)
-  const [piirtää, setPiirtää]             = useState(false)
 
-  const piirraPiste = (e) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx    = canvas.getContext('2d')
-    const rect   = canvas.getBoundingClientRect()
-    const scaleX = canvas.width  / rect.width
-    const scaleY = canvas.height / rect.height
-    const touches = e.touches ?? [e]
-    Array.from(touches).forEach(t => {
-      const x = (t.clientX - rect.left) * scaleX
-      const y = (t.clientY - rect.top)  * scaleY
-      ctx.beginPath()
-      ctx.arc(x, y, 8, 0, Math.PI * 2)
-      ctx.fillStyle = PIIRTOVÄRIT[valittuPiirto] + 'cc'
-      ctx.fill()
+  const toggleVyöhyke = (zoneId) => {
+    setData((prev) => {
+      const merkinnät = { ...prev.merkinnät }
+      if (merkinnät[zoneId] === valittuPiirto) {
+        delete merkinnät[zoneId]
+      } else {
+        merkinnät[zoneId] = valittuPiirto
+      }
+      return { ...prev, merkinnät }
     })
-  }
-
-  const alustaCanvas = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    if (canvas.width !== canvas.offsetWidth) {
-      canvas.width  = canvas.offsetWidth
-      canvas.height = canvas.offsetHeight
-    }
-    if (piirrosDataRef.current) {
-      const src = piirrosDataRef.current
-      piirrosDataRef.current = null
-      const img = new Image()
-      img.onload = () => canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
-      img.src = src
-    }
-  }
-
-  const tyhjennäCanvas = () => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height)
   }
 
   // Tallennetaan localStorageen automaattisesti
@@ -343,34 +334,11 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
     }))
   }
 
-  const toggleOire = (id) => {
-    setData((prev) => ({
-      ...prev,
-      oireet: {
-        ...prev.oireet,
-        [id]: prev.oireet[id] ? { ...prev.oireet[id], valittu: !prev.oireet[id].valittu } : { valittu: true, sijainti: '' },
-      },
-    }))
-  }
-
-  const päivitäOireSijainti = (id, sijainti) => {
-    setData((prev) => ({
-      ...prev,
-      oireet: { ...prev.oireet, [id]: { ...prev.oireet[id], sijainti } },
-    }))
-  }
-
   const toggleTietosuoja = (kenttä) => {
     setData((prev) => ({ ...prev, [kenttä]: !prev[kenttä] }))
   }
 
-  const [printDataUrl, setPrintDataUrl] = useState(null)
-
-  const tulosta = () => {
-    const canvas = canvasRef.current
-    setPrintDataUrl(canvas?.toDataURL('image/png') ?? null)
-    setTimeout(() => window.print(), 50)
-  }
+  const tulosta = () => window.print()
 
   const lähetä = (e) => {
     e.preventDefault()
@@ -396,7 +364,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
 
   return (
     <>
-    <PrintView data={data} ika={ika} piirros={printDataUrl} />
+    <PrintView data={data} ika={ika} />
     <section className="flex flex-col gap-6 no-print">
       <div>
         <h2 className="text-2xl font-semibold text-gray-800">Asiakastiedot</h2>
@@ -605,7 +573,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
         <Osio otsikko="Kehon merkinnät" lapset={
           <>
             <p className="text-xs text-gray-500">
-              Valitse oiretyyppi ja merkitse sijainti kehokuvaan sormella.
+              Valitse oiretyyppi ja napauta kehokuvasta haluamasi kohta. Napauta uudelleen poistaaksesi merkinnän.
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -629,47 +597,40 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
               })}
             </div>
 
-            {/* Hahmokuva piirtoalustana */}
-            <div
-              style={{
-                position: 'relative',
-                width: '100%',
-                marginTop: '8px',
-                border: '1px solid #e2e8f0',
-                borderRadius: '8px',
-                overflow: 'hidden',
-              }}
-            >
-              <img
-                src="/hahmokuvat.svg"
-                style={{ width: '100%', display: 'block' }}
-                alt="Kehon merkintäalue"
-                onLoad={alustaCanvas}
-              />
-              <canvas
-                ref={canvasRef}
-                style={{
-                  position: 'absolute',
-                  top: 0, left: 0,
-                  width: '100%', height: '100%',
-                  touchAction: 'none',
-                }}
-                onTouchStart={(e) => { e.preventDefault(); alustaCanvas(); piirraPiste(e) }}
-                onTouchMove={(e) => { e.preventDefault(); piirraPiste(e) }}
-                onMouseDown={(e) => { setPiirtää(true); alustaCanvas(); piirraPiste(e) }}
-                onMouseMove={(e) => { if (piirtää) piirraPiste(e) }}
-                onMouseUp={() => setPiirtää(false)}
-                onMouseLeave={() => setPiirtää(false)}
-              />
+            {/* Hahmokuva vyöhykevalitsimena */}
+            <div style={{ position: 'relative', width: '100%', marginTop: '8px', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+              <img src="/hahmokuvat.svg" style={{ width: '100%', display: 'block' }} alt="Kehon merkintäalue" />
+              <svg
+                viewBox="0 0 1471 1069"
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+              >
+                {KEHON_VYÖHYKKEET.map(z => {
+                  const merkitty = data.merkinnät[z.id]
+                  return (
+                    <circle
+                      key={z.id}
+                      cx={z.cx} cy={z.cy} r={42}
+                      fill={merkitty ? PIIRTOVÄRIT[merkitty] + 'cc' : 'transparent'}
+                      stroke={merkitty ? PIIRTOVÄRIT[merkitty] : '#94a3b8'}
+                      strokeWidth={merkitty ? 3 : 1.5}
+                      strokeDasharray={merkitty ? 'none' : '6 4'}
+                      onClick={() => toggleVyöhyke(z.id)}
+                      style={{ cursor: 'pointer' }}
+                    />
+                  )
+                })}
+              </svg>
             </div>
 
-            <button
-              type="button"
-              onClick={tyhjennäCanvas}
-              className="text-xs text-gray-400 hover:text-red-500 transition-colors self-start"
-            >
-              Tyhjennä piirros
-            </button>
+            {Object.keys(data.merkinnät).length > 0 && (
+              <button
+                type="button"
+                onClick={() => setData(prev => ({ ...prev, merkinnät: {} }))}
+                className="text-xs text-gray-400 hover:text-red-500 transition-colors self-start"
+              >
+                Tyhjennä kaikki merkinnät
+              </button>
+            )}
           </>
         } />
 
@@ -770,20 +731,20 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
               </span>
             </div>
 
-            {/* Valitut oiretyypit */}
-            {OIRETYYPIT.filter((t) => data.oireet[t.id]?.valittu).length > 0 && (
+            {/* Kehon merkinnät yhteenveto */}
+            {Object.keys(data.merkinnät).length > 0 && (
               <div>
-                <span className="text-gray-500 block mb-1">Oiretyypit</span>
+                <span className="text-gray-500 block mb-1">Kehon merkinnät</span>
                 <div className="flex flex-col gap-1">
-                  {OIRETYYPIT.filter((t) => data.oireet[t.id]?.valittu).map((t) => (
-                    <div key={t.id} className="flex items-center gap-2">
-                      <span className={`w-3 h-3 rounded-full ${t.vari} flex-shrink-0`} />
-                      <span className="text-gray-700">{t.nimi}</span>
-                      {data.oireet[t.id]?.sijainti && (
-                        <span className="text-gray-400">— {data.oireet[t.id].sijainti}</span>
-                      )}
-                    </div>
-                  ))}
+                  {OIRETYYPIT.filter(t => Object.values(data.merkinnät).includes(t.id)).map(t => {
+                    const zones = KEHON_VYÖHYKKEET.filter(z => data.merkinnät[z.id] === t.id)
+                    return (
+                      <div key={t.id} className="flex items-start gap-2">
+                        <span className={`w-3 h-3 rounded-full ${t.vari} flex-shrink-0 mt-0.5`} />
+                        <span className="text-gray-700">{t.nimi}: {zones.map(z => z.nimi).join(', ')}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

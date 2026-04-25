@@ -165,7 +165,7 @@ export default function App() {
       tekonivel_lisatieto: esitietoEntry.tekonivel_lisatieto ?? '',
       raskaus_lisatieto:   esitietoEntry.raskaus_lisatieto   ?? '',
       sairaudet:           esitietoEntry.lisatiedot          ?? '',
-      piirros:             esitietoEntry.piirros             ?? null,
+      merkinnät:           esitietoEntry.merkinnät           ?? {},
     }
 
     // Ref takaa että ClientForm saa datan heti mountissa
