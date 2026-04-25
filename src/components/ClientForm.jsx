@@ -64,6 +64,137 @@ function laskikaIka(syntymaaika) {
   return ika
 }
 
+function kipuVari(arvo) {
+  if (arvo <= 3) return { kehys: '#16a34a', tausta: '#dcfce7', teksti: '#15803d' }
+  if (arvo <= 6) return { kehys: '#ea580c', tausta: '#ffedd5', teksti: '#c2410c' }
+  return { kehys: '#dc2626', tausta: '#fee2e2', teksti: '#b91c1c' }
+}
+
+const S = { // inline style helpers for print view
+  osasto: { fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#555', marginBottom: '6px', borderBottom: '1px solid #ddd', paddingBottom: '3px', marginTop: '12px' },
+  rivi:   { display: 'flex', gap: '8px', marginBottom: '3px' },
+  label:  { color: '#666', minWidth: '130px', flexShrink: 0 },
+}
+
+function PrintView({ data, ika, piirros }) {
+  const kontraValitut = Object.entries(data.kontraindikaatiot).filter(([, v]) => v).map(([k]) => k)
+  const normaalit  = kontraValitut.filter(n => !EHDOTTOMAT_KONTRA.includes(n))
+  const ehdottomat = kontraValitut.filter(n =>  EHDOTTOMAT_KONTRA.includes(n))
+  const kipuV = kipuVari(data.kipuaste)
+
+  const Rivi = ({ label, arvo }) => arvo ? (
+    <div style={S.rivi}>
+      <span style={S.label}>{label}:</span>
+      <span style={{ fontWeight: '500' }}>{arvo}</span>
+    </div>
+  ) : null
+
+  return (
+    <div className="hidden print:block" style={{ fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#111', lineHeight: 1.5 }}>
+
+      {/* Otsikkorivi */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '2px solid #333', paddingBottom: '6px', marginBottom: '14px' }}>
+        <div style={{ fontSize: '16px', fontWeight: '700' }}>Kehokorjaamo — Asiakastietolomake</div>
+        <div style={{ color: '#555', fontSize: '11px' }}>{new Date().toLocaleDateString('fi-FI')}</div>
+      </div>
+
+      {/* Perustiedot + kiputilanne rinnakkain */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
+        <div>
+          <div style={S.osasto}>Perustiedot</div>
+          <Rivi label="Nimi" arvo={data.nimi} />
+          <Rivi label="Syntymäaika" arvo={data.syntymaaika
+            ? `${new Date(data.syntymaaika).toLocaleDateString('fi-FI')}${ika !== null ? ` (${ika} v)` : ''}`
+            : null} />
+          <Rivi label="Puhelin" arvo={data.puhelin} />
+          <Rivi label="Sähköposti" arvo={data.sahkoposti} />
+          <Rivi label="Lähiosoite" arvo={data.lahiosoite} />
+          <Rivi label="Postiosoite" arvo={[data.postinumero, data.postitoimipaikka].filter(Boolean).join(' ') || null} />
+          <Rivi label="Ammatti" arvo={data.ammatti} />
+          <Rivi label="Miten löysi" arvo={data.miten_loysi} />
+        </div>
+        <div>
+          <div style={S.osasto}>Kiputilanne</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+            <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: `3px solid ${kipuV.kehys}`, background: kipuV.tausta, color: kipuV.teksti, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '700' }}>
+              {data.kipuaste}
+            </div>
+            <span style={{ color: '#555' }}>/ 10 (VAS)</span>
+          </div>
+          {OIRETYYPIT.filter(t => data.oireet[t.id]?.valittu).map(t => (
+            <div key={t.id} style={{ marginBottom: '2px' }}>
+              {t.nimi}{data.oireet[t.id]?.sijainti ? ` — ${data.oireet[t.id].sijainti}` : ''}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Hoitoon tulon syy */}
+      {data.hoitoon_syy && (
+        <div>
+          <div style={S.osasto}>Hoitoon tulon syy</div>
+          <div style={{ padding: '6px 10px', background: '#f8f8f8', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>{data.hoitoon_syy}</div>
+        </div>
+      )}
+
+      {/* Terveystiedot */}
+      {(normaalit.length > 0 || ehdottomat.length > 0 || data.sairaudet || data.vammat || data.laakitys) && (
+        <div>
+          <div style={S.osasto}>Terveystiedot</div>
+          {normaalit.length > 0 && (
+            <div style={{ marginBottom: '4px' }}>
+              <span style={{ color: '#666' }}>Huomioitavat: </span>
+              {normaalit.map((n, i) => {
+                const lisä = n === 'Allergia' ? data.allergia_lisatieto
+                           : n === 'Tekonivel' ? data.tekonivel_lisatieto
+                           : n === 'Raskaus' ? data.raskaus_lisatieto : ''
+                return <span key={n}>{i > 0 ? ', ' : ''}{n}{lisä ? ` (${lisä})` : ''}</span>
+              })}
+            </div>
+          )}
+          {ehdottomat.length > 0 && (
+            <div style={{ color: '#b91c1c', fontWeight: '600', marginBottom: '4px' }}>
+              ⚠ Ehdottomat kontraindikaatiot: {ehdottomat.join(', ')}
+            </div>
+          )}
+          <Rivi label="Sairaudet" arvo={data.sairaudet} />
+          <Rivi label="Vammat" arvo={data.vammat} />
+          <Rivi label="Lääkitys" arvo={data.laakitys} />
+        </div>
+      )}
+
+      {/* Kehon merkinnät + tietosuoja/allekirjoitus rinnakkain */}
+      <div style={{ display: 'grid', gridTemplateColumns: piirros ? '1fr 1fr' : '1fr', gap: '0 32px', marginTop: '4px' }}>
+        {piirros && (
+          <div>
+            <div style={S.osasto}>Kehon merkinnät</div>
+            <img src={piirros} alt="Kehon merkinnät" style={{ width: '100%', border: '1px solid #ddd', borderRadius: '4px' }} />
+          </div>
+        )}
+        <div>
+          {data.harrastukset && <Rivi label="Harrastukset" arvo={data.harrastukset} />}
+          <div style={S.osasto}>Tietosuoja</div>
+          <div style={{ marginBottom: '3px' }}>{data.suostumus_rekisteri ? '☑' : '☐'} Tietoja saa säilyttää rekisterissä</div>
+          <div style={{ marginBottom: '10px' }}>{data.suostumus_luovutus ? '☑' : '☐'} Tietoja saa luovuttaa hoitaville tahoille</div>
+          <div style={S.osasto}>Allekirjoitus</div>
+          <Rivi label="Päiväys" arvo={data.paivays ? new Date(data.paivays).toLocaleDateString('fi-FI') : null} />
+          {data.allekirjoitus && (
+            <div style={{ marginTop: '6px' }}>
+              <div style={{ color: '#666', marginBottom: '2px' }}>Allekirjoitus:</div>
+              <div style={{ fontStyle: 'italic', fontSize: '14px', borderBottom: '1px solid #999', paddingBottom: '2px', display: 'inline-block', minWidth: '200px' }}>{data.allekirjoitus}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ borderTop: '1px solid #ddd', marginTop: '16px', paddingTop: '6px', color: '#888', fontSize: '10px', textAlign: 'center' }}>
+        Kehokorjaamo — tietoja käsitellään EU:n tietosuoja-asetuksen (GDPR) mukaisesti
+      </div>
+    </div>
+  )
+}
+
 function TextInput({ label, name, value, onChange, type = 'text', required = false, error }) {
   return (
     <div>
@@ -233,10 +364,12 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
     setData((prev) => ({ ...prev, [kenttä]: !prev[kenttä] }))
   }
 
-  const kipuVari = (arvo) => {
-    if (arvo <= 3) return { kehys: '#16a34a', tausta: '#dcfce7', teksti: '#15803d' }
-    if (arvo <= 6) return { kehys: '#ea580c', tausta: '#ffedd5', teksti: '#c2410c' }
-    return { kehys: '#dc2626', tausta: '#fee2e2', teksti: '#b91c1c' }
+  const [printDataUrl, setPrintDataUrl] = useState(null)
+
+  const tulosta = () => {
+    const canvas = canvasRef.current
+    setPrintDataUrl(canvas?.toDataURL('image/png') ?? null)
+    setTimeout(() => window.print(), 50)
   }
 
   const lähetä = (e) => {
@@ -262,7 +395,9 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
   } : {}
 
   return (
-    <section className="flex flex-col gap-6">
+    <>
+    <PrintView data={data} ika={ika} piirros={printDataUrl} />
+    <section className="flex flex-col gap-6 no-print">
       <div>
         <h2 className="text-2xl font-semibold text-gray-800">Asiakastiedot</h2>
         <p className="mt-1 text-gray-500 text-sm">
@@ -679,14 +814,24 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
           </div>
         } />
 
-        {/* ── Lähetysnappi ────────────────────────────────────────────────── */}
-        <button
-          type="submit"
-          className="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
-        >
-          {ehdotonValittu ? 'Hoito ei ole mahdollinen' : 'Vahvista ja jatka →'}
-        </button>
+        {/* ── Toiminnot ────────────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="button"
+            onClick={tulosta}
+            className="sm:flex-1 py-3 border-2 border-brand-600 text-brand-700 hover:bg-brand-50 font-semibold rounded-xl transition-colors"
+          >
+            Tulosta / Tallenna PDF
+          </button>
+          <button
+            type="submit"
+            className="sm:flex-1 py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
+          >
+            {ehdotonValittu ? 'Hoito ei ole mahdollinen' : 'Vahvista ja jatka →'}
+          </button>
+        </div>
       </form>
     </section>
+    </>
   )
 }

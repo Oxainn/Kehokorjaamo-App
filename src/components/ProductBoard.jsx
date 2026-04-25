@@ -15,7 +15,6 @@ const PRIORITEETIT = [
 
 const OLETUS_TEHTÄVÄT = [
   { id: 'dt-k1', teksti: 'Esitietolomakkeen brändäys (logo, värit)',              prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-k2', teksti: 'Lomakkeiden tulostus / PDF-vienti',                     prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-k3', teksti: 'Supabase-tallennus pilveen',                            prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-k4', teksti: 'Lihaskartat hoitosuunnitelmaan',                        prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-k5', teksti: 'Kehonkuvan pisteet oikeille kohdille',                  prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
@@ -35,7 +34,7 @@ const OLETUS_TEHTÄVÄT = [
 ]
 
 // Tehtävät jotka on valmistunut — poistetaan olemassa olevista listoista
-const VALMISTUNEET_IDT = new Set(['dt-m1'])
+const VALMISTUNEET_IDT = new Set(['dt-m1', 'dt-k2'])
 
 const OLETUS_CHANGELOG = [
   { id: 'cl-1', teksti: 'Asiakastietolomake',                                  valmistunut: '2026-03-01T00:00:00.000Z', versio: 'V1' },
@@ -47,6 +46,7 @@ const OLETUS_CHANGELOG = [
   { id: 'cl-7', teksti: 'Allergia-lisätietokenttä terveystietoihin',           valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-8', teksti: 'Lomakkeiden validointi ja virheilmoitukset',          valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-9', teksti: 'Koodaajan ideat liitetään suoraan sovellukseen',      valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-10', teksti: 'Lomakkeiden tulostus / PDF-vienti (window.print)',   valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
 ]
 
 function luePB() {
