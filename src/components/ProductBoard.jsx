@@ -13,6 +13,26 @@ const PRIORITEETIT = [
   { id: 'matala', label: 'Matala', ikoni: '🟢', kehys: 'border-green-200',  bg: 'bg-green-50',  teksti: 'text-green-700'  },
 ]
 
+const OLETUS_TEHTÄVÄT = [
+  { id: 'dt-1', teksti: 'Kehonkuvan pisteet oikeille kohdille',      prioriteetti: 'korkea', lisätty: '2026-04-01T00:00:00.000Z' },
+  { id: 'dt-2', teksti: 'Supabase-tallennus',                         prioriteetti: 'korkea', lisätty: '2026-04-01T00:00:00.000Z' },
+  { id: 'dt-3', teksti: 'Esitietolomakkeen brändäys',                 prioriteetti: 'keski',  lisätty: '2026-04-01T00:00:00.000Z' },
+  { id: 'dt-4', teksti: 'Asetukset-välilehden viimeistely',           prioriteetti: 'keski',  lisätty: '2026-04-01T00:00:00.000Z' },
+  { id: 'dt-5', teksti: 'Hoitosuunnitelman tulostusnäkymä',           prioriteetti: 'keski',  lisätty: '2026-04-01T00:00:00.000Z' },
+  { id: 'dt-6', teksti: 'Monivuokrausmalli muille terapeuteille',     prioriteetti: 'matala', lisätty: '2026-04-01T00:00:00.000Z' },
+  { id: 'dt-7', teksti: 'Anatomiakuvat lihaskuvastoon',               prioriteetti: 'matala', lisätty: '2026-04-01T00:00:00.000Z' },
+  { id: 'dt-8', teksti: 'Mobiilioptimointia',                         prioriteetti: 'matala', lisätty: '2026-04-01T00:00:00.000Z' },
+]
+
+const OLETUS_CHANGELOG = [
+  { id: 'cl-1', teksti: 'Asiakastietolomake',                                  valmistunut: '2026-03-01T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-2', teksti: 'Esitietolomake + Vello-integraatio',                  valmistunut: '2026-03-10T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-3', teksti: 'Kehon kartoitus ammatillisella rakenteella',          valmistunut: '2026-03-15T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-4', teksti: 'Hoitosuunnitelma Claude-sillalla',                    valmistunut: '2026-03-20T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-5', teksti: 'Piirtoalusta kehokuvaan',                             valmistunut: '2026-04-01T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-6', teksti: 'GitHub + Vercel automaattideploy',                    valmistunut: '2026-04-10T00:00:00.000Z', versio: 'V1' },
+]
+
 function luePB() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -70,8 +90,8 @@ export default function ProductBoard() {
     return {
       visio:     s.visio     ?? OLETUS_VISIO,
       ideat:     s.ideat     ?? [],
-      tehtävät:  s.tehtävät  ?? [],
-      changelog: s.changelog ?? [],
+      tehtävät:  s.tehtävät  ?? OLETUS_TEHTÄVÄT,
+      changelog: s.changelog ?? OLETUS_CHANGELOG,
     }
   })
 

@@ -15,8 +15,8 @@ const NAV_ITEMS = [
   { id: 'treatment', label: 'Hoitosuunnitelma' },
   { id: 'muscles',   label: 'Lihakset' },
   { id: 'aftercare', label: 'Jälkihoito' },
+  { id: 'board',     label: 'Tuotehallinta' },
   { id: 'settings',  label: 'Asetukset' },
-  { id: 'board',     label: 'Product Board' },
 ]
 
 function lueEsitiedot() {
