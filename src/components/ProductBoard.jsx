@@ -19,7 +19,6 @@ const OLETUS_TEHTÄVÄT = [
   { id: 'dt-k3', teksti: 'Supabase-tallennus pilveen',                            prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-k4', teksti: 'Lihaskartat hoitosuunnitelmaan',                        prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-k5', teksti: 'Kehonkuvan pisteet oikeille kohdille',                  prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-m1', teksti: 'Lomakkeiden validointi ja virheilmoitukset',            prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-m2', teksti: 'Hoitokertojen historia ja seuranta',                    prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-m3', teksti: 'Ennen/jälkeen vertailu käyntien välillä',               prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-m4', teksti: 'Automaattinen Claude API ilman kopioi/liitä',           prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
@@ -35,6 +34,9 @@ const OLETUS_TEHTÄVÄT = [
   { id: 'dt-l6', teksti: 'Onboarding uudelle käyttäjälle',                        prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
 ]
 
+// Tehtävät jotka on valmistunut — poistetaan olemassa olevista listoista
+const VALMISTUNEET_IDT = new Set(['dt-m1'])
+
 const OLETUS_CHANGELOG = [
   { id: 'cl-1', teksti: 'Asiakastietolomake',                                  valmistunut: '2026-03-01T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-2', teksti: 'Esitietolomake + Vello-integraatio',                  valmistunut: '2026-03-10T00:00:00.000Z', versio: 'V1' },
@@ -43,6 +45,8 @@ const OLETUS_CHANGELOG = [
   { id: 'cl-5', teksti: 'Piirtoalusta kehokuvaan',                             valmistunut: '2026-04-01T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-6', teksti: 'GitHub + Vercel automaattideploy',                    valmistunut: '2026-04-10T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-7', teksti: 'Allergia-lisätietokenttä terveystietoihin',           valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-8', teksti: 'Lomakkeiden validointi ja virheilmoitukset',          valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-9', teksti: 'Koodaajan ideat liitetään suoraan sovellukseen',      valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
 ]
 
 function luePB() {
@@ -121,18 +125,22 @@ export default function ProductBoard() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(pb))
   }, [pb])
 
-  // Injektoi uudet system-entryt olemassa oleviin listoihin kerran mountissa
+  // Injektoi uudet system-entryt, poista valmistuneet, kerran mountissa
   useEffect(() => {
     setPb(prev => {
       const clIdt   = new Set(prev.changelog.map(c => c.id))
       const tehtIdt = new Set(prev.tehtävät.map(t => t.id))
       const uudetCL   = OLETUS_CHANGELOG.filter(e => !clIdt.has(e.id))
       const uudetTeht = OLETUS_TEHTÄVÄT.filter(t => !tehtIdt.has(t.id))
-      if (uudetCL.length === 0 && uudetTeht.length === 0) return prev
+      const poistettavia = prev.tehtävät.some(t => VALMISTUNEET_IDT.has(t.id))
+      if (uudetCL.length === 0 && uudetTeht.length === 0 && !poistettavia) return prev
       return {
         ...prev,
-        changelog: uudetCL.length   > 0 ? [...prev.changelog, ...uudetCL]   : prev.changelog,
-        tehtävät:  uudetTeht.length > 0 ? [...prev.tehtävät,  ...uudetTeht] : prev.tehtävät,
+        changelog: uudetCL.length > 0 ? [...prev.changelog, ...uudetCL] : prev.changelog,
+        tehtävät: [
+          ...prev.tehtävät.filter(t => !VALMISTUNEET_IDT.has(t.id)),
+          ...uudetTeht,
+        ],
       }
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
