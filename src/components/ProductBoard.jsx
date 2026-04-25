@@ -96,6 +96,7 @@ export default function ProductBoard() {
   })
 
   const [visioTallennettu, setVisioTallennettu] = useState(false)
+  const [kopioituId, setKopioituId]     = useState(null)
   const [uusiIdea, setUusiIdea]         = useState('')
   const [uusiTehtävä, setUusiTehtävä]   = useState('')
   const [uusiPrio, setUusiPrio]         = useState('keski')
@@ -166,6 +167,16 @@ export default function ProductBoard() {
 
   const poistaTehtävä = (id) =>
     setPb(prev => ({ ...prev, tehtävät: prev.tehtävät.filter(t => t.id !== id) }))
+
+  const kopioi = (t) => {
+    const prioLabel = PRIORITEETIT.find(p => p.id === t.prioriteetti)?.label ?? t.prioriteetti
+    const prompt =
+      `Kehokorjaamo App — toteuta seuraava tehtävä:\n\n${t.teksti}\n\nPrioriteetti: ${prioLabel}\n\nToteuta muutos, tee commit ja push mainiin.`
+    navigator.clipboard.writeText(prompt).then(() => {
+      setKopioituId(t.id)
+      setTimeout(() => setKopioituId(null), 2000)
+    })
+  }
 
   // ── Changelog ────────────────────────────────────────────────────────────
   const lisääCL = () => {
@@ -359,13 +370,26 @@ export default function ProductBoard() {
                         {p.ikoni} {p.label}
                       </span>
                       <span className="flex-1 text-sm text-gray-800 min-w-0">{t.teksti}</span>
-                      <button
-                        type="button"
-                        onClick={() => poistaTehtävä(t.id)}
-                        className="text-xs text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
-                      >
-                        Poista
-                      </button>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => kopioi(t)}
+                          className={`text-xs font-medium px-2 py-1 rounded transition-colors ${
+                            kopioituId === t.id
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-600 hover:bg-brand-50 hover:text-brand-700'
+                          }`}
+                        >
+                          {kopioituId === t.id ? 'Kopioitu!' : 'Kopioi promptina'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => poistaTehtävä(t.id)}
+                          className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          Poista
+                        </button>
+                      </div>
                     </li>
                   )
                 })}
