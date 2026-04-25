@@ -14,14 +14,25 @@ const PRIORITEETIT = [
 ]
 
 const OLETUS_TEHTÄVÄT = [
-  { id: 'dt-1', teksti: 'Kehonkuvan pisteet oikeille kohdille',      prioriteetti: 'korkea', lisätty: '2026-04-01T00:00:00.000Z' },
-  { id: 'dt-2', teksti: 'Supabase-tallennus',                         prioriteetti: 'korkea', lisätty: '2026-04-01T00:00:00.000Z' },
-  { id: 'dt-3', teksti: 'Esitietolomakkeen brändäys',                 prioriteetti: 'keski',  lisätty: '2026-04-01T00:00:00.000Z' },
-  { id: 'dt-4', teksti: 'Asetukset-välilehden viimeistely',           prioriteetti: 'keski',  lisätty: '2026-04-01T00:00:00.000Z' },
-  { id: 'dt-5', teksti: 'Hoitosuunnitelman tulostusnäkymä',           prioriteetti: 'keski',  lisätty: '2026-04-01T00:00:00.000Z' },
-  { id: 'dt-6', teksti: 'Monivuokrausmalli muille terapeuteille',     prioriteetti: 'matala', lisätty: '2026-04-01T00:00:00.000Z' },
-  { id: 'dt-7', teksti: 'Anatomiakuvat lihaskuvastoon',               prioriteetti: 'matala', lisätty: '2026-04-01T00:00:00.000Z' },
-  { id: 'dt-8', teksti: 'Mobiilioptimointia',                         prioriteetti: 'matala', lisätty: '2026-04-01T00:00:00.000Z' },
+  { id: 'dt-k1', teksti: 'Esitietolomakkeen brändäys (logo, värit)',              prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-k2', teksti: 'Lomakkeiden tulostus / PDF-vienti',                     prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-k3', teksti: 'Supabase-tallennus pilveen',                            prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-k4', teksti: 'Lihaskartat hoitosuunnitelmaan',                        prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-k5', teksti: 'Kehonkuvan pisteet oikeille kohdille',                  prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-m1', teksti: 'Lomakkeiden validointi ja virheilmoitukset',            prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-m2', teksti: 'Hoitokertojen historia ja seuranta',                    prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-m3', teksti: 'Ennen/jälkeen vertailu käyntien välillä',               prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-m4', teksti: 'Automaattinen Claude API ilman kopioi/liitä',           prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-m5', teksti: 'Hoitosuunnitelman tulostus PDF',                        prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-m6', teksti: 'Henkilökohtainen itsehoito-PDF sähköpostilla',          prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-m7', teksti: 'Harjoituskirjasto kuvilla ja ohjeilla',                 prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-m8', teksti: 'Asetukset-välilehden viimeistely',                      prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-l1', teksti: 'Asiakasportaali omille tiedoille',                      prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-l2', teksti: 'Monivuokrausmalli muille terapeuteille',                prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-l3', teksti: 'Lomakerakentaja hoitajalle',                            prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-l4', teksti: 'Stripe-laskutus maksulliseen versioon',                 prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-l5', teksti: 'Markkinointisivu kehokorjaamo.fi',                      prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-l6', teksti: 'Onboarding uudelle käyttäjälle',                        prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
 ]
 
 const OLETUS_CHANGELOG = [
@@ -108,13 +119,19 @@ export default function ProductBoard() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(pb))
   }, [pb])
 
-  // Injektoi uudet system-entryt olemassa olevaan changelogiin kerran mountissa
+  // Injektoi uudet system-entryt olemassa oleviin listoihin kerran mountissa
   useEffect(() => {
     setPb(prev => {
-      const olemassaIdt = new Set(prev.changelog.map(c => c.id))
-      const uudet = OLETUS_CHANGELOG.filter(e => !olemassaIdt.has(e.id))
-      if (uudet.length === 0) return prev
-      return { ...prev, changelog: [...prev.changelog, ...uudet] }
+      const clIdt   = new Set(prev.changelog.map(c => c.id))
+      const tehtIdt = new Set(prev.tehtävät.map(t => t.id))
+      const uudetCL   = OLETUS_CHANGELOG.filter(e => !clIdt.has(e.id))
+      const uudetTeht = OLETUS_TEHTÄVÄT.filter(t => !tehtIdt.has(t.id))
+      if (uudetCL.length === 0 && uudetTeht.length === 0) return prev
+      return {
+        ...prev,
+        changelog: uudetCL.length   > 0 ? [...prev.changelog, ...uudetCL]   : prev.changelog,
+        tehtävät:  uudetTeht.length > 0 ? [...prev.tehtävät,  ...uudetTeht] : prev.tehtävät,
+      }
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
