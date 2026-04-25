@@ -208,7 +208,9 @@ export default function ProductBoard() {
 
   const rakennaPrompti = (tehtävä) => {
     const prioLabel = PRIORITEETIT.find(p => p.id === tehtävä.prioriteetti)?.label ?? tehtävä.prioriteetti
-    return `Kehokorjaamo App — toteuta seuraava tehtävä:
+    return `TÄRKEÄÄ: Tee kaikki muutokset loppuun ja push suoraan mainiin. Älä luo Pull Requestia.
+
+Kehokorjaamo App — toteuta seuraava tehtävä:
 
 TEHTÄVÄ: ${tehtävä.teksti}
 PRIORITEETTI: ${prioLabel}
