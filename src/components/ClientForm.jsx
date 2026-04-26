@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react'
 import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
 
-const STORAGE_KEY = 'kehokorjaamo_asiakasdata'
+const STORAGE_KEY   = 'kehokorjaamo_asiakasdata'
+const ASETUS_KEY    = 'kehokorjaamo_asetukset'
+
+function lueLomakeAsetukset() {
+  try {
+    const s = JSON.parse(localStorage.getItem(ASETUS_KEY) || '{}')
+    return { piilotetutOsiot: {}, lisaKysymykset: [], ...(s.lomake ?? {}) }
+  } catch { return { piilotetutOsiot: {}, lisaKysymykset: [] } }
+}
 
 const NORMAALI_KONTRA = [
   'Allergia', 'Diabetes', 'Epilepsia', 'Migreeni',
@@ -47,6 +55,7 @@ const TYHJÄ = {
   vammat:           '',
   kipuaste:         0,
   merkinnät:        {},
+  lisavastaukset:   {},
   suostumus_rekisteri: false,
   suostumus_luovutus:  false,
   huoltajan_suostumus: '',
@@ -88,7 +97,7 @@ const TULOSTUS_OSIOT = [
 
 const TULOSTUS_OLETUKSET = Object.fromEntries(TULOSTUS_OSIOT.map(o => [o.id, true]))
 
-function PrintView({ data, ika, asetukset = TULOSTUS_OLETUKSET }) {
+function PrintView({ data, ika, asetukset = TULOSTUS_OLETUKSET, lomakeAsetukset = null }) {
   const vis = (id) => asetukset[id] !== false
 
   const kontraValitut = Object.entries(data.kontraindikaatiot).filter(([, v]) => v).map(([k]) => k)
@@ -236,6 +245,33 @@ function PrintView({ data, ika, asetukset = TULOSTUS_OLETUKSET }) {
           )}
         </div>
       )}
+
+      {/* Lisäkysymykset tulostuksessa */}
+      {(() => {
+        const kysymykset = lomakeAsetukset?.lisaKysymykset ?? []
+        const vastaukset = data.lisavastaukset ?? {}
+        const vastauksia = kysymykset.filter(k => {
+          const v = vastaukset[k.id]
+          return v !== undefined && v !== '' && v !== null
+        })
+        if (vastauksia.length === 0) return null
+        return (
+          <div>
+            <div style={S.osasto}>Lisätiedot</div>
+            {vastauksia.map(k => {
+              const v = vastaukset[k.id]
+              return (
+                <div key={k.id} style={{ marginBottom: '6px' }}>
+                  <span style={{ ...S.label, display: 'block', marginBottom: '2px' }}>{k.otsikko}:</span>
+                  {k.tyyppi === 'kyllä_ei'
+                    ? <span style={{ fontWeight: '500' }}>{v ? 'Kyllä' : 'Ei'}</span>
+                    : <span style={{ fontWeight: '500', whiteSpace: 'pre-wrap' }}>{v}</span>}
+                </div>
+              )
+            })}
+          </div>
+        )
+      })()}
 
       {/* Footer */}
       <div style={{ borderTop: '1px solid #ddd', marginTop: '16px', paddingTop: '6px', color: '#888', fontSize: '10px', textAlign: 'center' }}>
@@ -399,6 +435,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
   const [valittuPiirto, setValittuPiirto]         = useState(1)
   const [esikatselu, setEsikatselu]               = useState(false)
   const [tulostusAsetukset, setTulostusAsetukset] = useState(TULOSTUS_OLETUKSET)
+  const [lomakeAsetukset]                         = useState(lueLomakeAsetukset)
 
   const toggleTulostusOsio = (id) =>
     setTulostusAsetukset(prev => ({ ...prev, [id]: !prev[id] }))
@@ -466,7 +503,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
 
   return (
     <>
-    <PrintView data={data} ika={ika} asetukset={tulostusAsetukset} />
+    <PrintView data={data} ika={ika} asetukset={tulostusAsetukset} lomakeAsetukset={lomakeAsetukset} />
     {esikatselu && (
       <EsikatseluModal
         asetukset={tulostusAsetukset}
@@ -519,7 +556,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
         } />
 
         {/* ── Osio 2: Terveystiedot ───────────────────────────────────────── */}
-        <Osio otsikko="Terveystiedot" lapset={
+        {!lomakeAsetukset.piilotetutOsiot.terveystiedot && <Osio otsikko="Terveystiedot" lapset={
           <>
             <div>
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
@@ -639,7 +676,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
               rows={3}
             />
           </>
-        } />
+        } />}
 
         {/* ── Osio 4: Kiputilanne ─────────────────────────────────────────── */}
         <Osio otsikko="Kiputilanne" lapset={
@@ -680,7 +717,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
         } />
 
         {/* ── Osio 5: Kehon merkinnät ──────────────────────────────────────── */}
-        <Osio otsikko="Kehon merkinnät" lapset={
+        {!lomakeAsetukset.piilotetutOsiot.kehon_merkinnat && <Osio otsikko="Kehon merkinnät" lapset={
           <>
             <p className="text-xs text-gray-500">
               Valitse oiretyyppi ja napauta kehokuvasta haluamasi kohta. Napauta uudelleen poistaaksesi merkinnän.
@@ -742,7 +779,67 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
               </button>
             )}
           </>
-        } />
+        } />}
+
+        {/* ── Lisäkysymykset (lomakerakentajalta) ─────────────────────────── */}
+        {lomakeAsetukset.lisaKysymykset.length > 0 && (
+          <Osio otsikko="Lisäkysymykset" lapset={
+            <>
+              {lomakeAsetukset.lisaKysymykset.map(k => {
+                const arvo = data.lisavastaukset?.[k.id]
+                const päivitäLisä = (val) =>
+                  setData(prev => ({
+                    ...prev,
+                    lisavastaukset: { ...(prev.lisavastaukset ?? {}), [k.id]: val },
+                  }))
+                if (k.tyyppi === 'kyllä_ei') {
+                  return (
+                    <div key={k.id}>
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">{k.otsikko}</p>
+                      <div className="flex gap-2">
+                        {[true, false].map(v => (
+                          <button
+                            key={String(v)}
+                            type="button"
+                            onClick={() => päivitäLisä(arvo === v ? undefined : v)}
+                            className={`px-5 py-2 rounded-xl border-2 text-sm font-semibold transition-colors ${
+                              arvo === v
+                                ? 'border-brand-500 bg-brand-50 text-brand-700'
+                                : 'border-gray-100 bg-gray-50 text-gray-600 hover:border-gray-300'
+                            }`}
+                          >
+                            {v ? 'Kyllä' : 'Ei'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                }
+                if (k.tyyppi === 'tekstialue') {
+                  return (
+                    <TextArea
+                      key={k.id}
+                      label={k.otsikko}
+                      name={`lisä_${k.id}`}
+                      value={arvo ?? ''}
+                      onChange={e => päivitäLisä(e.target.value)}
+                      rows={3}
+                    />
+                  )
+                }
+                return (
+                  <TextInput
+                    key={k.id}
+                    label={k.otsikko}
+                    name={`lisä_${k.id}`}
+                    value={arvo ?? ''}
+                    onChange={e => päivitäLisä(e.target.value)}
+                  />
+                )
+              })}
+            </>
+          } />
+        )}
 
         {/* ── Osio 3: Tietosuoja ──────────────────────────────────────────── */}
         <Osio otsikko="Tietosuoja" lapset={
@@ -879,6 +976,30 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
                         </div>
                       )
                     })}
+                </div>
+              </div>
+            )}
+
+            {/* Lisäkysymysten vastaukset */}
+            {lomakeAsetukset.lisaKysymykset.some(k => {
+              const v = data.lisavastaukset?.[k.id]
+              return v !== undefined && v !== '' && v !== null
+            }) && (
+              <div>
+                <span className="text-gray-500 block mb-1">Lisätiedot</span>
+                <div className="flex flex-col gap-1">
+                  {lomakeAsetukset.lisaKysymykset.map(k => {
+                    const v = data.lisavastaukset?.[k.id]
+                    if (v === undefined || v === '' || v === null) return null
+                    return (
+                      <div key={k.id} className="flex items-start gap-2 text-sm">
+                        <span className="text-gray-500 flex-shrink-0">{k.otsikko}:</span>
+                        <span className="text-gray-700 font-medium">
+                          {k.tyyppi === 'kyllä_ei' ? (v ? 'Kyllä' : 'Ei') : v}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             )}

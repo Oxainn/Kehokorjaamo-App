@@ -23,6 +23,21 @@ const TYHJÄ_BRANDAYS = {
 
 const FONTIT = ['System', 'Inter', 'Roboto', 'Playfair Display']
 
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+}
+
+const LOMAKE_MUUTTUVAT_OSIOT = [
+  { id: 'terveystiedot',   label: 'Terveystiedot',   kuvaus: 'Kontraindikaatiot, sairaudet, lääkitys' },
+  { id: 'kehon_merkinnat', label: 'Kehon merkinnät',  kuvaus: 'Kehokuva anatomisilla vyöhykkeillä' },
+]
+
+const KYSYMYS_TYYPIT = [
+  { id: 'teksti',     label: 'Lyhyt vastaus' },
+  { id: 'tekstialue', label: 'Pitkä vastaus' },
+  { id: 'kyllä_ei',  label: 'Kyllä / Ei'   },
+]
+
 function lueAsetukset() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -155,6 +170,57 @@ export default function Settings() {
   }
 
   const OHJE = 'Tätä osoitetta käytetään esitietolomakkeen lähetyksen jälkeen ajanvaraukseen.'
+
+  // ── Lomakerakentaja ───────────────────────────────────────────────────────
+  const [lomake, setLomake] = useState(() => {
+    const s = lueAsetukset().lomake ?? {}
+    return {
+      piilotetutOsiot: s.piilotetutOsiot ?? {},
+      lisaKysymykset:  s.lisaKysymykset  ?? [],
+    }
+  })
+  const [uusiKysymys, setUusiKysymys]           = useState('')
+  const [uusiTyyppi, setUusiTyyppi]             = useState('teksti')
+  const [tallennettuLomake, setTallennettuLomake] = useState(false)
+
+  const tallennalomake = () => {
+    tallennnaOsa('lomake', lomake)
+    setTallennettuLomake(true)
+    setTimeout(() => setTallennettuLomake(false), 2000)
+  }
+
+  const toggleOsio = (osioId) =>
+    setLomake(prev => ({
+      ...prev,
+      piilotetutOsiot: { ...prev.piilotetutOsiot, [osioId]: !prev.piilotetutOsiot[osioId] },
+    }))
+
+  const lisääKysymys = () => {
+    if (!uusiKysymys.trim() || lomake.lisaKysymykset.length >= 10) return
+    setLomake(prev => ({
+      ...prev,
+      lisaKysymykset: [
+        ...prev.lisaKysymykset,
+        { id: uid(), otsikko: uusiKysymys.trim(), tyyppi: uusiTyyppi, pakollinen: false },
+      ],
+    }))
+    setUusiKysymys('')
+  }
+
+  const poistaKysymys = (id) =>
+    setLomake(prev => ({ ...prev, lisaKysymykset: prev.lisaKysymykset.filter(k => k.id !== id) }))
+
+  const siirräYlös = (i) => setLomake(prev => {
+    if (i === 0) return prev
+    const k = [...prev.lisaKysymykset];[k[i - 1], k[i]] = [k[i], k[i - 1]]
+    return { ...prev, lisaKysymykset: k }
+  })
+
+  const siirräAlas = (i) => setLomake(prev => {
+    if (i >= prev.lisaKysymykset.length - 1) return prev
+    const k = [...prev.lisaKysymykset];[k[i], k[i + 1]] = [k[i + 1], k[i]]
+    return { ...prev, lisaKysymykset: k }
+  })
 
   // ── Osio 3 ────────────────────────────────────────────────────────────────
   const [brandays, setBrandays] = useState(() => ({
@@ -364,7 +430,130 @@ export default function Settings() {
         }
       />
 
-      {/* ── 4: Tiedot ja tallennus ───────────────────────────────────────── */}
+      {/* ── 4: Lomakerakentaja ──────────────────────────────────────────── */}
+      <AccordionOsio
+        id="lomakerakentaja" otsikko="Lomakerakentaja" ikoni="📋"
+        auki={aukiOsio === 'lomakerakentaja'} onToggle={toggle}
+        lapset={
+          <div className="flex flex-col gap-5">
+
+            {/* Vakio-osioiden näkyvyys */}
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Vakio-osiot</p>
+              <div className="flex flex-col gap-2">
+                {LOMAKE_MUUTTUVAT_OSIOT.map(osio => (
+                  <label
+                    key={osio.id}
+                    className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border transition-colors ${
+                      !lomake.piilotetutOsiot[osio.id]
+                        ? 'bg-brand-50 border-brand-100'
+                        : 'bg-gray-50 border-gray-100'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!lomake.piilotetutOsiot[osio.id]}
+                      onChange={() => toggleOsio(osio.id)}
+                      className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 flex-shrink-0"
+                    />
+                    <div>
+                      <div className={`text-sm font-medium ${!lomake.piilotetutOsiot[osio.id] ? 'text-gray-800' : 'text-gray-400'}`}>
+                        {osio.label}
+                      </div>
+                      <div className="text-xs text-gray-400">{osio.kuvaus}</div>
+                    </div>
+                  </label>
+                ))}
+                <p className="text-xs text-gray-400 mt-1">
+                  Perustiedot, kiputilanne ja tietosuoja näkyvät aina.
+                </p>
+              </div>
+            </div>
+
+            {/* Lisäkysymykset */}
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
+                Omat lisäkysymykset
+                {lomake.lisaKysymykset.length > 0 && (
+                  <span className="ml-2 text-brand-600 font-semibold">{lomake.lisaKysymykset.length}/10</span>
+                )}
+              </p>
+
+              {lomake.lisaKysymykset.length === 0 ? (
+                <p className="text-sm text-gray-400 py-2">Ei lisäkysymyksiä. Lisää alla.</p>
+              ) : (
+                <ul className="flex flex-col gap-2 mb-4">
+                  {lomake.lisaKysymykset.map((k, i) => (
+                    <li key={k.id} className="flex items-center gap-2 bg-gray-50 rounded-xl p-3 border border-gray-100">
+                      <div className="flex flex-col flex-shrink-0">
+                        <button type="button" onClick={() => siirräYlös(i)} disabled={i === 0}
+                          className="w-5 h-4 text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none flex items-center justify-center"
+                        >▲</button>
+                        <button type="button" onClick={() => siirräAlas(i)} disabled={i === lomake.lisaKysymykset.length - 1}
+                          className="w-5 h-4 text-gray-400 hover:text-gray-700 disabled:opacity-20 text-xs leading-none flex items-center justify-center"
+                        >▼</button>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-800 truncate">{k.otsikko}</p>
+                        <p className="text-xs text-gray-400">
+                          {KYSYMYS_TYYPIT.find(t => t.id === k.tyyppi)?.label ?? k.tyyppi}
+                        </p>
+                      </div>
+                      <button type="button" onClick={() => poistaKysymys(k.id)}
+                        className="text-xs text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
+                      >Poista</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {lomake.lisaKysymykset.length < 10 && (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    value={uusiKysymys}
+                    onChange={e => setUusiKysymys(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && lisääKysymys()}
+                    placeholder="Kirjoita kysymys..."
+                    maxLength={120}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  />
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {KYSYMYS_TYYPIT.map(t => (
+                      <button key={t.id} type="button" onClick={() => setUusiTyyppi(t.id)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border-2 transition-colors ${
+                          uusiTyyppi === t.id
+                            ? 'border-brand-500 bg-brand-50 text-brand-700'
+                            : 'border-gray-100 bg-gray-50 text-gray-600 hover:border-gray-300'
+                        }`}
+                      >{t.label}</button>
+                    ))}
+                    <button type="button" onClick={lisääKysymys}
+                      className="ml-auto px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg transition-colors"
+                    >+ Lisää</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Tallenna */}
+            <div className="flex items-center gap-3 pt-1 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={tallennalomake}
+                className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
+              >
+                Tallenna
+              </button>
+              {tallennettuLomake && (
+                <span className="text-sm text-green-600 font-medium">Tallennettu!</span>
+              )}
+            </div>
+          </div>
+        }
+      />
+
+      {/* ── 5: Tiedot ja tallennus ───────────────────────────────────────── */}
       <AccordionOsio
         id="tallennus" otsikko="Tiedot ja tallennus" ikoni="💾"
         auki={aukiOsio === 'tallennus'} onToggle={toggle}
