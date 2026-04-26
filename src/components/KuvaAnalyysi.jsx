@@ -113,10 +113,11 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         piirräPiste(p, vari, isDragged)
       })
       if (ps.length >= 2) {
-        const last = ps.length - 1
-        const mx   = (ps[last - 1].x + ps[last].x) / 2
-        const my   = (ps[last - 1].y + ps[last].y) / 2
-        piirräLabel(m.kulma + '°', mx, my)
+        const last    = ps.length - 1
+        const mx      = (ps[last - 1].x + ps[last].x) / 2
+        const my      = (ps[last - 1].y + ps[last].y) / 2
+        const yOffset = mittaukset.indexOf(m) * fontSize * 1.6
+        piirräLabel(m.kulma + '°', mx, my + yOffset)
       }
     })
 
@@ -348,9 +349,11 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
               onClick={() => { setValittuTyyppi(id); tyhjennäPisteet() }}
               className="py-2 px-3 rounded-lg border-2 text-sm font-medium transition-colors"
               style={{
-                borderColor:     valittuTyyppi === id ? t.vari : '#e5e7eb',
-                backgroundColor: valittuTyyppi === id ? t.vari : 'white',
-                color:           valittuTyyppi === id ? 'white' : '#4b5563',
+                borderColor:     t.vari,
+                borderWidth:     valittuTyyppi === id ? '2px' : '1px',
+                borderStyle:     'solid',
+                backgroundColor: valittuTyyppi === id ? t.vari : t.vari + '18',
+                color:           valittuTyyppi === id ? 'white' : t.vari,
               }}
             >
               {t.nimi}
