@@ -550,25 +550,11 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
               <TextInput label="Puhelin" name="puhelin" value={data.puhelin} onChange={päivitä} type="tel" />
             </div>
             {/* Pituus ja paino */}
-            <div style={{display:'flex',gap:'12px'}}>
-              <div style={{flex:1}}>
-                <label style={{fontSize:'12px',color:'#666',display:'block',marginBottom:'3px'}}>Pituus (cm)</label>
-                <input
-                  type="number" name="pituus" min="100" max="250"
-                  value={data.pituus || ''} onChange={päivitä} placeholder="170"
-                  style={{width:'100%',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'13px'}}
-                />
-              </div>
-              <div style={{flex:1}}>
-                <label style={{fontSize:'12px',color:'#666',display:'block',marginBottom:'3px'}}>Paino (kg)</label>
-                <input
-                  type="number" name="paino" min="30" max="300"
-                  value={data.paino || ''} onChange={päivitä} placeholder="70"
-                  style={{width:'100%',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'13px'}}
-                />
-              </div>
+            <div className="grid grid-cols-2 gap-3">
+              <TextInput label="Pituus (cm)" name="pituus" value={data.pituus} onChange={päivitä} type="number" placeholder="170" />
+              <TextInput label="Paino (kg)"  name="paino"  value={data.paino}  onChange={päivitä} type="number" placeholder="70"  />
             </div>
-            <p style={{fontSize:'11px',color:'#999',fontStyle:'italic'}}>
+            <p className="text-xs text-gray-400 italic -mt-2 mb-2">
               Pituus- ja painotietoja käytetään tilastointiin ja palvelun kehittämiseen.
             </p>
             <TextInput label="Työ / ammatti" name="ammatti" value={data.ammatti} onChange={päivitä} />
