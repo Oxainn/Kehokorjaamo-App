@@ -479,45 +479,42 @@ export default function Settings() {
 
             {palvelut.map(p => (
               <div key={p.id} style={{
-                border:'1px solid #e2e8f0',
-                borderRadius:'8px',
-                padding:'12px'
+                border:'1px solid #e2e8f0',borderRadius:'8px',padding:'12px',
+                display:'flex',flexDirection:'column',gap:'8px'
               }}>
-                <input
-                  value={p.nimi}
-                  onChange={e => päivitäPalvelu(p.id,'nimi',e.target.value)}
-                  style={{width:'100%',fontWeight:'500',
-                    fontSize:'14px',border:'none',
-                    borderBottom:'1px solid #e2e8f0',
-                    paddingBottom:'4px',marginBottom:'8px'}}
-                />
-                <textarea
-                  value={p.kuvaus}
-                  placeholder="Kirjoita palvelun kuvaus..."
-                  onChange={e => päivitäPalvelu(p.id,'kuvaus',e.target.value)}
-                  rows={4}
-                  style={{width:'100%',fontSize:'13px',color:'#444',
-                    border:'1px solid #e2e8f0',borderRadius:'6px',padding:'8px',
-                    resize:'vertical',fontFamily:'inherit',lineHeight:'1.6'}}
-                />
-                <div style={{display:'flex',gap:'8px',marginTop:'8px',flexWrap:'wrap'}}>
+                <div>
+                  <label style={{fontSize:'11px',color:'#666',display:'block',marginBottom:'3px'}}>Palvelun nimi</label>
+                  <input
+                    value={p.nimi}
+                    onChange={e => päivitäPalvelu(p.id,'nimi',e.target.value)}
+                    style={{width:'100%',fontSize:'14px',fontWeight:'500',padding:'6px 8px',borderRadius:'6px',border:'1px solid #e2e8f0'}}
+                  />
+                </div>
+                <div>
+                  <label style={{fontSize:'11px',color:'#666',display:'block',marginBottom:'3px'}}>Palvelun kuvaus (näkyy asiakkaalle)</label>
+                  <textarea
+                    value={p.kuvaus}
+                    placeholder="Kirjoita palvelun kuvaus..."
+                    onChange={e => päivitäPalvelu(p.id,'kuvaus',e.target.value)}
+                    rows={4}
+                    style={{width:'100%',fontSize:'13px',padding:'8px',borderRadius:'6px',
+                      border:'1px solid #e2e8f0',resize:'vertical',fontFamily:'inherit',lineHeight:'1.6',color:'#444'}}
+                  />
+                </div>
+                <div style={{display:'flex',gap:'8px',flexWrap:'wrap'}}>
                   <button type="button" onClick={() => päivitäPalvelu(p.id,'aktiivinen',!p.aktiivinen)}
-                    style={{fontSize:'12px',padding:'3px 8px',
-                      borderRadius:'20px',border:'none',cursor:'pointer',
+                    style={{fontSize:'12px',padding:'4px 10px',borderRadius:'20px',border:'none',cursor:'pointer',
                       background: p.aktiivinen ? '#E1F5EE' : '#F1F5F9',
-                      color: p.aktiivinen ? '#085041' : '#666'}}>
+                      color:      p.aktiivinen ? '#085041' : '#666'}}>
                     {p.aktiivinen ? '✓ Aktiivinen' : 'Ei aktiivinen'}
                   </button>
-                  <button type="button"
-                    onClick={() => setMuokkausId(prev => prev === p.id ? null : p.id)}
-                    style={{fontSize:'12px',padding:'3px 8px',borderRadius:'20px',border:'none',cursor:'pointer',
-                      background: muokkausId === p.id ? '#dbeafe' : '#F1F5F9',
-                      color:      muokkausId === p.id ? '#1d4ed8' : '#444'}}>
-                    Muokkaa lomaketta
+                  <button type="button" onClick={() => setMuokkausId(muokkausId === p.id ? null : p.id)}
+                    style={{fontSize:'12px',padding:'4px 10px',borderRadius:'20px',border:'none',cursor:'pointer',
+                      background:'#E6F1FB',color:'#0C447C'}}>
+                    ✏️ Muokkaa lomaketta
                   </button>
                   <button type="button" onClick={() => poistaPalvelu(p.id)}
-                    style={{fontSize:'12px',padding:'3px 8px',
-                      borderRadius:'20px',border:'none',cursor:'pointer',
+                    style={{fontSize:'12px',padding:'4px 10px',borderRadius:'20px',border:'none',cursor:'pointer',
                       background:'#FEE2E2',color:'#991B1B'}}>
                     Poista
                   </button>
