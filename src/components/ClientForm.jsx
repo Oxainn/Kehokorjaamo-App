@@ -37,6 +37,8 @@ const PIIRTOVÄRIT = { 1: '#ef4444', 2: '#f97316', 3: '#3b82f6', 4: '#9ca3af' }
 const TYHJÄ = {
   nimi:             '',
   syntymaaika:      '',
+  pituus:           '',
+  paino:            '',
   lahiosoite:       '',
   postinumero:      '',
   postitoimipaikka: '',
@@ -538,6 +540,28 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
                 Asiakas on alle 18-vuotias — huoltajan suostumus vaaditaan (katso Tietosuoja-osio).
               </div>
             )}
+            {/* Pituus ja paino */}
+            <div style={{display:'flex',gap:'12px',marginBottom:'12px'}}>
+              <div style={{flex:1}}>
+                <label style={{fontSize:'12px',color:'#666',display:'block',marginBottom:'3px'}}>Pituus (cm)</label>
+                <input
+                  type="number" name="pituus" min="100" max="250"
+                  value={data.pituus || ''} onChange={päivitä} placeholder="170"
+                  style={{width:'100%',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'13px'}}
+                />
+              </div>
+              <div style={{flex:1}}>
+                <label style={{fontSize:'12px',color:'#666',display:'block',marginBottom:'3px'}}>Paino (kg)</label>
+                <input
+                  type="number" name="paino" min="30" max="300"
+                  value={data.paino || ''} onChange={päivitä} placeholder="70"
+                  style={{width:'100%',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'13px'}}
+                />
+              </div>
+            </div>
+            <p style={{fontSize:'11px',color:'#999',marginBottom:'16px',fontStyle:'italic'}}>
+              Pituus- ja painotietoja käytetään tilastointiin ja palvelun kehittämiseen.
+            </p>
             <TextInput label="Lähiosoite" name="lahiosoite" value={data.lahiosoite} onChange={päivitä} />
             <div className="grid grid-cols-2 gap-3">
               <TextInput label="Postinumero" name="postinumero" value={data.postinumero} onChange={päivitä} />
