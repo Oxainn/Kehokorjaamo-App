@@ -190,9 +190,7 @@ export default function Settings() {
     if (!tallennettu) return OLETUS_PALVELUT
     return tallennettu.map(p => ({ ...p, lomake: p.lomake ?? { ...TYHJÄ_PALVELU_LOMAKE } }))
   })
-  const [avoinPalveluLomake, setAvoinPalveluLomake] = useState(null)
-  const [palveluLomakeKysymys, setPalveluLomakeKysymys] = useState('')
-  const [palveluLomakeTyyppi, setPalveluLomakeTyyppi]   = useState('teksti')
+  const [muokkausId, setMuokkausId] = useState(null)
 
   const lisääPalvelu = () => {
     const uusi = { id: 'p' + Date.now(), nimi: 'Uusi palvelu', kuvaus: '', aktiivinen: true, lomake: { ...TYHJÄ_PALVELU_LOMAKE } }
@@ -209,39 +207,6 @@ export default function Settings() {
 
   const päivitäPalvelu = (id, kenttä, arvo) => {
     const päivitetty = palvelut.map(p => p.id === id ? { ...p, [kenttä]: arvo } : p)
-    setPalvelut(päivitetty)
-    tallennnaOsa('palvelut', päivitetty)
-  }
-
-  const togglePalveluOsio = (palveluId, osioId) => {
-    const päivitetty = palvelut.map(p => p.id !== palveluId ? p : {
-      ...p,
-      lomake: {
-        ...p.lomake,
-        piilotetutOsiot: { ...p.lomake.piilotetutOsiot, [osioId]: !p.lomake.piilotetutOsiot[osioId] },
-      },
-    })
-    setPalvelut(päivitetty)
-    tallennnaOsa('palvelut', päivitetty)
-  }
-
-  const lisääPalveluKysymys = (palveluId) => {
-    if (!palveluLomakeKysymys.trim()) return
-    const palvelu = palvelut.find(p => p.id === palveluId)
-    if (!palvelu || palvelu.lomake.lisaKysymykset.length >= 10) return
-    const uusi = { id: uid(), otsikko: palveluLomakeKysymys.trim(), tyyppi: palveluLomakeTyyppi, pakollinen: false }
-    const päivitetty = palvelut.map(p => p.id !== palveluId ? p : {
-      ...p, lomake: { ...p.lomake, lisaKysymykset: [...p.lomake.lisaKysymykset, uusi] },
-    })
-    setPalveluLomakeKysymys('')
-    setPalvelut(päivitetty)
-    tallennnaOsa('palvelut', päivitetty)
-  }
-
-  const poistaPalveluKysymys = (palveluId, kysymysId) => {
-    const päivitetty = palvelut.map(p => p.id !== palveluId ? p : {
-      ...p, lomake: { ...p.lomake, lisaKysymykset: p.lomake.lisaKysymykset.filter(k => k.id !== kysymysId) },
-    })
     setPalvelut(päivitetty)
     tallennnaOsa('palvelut', päivitetty)
   }
@@ -542,10 +507,10 @@ export default function Settings() {
                     {p.aktiivinen ? '✓ Aktiivinen' : 'Ei aktiivinen'}
                   </button>
                   <button type="button"
-                    onClick={() => { setPalveluLomakeKysymys(''); setAvoinPalveluLomake(prev => prev === p.id ? null : p.id) }}
+                    onClick={() => setMuokkausId(prev => prev === p.id ? null : p.id)}
                     style={{fontSize:'12px',padding:'3px 8px',borderRadius:'20px',border:'none',cursor:'pointer',
-                      background: avoinPalveluLomake === p.id ? '#dbeafe' : '#F1F5F9',
-                      color:      avoinPalveluLomake === p.id ? '#1d4ed8' : '#444'}}>
+                      background: muokkausId === p.id ? '#dbeafe' : '#F1F5F9',
+                      color:      muokkausId === p.id ? '#1d4ed8' : '#444'}}>
                     Muokkaa lomaketta
                   </button>
                   <button type="button" onClick={() => poistaPalvelu(p.id)}
@@ -556,62 +521,69 @@ export default function Settings() {
                   </button>
                 </div>
 
-                {avoinPalveluLomake === p.id && (
-                  <div style={{marginTop:'12px',paddingTop:'12px',borderTop:'1px solid #e2e8f0'}}>
-                    <p style={{fontSize:'11px',fontWeight:'600',color:'#94a3b8',textTransform:'uppercase',marginBottom:'8px'}}>
-                      Vakio-osiot
-                    </p>
-                    {LOMAKE_MUUTTUVAT_OSIOT.map(osio => (
-                      <label key={osio.id} style={{display:'flex',alignItems:'center',gap:'8px',
-                        padding:'6px 8px',borderRadius:'6px',cursor:'pointer',marginBottom:'4px',
-                        background: !p.lomake?.piilotetutOsiot?.[osio.id] ? '#E1F5EE' : '#f8fafc'}}>
+                {muokkausId === p.id && (
+                  <div style={{marginTop:'12px',padding:'12px',background:'#F8FAFC',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
+                    <p style={{fontSize:'13px',fontWeight:'500',marginBottom:'12px'}}>Lomakkeen osiot</p>
+
+                    {[
+                      {id:'kontraindikaatiot', nimi:'Terveystiedot ja kontraindikaatiot'},
+                      {id:'kiputilanne',       nimi:'Kiputilanne'},
+                      {id:'keho_merkinnat',    nimi:'Kehon merkinnät'},
+                    ].map(osio => (
+                      <div key={osio.id} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'8px'}}>
                         <input type="checkbox"
                           checked={!p.lomake?.piilotetutOsiot?.[osio.id]}
-                          onChange={() => togglePalveluOsio(p.id, osio.id)}
+                          onChange={() => {
+                            const piilotetut = { ...p.lomake?.piilotetutOsiot, [osio.id]: !p.lomake?.piilotetutOsiot?.[osio.id] }
+                            päivitäPalvelu(p.id, 'lomake', { ...p.lomake, piilotetutOsiot: piilotetut })
+                          }}
                         />
-                        <div>
-                          <div style={{fontSize:'13px',fontWeight:'500'}}>{osio.label}</div>
-                          <div style={{fontSize:'11px',color:'#94a3b8'}}>{osio.kuvaus}</div>
-                        </div>
-                      </label>
+                        <label style={{fontSize:'13px'}}>{osio.nimi}</label>
+                      </div>
                     ))}
 
-                    <p style={{fontSize:'11px',fontWeight:'600',color:'#94a3b8',textTransform:'uppercase',marginTop:'12px',marginBottom:'8px'}}>
-                      Lisäkysymykset {(p.lomake?.lisaKysymykset?.length ?? 0) > 0 && `(${p.lomake.lisaKysymykset.length}/10)`}
-                    </p>
-                    {(p.lomake?.lisaKysymykset ?? []).map(k => (
-                      <div key={k.id} style={{display:'flex',alignItems:'center',gap:'6px',
-                        padding:'6px 8px',borderRadius:'6px',background:'#f8fafc',marginBottom:'4px'}}>
-                        <span style={{flex:1,fontSize:'13px'}}>{k.otsikko}</span>
-                        <span style={{fontSize:'11px',color:'#94a3b8'}}>
-                          {KYSYMYS_TYYPIT.find(t => t.id === k.tyyppi)?.label}
-                        </span>
-                        <button type="button" onClick={() => poistaPalveluKysymys(p.id, k.id)}
-                          style={{fontSize:'12px',color:'#9ca3af',border:'none',background:'none',cursor:'pointer'}}>
-                          ✕
+                    <p style={{fontSize:'13px',fontWeight:'500',margin:'12px 0 8px'}}>Lisäkysymykset</p>
+
+                    {(p.lomake?.lisaKysymykset ?? []).map((k, i) => (
+                      <div key={k.id} style={{display:'flex',gap:'8px',alignItems:'center',marginBottom:'6px'}}>
+                        <span style={{fontSize:'13px',flex:1}}>{k.otsikko}</span>
+                        <button type="button" onClick={() => {
+                          const kysymykset = p.lomake.lisaKysymykset.filter(q => q.id !== k.id)
+                          päivitäPalvelu(p.id, 'lomake', { ...p.lomake, lisaKysymykset: kysymykset })
+                        }} style={{fontSize:'11px',padding:'2px 8px',background:'#FEE2E2',color:'#991B1B',border:'none',borderRadius:'20px',cursor:'pointer'}}>
+                          Poista
                         </button>
                       </div>
                     ))}
 
-                    {(p.lomake?.lisaKysymykset?.length ?? 0) < 10 && (
-                      <div style={{display:'flex',gap:'6px',marginTop:'8px'}}>
-                        <input type="text"
-                          value={palveluLomakeKysymys}
-                          onChange={e => setPalveluLomakeKysymys(e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && lisääPalveluKysymys(p.id)}
-                          placeholder="Uusi kysymys..."
-                          style={{flex:1,fontSize:'13px',padding:'6px 8px',border:'1px solid #e2e8f0',borderRadius:'6px'}}
-                        />
-                        <select value={palveluLomakeTyyppi} onChange={e => setPalveluLomakeTyyppi(e.target.value)}
-                          style={{fontSize:'12px',padding:'6px',border:'1px solid #e2e8f0',borderRadius:'6px'}}>
-                          {KYSYMYS_TYYPIT.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
-                        </select>
-                        <button type="button" onClick={() => lisääPalveluKysymys(p.id)}
-                          style={{fontSize:'12px',padding:'6px 10px',background:'#1D9E75',color:'white',border:'none',borderRadius:'6px',cursor:'pointer'}}>
-                          +
-                        </button>
-                      </div>
-                    )}
+                    <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
+                      <input
+                        placeholder="Uusi kysymys..."
+                        id={`uusi-${p.id}`}
+                        style={{flex:1,fontSize:'13px',padding:'6px 8px',borderRadius:'6px',border:'1px solid #e2e8f0'}}
+                      />
+                      <select id={`tyyppi-${p.id}`}
+                        style={{fontSize:'13px',padding:'6px',borderRadius:'6px',border:'1px solid #e2e8f0'}}>
+                        <option value="teksti">Teksti</option>
+                        <option value="kylla_ei">Kyllä/Ei</option>
+                        <option value="numero">Numero</option>
+                      </select>
+                      <button type="button" onClick={() => {
+                        const input  = document.getElementById(`uusi-${p.id}`)
+                        const tyyppi = document.getElementById(`tyyppi-${p.id}`)
+                        if (!input.value.trim()) return
+                        const kysymykset = [...(p.lomake?.lisaKysymykset ?? []), { id: 'k' + Date.now(), otsikko: input.value.trim(), tyyppi: tyyppi.value }]
+                        päivitäPalvelu(p.id, 'lomake', { ...p.lomake, lisaKysymykset: kysymykset })
+                        input.value = ''
+                      }} style={{fontSize:'13px',padding:'6px 12px',background:'#1D9E75',color:'white',border:'none',borderRadius:'6px',cursor:'pointer'}}>
+                        + Lisää
+                      </button>
+                    </div>
+
+                    <button type="button" onClick={() => setMuokkausId(null)}
+                      style={{marginTop:'12px',fontSize:'12px',color:'#666',background:'transparent',border:'none',cursor:'pointer'}}>
+                      Sulje ↑
+                    </button>
                   </div>
                 )}
               </div>
