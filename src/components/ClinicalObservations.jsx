@@ -224,6 +224,7 @@ export default function ClinicalObservations({ asiakasData, onComplete }) {
   })
 
   const [lisaaAuki, setLisaaAuki] = useState(false)
+  const [kuvausAuki, setKuvausAuki] = useState(false)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
@@ -282,6 +283,45 @@ export default function ClinicalObservations({ asiakasData, onComplete }) {
           </p>
         )}
       </div>
+
+      <div style={{ textAlign: 'center', margin: '8px 0 16px' }}>
+        <button
+          type="button"
+          onClick={() => setKuvausAuki(!kuvausAuki)}
+          style={{
+            padding: '6px 20px',
+            borderRadius: '20px',
+            border: '1px solid #e2e8f0',
+            background: kuvausAuki ? '#E1F5EE' : 'transparent',
+            color:      kuvausAuki ? '#085041' : '#666',
+            fontSize:   '13px',
+            cursor:     'pointer',
+          }}
+        >
+          {kuvausAuki ? '▲ Piilota kuvaus' : '▼ Palvelun kuvaus'}
+        </button>
+      </div>
+
+      {kuvausAuki && (
+        <div style={{
+          padding: '12px 16px',
+          background: '#F8FAFC',
+          borderRadius: '8px',
+          border: '1px solid #e2e8f0',
+          fontSize: '13px',
+          color: '#444',
+          lineHeight: '1.6',
+          marginBottom: '16px',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {(() => {
+            const asetukset = JSON.parse(localStorage.getItem('kehokorjaamo_asetukset') || '{}')
+            const palvelut  = asetukset.palvelut ?? []
+            const palvelu   = palvelut.find(p => p.aktiivinen)
+            return palvelu?.kuvaus || 'Ei kuvausta tälle palvelulle.'
+          })()}
+        </div>
+      )}
 
       <form onSubmit={lähetä} className="flex flex-col gap-5">
 
