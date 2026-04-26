@@ -540,8 +540,17 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
                 Asiakas on alle 18-vuotias — huoltajan suostumus vaaditaan (katso Tietosuoja-osio).
               </div>
             )}
+            <TextInput label="Lähiosoite" name="lahiosoite" value={data.lahiosoite} onChange={päivitä} />
+            <div className="grid grid-cols-2 gap-3">
+              <TextInput label="Postinumero" name="postinumero" value={data.postinumero} onChange={päivitä} />
+              <TextInput label="Postitoimipaikka" name="postitoimipaikka" value={data.postitoimipaikka} onChange={päivitä} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <TextInput label="Sähköposti" name="sahkoposti" value={data.sahkoposti} onChange={päivitä} type="email" />
+              <TextInput label="Puhelin" name="puhelin" value={data.puhelin} onChange={päivitä} type="tel" />
+            </div>
             {/* Pituus ja paino */}
-            <div style={{display:'flex',gap:'12px',marginBottom:'12px'}}>
+            <div style={{display:'flex',gap:'12px'}}>
               <div style={{flex:1}}>
                 <label style={{fontSize:'12px',color:'#666',display:'block',marginBottom:'3px'}}>Pituus (cm)</label>
                 <input
@@ -559,18 +568,9 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
                 />
               </div>
             </div>
-            <p style={{fontSize:'11px',color:'#999',marginBottom:'16px',fontStyle:'italic'}}>
+            <p style={{fontSize:'11px',color:'#999',fontStyle:'italic'}}>
               Pituus- ja painotietoja käytetään tilastointiin ja palvelun kehittämiseen.
             </p>
-            <TextInput label="Lähiosoite" name="lahiosoite" value={data.lahiosoite} onChange={päivitä} />
-            <div className="grid grid-cols-2 gap-3">
-              <TextInput label="Postinumero" name="postinumero" value={data.postinumero} onChange={päivitä} />
-              <TextInput label="Postitoimipaikka" name="postitoimipaikka" value={data.postitoimipaikka} onChange={päivitä} />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <TextInput label="Sähköposti" name="sahkoposti" value={data.sahkoposti} onChange={päivitä} type="email" />
-              <TextInput label="Puhelin" name="puhelin" value={data.puhelin} onChange={päivitä} type="tel" />
-            </div>
             <TextInput label="Työ / ammatti" name="ammatti" value={data.ammatti} onChange={päivitä} />
             <TextArea label="Harrastuksia" name="harrastukset" value={data.harrastukset} onChange={päivitä} />
             <TextArea label="Hoitoon tulon syy" name="hoitoon_syy" value={data.hoitoon_syy} onChange={päivitä} rows={4} />
