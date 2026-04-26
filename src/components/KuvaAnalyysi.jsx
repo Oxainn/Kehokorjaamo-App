@@ -59,13 +59,14 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(b.x, b.y)
       ctx.strokeStyle = vari
-      ctx.lineWidth   = 4
+      ctx.lineWidth   = 6
       ctx.stroke()
     }
 
     const piirräPiste = (p, vari, isDragged = false) => {
+      // Ulompi ympyrä
       ctx.beginPath()
-      ctx.arc(p.x, p.y, 16, 0, Math.PI * 2)
+      ctx.arc(p.x, p.y, 24, 0, Math.PI * 2)
       if (isDragged) {
         ctx.fillStyle = '#EF9F27'
         ctx.fill()
@@ -75,16 +76,21 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         ctx.strokeStyle = vari
         ctx.lineWidth   = 3
         ctx.stroke()
+        // Sisempi ympyrä värillä
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 16, 0, Math.PI * 2)
+        ctx.fillStyle = vari
+        ctx.fill()
       }
     }
 
     const piirräLabel = (teksti, x, y) => {
       ctx.fillStyle = '#ffffff'
-      ctx.fillRect(x - 34, y - 15, 68, 26)
+      ctx.fillRect(x - 32, y - 16, 64, 28)
       ctx.fillStyle = '#333'
-      ctx.font      = 'bold 16px sans-serif'
+      ctx.font      = 'bold 18px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText(teksti, x, y + 4)
+      ctx.fillText(teksti, x, y + 5)
     }
 
     // Tallennetut mittaukset
@@ -111,8 +117,12 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       for (let i = 0; i < pisteet.length - 1; i++) piirräViiva(pisteet[i], pisteet[i + 1], vari)
       pisteet.forEach(p => {
         ctx.beginPath()
-        ctx.arc(p.x, p.y, 16, 0, Math.PI * 2)
+        ctx.arc(p.x, p.y, 24, 0, Math.PI * 2)
         ctx.fillStyle = '#EF9F27'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 16, 0, Math.PI * 2)
+        ctx.fillStyle = '#ffffff'
         ctx.fill()
       })
     }
@@ -152,7 +162,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       for (let i = 0; i < pisteetArr.length; i++) {
         const p        = pisteetArr[i]
         const etäisyys = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2)
-        if (etäisyys < 32) {
+        if (etäisyys < 40) {
           setVedetäänPistettä({ mittausId: m.id, pisteIndex: i })
           return
         }
@@ -238,7 +248,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
 
   const tyhjennäPisteet = () => { setPisteet([]); setNykyinenKulma(null) }
 
-  const tallenna = () => {
+  const tallennaKäyntiin = () => {
     const data = {
       id:        'ka' + Date.now(),
       pvm:       new Date().toISOString(),
@@ -435,13 +445,22 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
                 )
               })}
             </ul>
-            <button
-              type="button"
-              onClick={() => setTila('tulos')}
-              className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition-colors"
-            >
-              Valmis → Näytä tulokset
-            </button>
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => setTila('tulos')}
+                className="w-full py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-semibold transition-colors"
+              >
+                Valmis → Näytä tulokset
+              </button>
+              <button
+                type="button"
+                onClick={tallennaKäyntiin}
+                className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition-colors"
+              >
+                Tallenna käyntiin ({mittaukset.length} mittausta)
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -491,7 +510,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       </div>
 
       <div className="flex flex-col gap-2">
-        <button type="button" onClick={tallenna}
+        <button type="button" onClick={tallennaKäyntiin}
           className="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
           Tallenna käyntiin
         </button>
