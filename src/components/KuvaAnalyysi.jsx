@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react'
 
 const MITTAUSTYYPIT = {
-  hartiat:    { nimi: 'Hartiat',    pistemaara: 2, viite: 'vaaka', vari: '#E24B4A' },
-  lantio:     { nimi: 'Lantio',     pistemaara: 2, viite: 'vaaka', vari: '#1D9E75' },
-  polvet:     { nimi: 'Polvet',     pistemaara: 2, viite: 'vaaka', vari: '#534AB7' },
-  korvat:     { nimi: 'Korvat',     pistemaara: 2, viite: 'vaaka', vari: '#EF9F27' },
-  selkaranka: { nimi: 'Selkäranka', pistemaara: 4, viite: 'pysty', vari: '#185FA5' },
-  sivulinja:  { nimi: 'Sivulinja',  pistemaara: 5, viite: 'pysty', vari: '#993C1D' },
+  hartiat:       { nimi: 'Hartiat',        pistemaara: 2, viite: 'vaaka', vari: '#E24B4A' },
+  lantio:        { nimi: 'Lantio',         pistemaara: 2, viite: 'vaaka', vari: '#1D9E75' },
+  polvet:        { nimi: 'Polvet',         pistemaara: 2, viite: 'vaaka', vari: '#534AB7' },
+  korvat:        { nimi: 'Korvat',         pistemaara: 2, viite: 'vaaka', vari: '#EF9F27' },
+  selkaranka:    { nimi: 'Selkäranka',     pistemaara: 4, viite: 'pysty', vari: '#185FA5' },
+  sivulinja:     { nimi: 'Sivulinja',      pistemaara: 5, viite: 'pysty', vari: '#993C1D' },
+  lantio_kierto: { nimi: 'Lantion kierto', pistemaara: 2, viite: 'pysty', vari: '#1D9E75' },
 }
 
 function laskeKulmaKahdelleP(p1, p2) {
@@ -17,7 +18,24 @@ function laskeKulmaKahdelleP(p1, p2) {
 
 function laskeKulma(pisteet, tyyppi, kuvaussuunta = 'edestä') {
   if (pisteet.length === 5) return laskeSivulinja(pisteet)
-  if (pisteet.length === 2) {    const [p1, p2] = pisteet
+
+  if (tyyppi === 'lantio_kierto' && pisteet.length === 2) {
+    const [p1, p2] = pisteet  // p1=taka, p2=etu
+    const kulma    = Math.abs(
+      Math.atan2(Math.abs(p2.y - p1.y), Math.abs(p2.x - p1.x)) * 180 / Math.PI
+    ).toFixed(1)
+    let kiertyminen
+    if (kuvaussuunta === 'oikea sivu') {
+      kiertyminen = p1.y < p2.y ? 'vasen puoli eteen' : 'oikea puoli eteen'
+    } else {
+      // vasen sivu
+      kiertyminen = p1.y < p2.y ? 'oikea puoli eteen' : 'vasen puoli eteen'
+    }
+    return { asteet: kulma, suunta: kiertyminen, teksti: `Lantio: ${kiertyminen} ${kulma}°` }
+  }
+
+  if (pisteet.length === 2) {
+    const [p1, p2] = pisteet
     const asteet   = Math.abs(
       Math.atan2(Math.abs(p2.y - p1.y), Math.abs(p2.x - p1.x)) * 180 / Math.PI
     ).toFixed(1)
@@ -516,18 +534,22 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
           style={{ color: valmis ? tyyppiObj.vari : '#6b7280' }}>
           {valmis
             ? `${tyyppiObj.nimi}: ${nykyinenKulma?.teksti}`
-            : `Napauta ${tarvittavia} pistettä — ${pisteet.length}/${tarvittavia} merkitty`
+            : valittuTyyppi === 'lantio_kierto'
+              ? pisteet.length === 0
+                ? 'Merkitse ensin takapiste, sitten etupiste'
+                : 'Merkitse etupiste'
+              : `Napauta ${tarvittavia} pistettä — ${pisteet.length}/${tarvittavia} merkitty`
           }
         </p>
 
         {/* Kuvaussuunta */}
-        <div className="flex gap-2">
-          {[['edestä', 'Edestä'], ['takaa', 'Takaa'], ['sivulta', 'Sivulta']].map(([arvo, label]) => (
+        <div className="flex flex-wrap gap-2">
+          {[['edestä', 'Edestä'], ['takaa', 'Takaa'], ['oikea sivu', 'Oikea sivu'], ['vasen sivu', 'Vasen sivu']].map(([arvo, label]) => (
             <button
               key={arvo}
               type="button"
               onClick={() => setKuvaussuunta(arvo)}
-              className="flex-1 py-2 rounded-lg border text-sm font-medium transition-colors"
+              className="py-2 px-3 rounded-lg border text-sm font-medium transition-colors"
               style={{
                 borderColor:     kuvaussuunta === arvo ? '#6b7280' : '#e5e7eb',
                 backgroundColor: kuvaussuunta === arvo ? '#6b7280' : 'white',
