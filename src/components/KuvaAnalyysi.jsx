@@ -391,6 +391,10 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   }
 
   const lisääMittaus = () => {
+    console.log('lisääMittaus kutsuttu')
+    console.log('pisteet:', pisteet)
+    console.log('pistemaara:', MITTAUSTYYPIT[valittuTyyppi].pistemaara)
+    console.log('nykyinenKulma:', nykyinenKulma)
     const pistemaara = MITTAUSTYYPIT[valittuTyyppi].pistemaara
     if (pisteet.length !== pistemaara || nykyinenKulma === null) return
     const [p1, p2, p3, p4, p5] = pisteet
