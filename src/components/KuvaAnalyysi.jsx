@@ -1,18 +1,27 @@
 import { useState, useRef, useEffect } from 'react'
 
-const MITTAUSTYYPIT = [
-  { id: 'lantio',     label: 'Lantio',     viiva: 'vaaka', vari: '#1D9E75' },
-  { id: 'hartiat',    label: 'Hartiat',    viiva: 'vaaka', vari: '#1D9E75' },
-  { id: 'selkaranka', label: 'Selkäranka', viiva: 'pysty', vari: '#185FA5' },
-]
+const MITTAUSTYYPIT = {
+  hartiat:    { nimi: 'Hartiat',    pistemaara: 2, viite: 'vaaka', vari: '#1D9E75' },
+  lantio:     { nimi: 'Lantio',     pistemaara: 2, viite: 'vaaka', vari: '#1D9E75' },
+  polvet:     { nimi: 'Polvet',     pistemaara: 2, viite: 'vaaka', vari: '#1D9E75' },
+  korvat:     { nimi: 'Korvat',     pistemaara: 2, viite: 'vaaka', vari: '#1D9E75' },
+  selkaranka: { nimi: 'Selkäranka', pistemaara: 3, viite: 'pysty', vari: '#185FA5' },
+}
 
-function laskeKulma(p1, p2, tyyppi) {
-  const dx = p2.x - p1.x
-  const dy = p2.y - p1.y
-  if (tyyppi === 'selkaranka') {
-    return Math.abs(Math.atan2(dx, Math.abs(dy)) * 180 / Math.PI).toFixed(1)
+function laskeKulma(pisteet, tyyppi) {
+  if (pisteet.length === 2) {
+    const [p1, p2] = pisteet
+    return Math.abs(
+      Math.atan2(Math.abs(p2.y - p1.y), Math.abs(p2.x - p1.x)) * 180 / Math.PI
+    ).toFixed(1)
   }
-  return Math.abs(Math.atan2(Math.abs(dy), Math.abs(dx)) * 180 / Math.PI).toFixed(1)
+  // 3 pistettä: kulmaus p2:ssa (selkäranka)
+  const [p1, p2, p3] = pisteet
+  const v1  = { x: p1.x - p2.x, y: p1.y - p2.y }
+  const v2  = { x: p3.x - p2.x, y: p3.y - p2.y }
+  const dot = v1.x * v2.x + v1.y * v2.y
+  const cr  = v1.x * v2.y - v1.y * v2.x
+  return (180 - Math.atan2(Math.abs(cr), dot) * 180 / Math.PI).toFixed(1)
 }
 
 export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
@@ -20,7 +29,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   const [kuva, setKuva]                   = useState(null)
   const [pisteet, setPisteet]             = useState([])
   const [mittaukset, setMittaukset]       = useState([])
-  const [valittuTyyppi, setValittuTyyppi] = useState('lantio')
+  const [valittuTyyppi, setValittuTyyppi] = useState('hartiat')
   const [nykyinenKulma, setNykyinenKulma] = useState(null)
 
   const kanvaasiRef = useRef(null)
@@ -30,60 +39,62 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   const piirrä = () => {
     const canvas = kanvaasiRef.current
     if (!canvas || canvas.offsetWidth === 0) return
-
     canvas.width  = canvas.offsetWidth
     canvas.height = canvas.offsetHeight
     const ctx = canvas.getContext('2d')
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    // Tallennetut mittaukset
-    mittaukset.forEach(m => {
-      const vari = m.tyyppi === 'selkaranka' ? '#185FA5' : '#1D9E75'
-
+    const piirräViiva = (a, b, vari) => {
       ctx.beginPath()
-      ctx.moveTo(m.p1.x, m.p1.y)
-      ctx.lineTo(m.p2.x, m.p2.y)
+      ctx.moveTo(a.x, a.y)
+      ctx.lineTo(b.x, b.y)
       ctx.strokeStyle = vari
       ctx.lineWidth = 3
       ctx.stroke()
+    }
 
-      ;[m.p1, m.p2].forEach(p => {
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2)
-        ctx.fillStyle = '#ffffff'
-        ctx.fill()
-        ctx.strokeStyle = vari
-        ctx.lineWidth = 2
-        ctx.stroke()
-      })
-
-      const mx = (m.p1.x + m.p2.x) / 2
-      const my = (m.p1.y + m.p2.y) / 2
+    const piirräPiste = (p, vari) => {
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, 8, 0, Math.PI * 2)
       ctx.fillStyle = '#ffffff'
-      ctx.fillRect(mx - 24, my - 12, 48, 22)
+      ctx.fill()
+      ctx.strokeStyle = vari
+      ctx.lineWidth = 2
+      ctx.stroke()
+    }
+
+    const piirräLabel = (teksti, x, y) => {
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(x - 28, y - 13, 56, 22)
       ctx.fillStyle = '#333'
       ctx.font = 'bold 13px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText(m.kulma + '°', mx, my + 4)
+      ctx.fillText(teksti, x, y + 3)
+    }
+
+    // Tallennetut mittaukset
+    mittaukset.forEach(m => {
+      const vari = MITTAUSTYYPIT[m.tyyppi]?.vari ?? '#1D9E75'
+      const ps   = m.pisteet
+      for (let i = 0; i < ps.length - 1; i++) piirräViiva(ps[i], ps[i + 1], vari)
+      ps.forEach(p => piirräPiste(p, vari))
+      // Label viimeisen segmentin puoliväliin
+      const last = ps.length - 1
+      const mx = (ps[last - 1].x + ps[last].x) / 2
+      const my = (ps[last - 1].y + ps[last].y) / 2
+      piirräLabel(m.kulma + '°', mx, my)
     })
 
-    // Aktiiviset pisteet
-    pisteet.forEach(p => {
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, 10, 0, Math.PI * 2)
-      ctx.fillStyle = '#EF9F27'
-      ctx.fill()
-    })
-
-    // Aktiivinen viiva jos 2 pistettä
-    if (pisteet.length === 2) {
-      const vari = valittuTyyppi === 'selkaranka' ? '#185FA5' : '#1D9E75'
-      ctx.beginPath()
-      ctx.moveTo(pisteet[0].x, pisteet[0].y)
-      ctx.lineTo(pisteet[1].x, pisteet[1].y)
-      ctx.strokeStyle = vari
-      ctx.lineWidth = 3
-      ctx.stroke()
+    // Aktiiviset pisteet ja viivat
+    if (pisteet.length > 0) {
+      const vari = MITTAUSTYYPIT[valittuTyyppi]?.vari ?? '#1D9E75'
+      for (let i = 0; i < pisteet.length - 1; i++) piirräViiva(pisteet[i], pisteet[i + 1], vari)
+      pisteet.forEach(p => {
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 10, 0, Math.PI * 2)
+        ctx.fillStyle = '#EF9F27'
+        ctx.fill()
+      })
     }
   }
 
@@ -93,21 +104,17 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     e.preventDefault()
     const canvas = kanvaasiRef.current
     if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const x = (e.touches?.[0]?.clientX ?? e.clientX) - rect.left
-    const y = (e.touches?.[0]?.clientY ?? e.clientY) - rect.top
+    const rect      = canvas.getBoundingClientRect()
+    const x         = (e.touches?.[0]?.clientX ?? e.clientX) - rect.left
+    const y         = (e.touches?.[0]?.clientY ?? e.clientY) - rect.top
+    const pistemaara = MITTAUSTYYPIT[valittuTyyppi].pistemaara
 
-    let uudet
-    if (pisteet.length >= 2) {
-      uudet = [{ x, y }]
-      setNykyinenKulma(null)
-    } else {
-      uudet = [...pisteet, { x, y }]
-    }
+    const uudet = pisteet.length >= pistemaara ? [{ x, y }] : [...pisteet, { x, y }]
+    if (uudet.length < pisteet.length) setNykyinenKulma(null)
     setPisteet(uudet)
 
-    if (uudet.length === 2) {
-      setNykyinenKulma(laskeKulma(uudet[0], uudet[1], valittuTyyppi))
+    if (uudet.length === pistemaara) {
+      setNykyinenKulma(laskeKulma(uudet, valittuTyyppi))
     }
   }
 
@@ -127,14 +134,14 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   }
 
   const lisääMittaus = () => {
-    if (pisteet.length !== 2 || nykyinenKulma === null) return
+    const pistemaara = MITTAUSTYYPIT[valittuTyyppi].pistemaara
+    if (pisteet.length !== pistemaara || nykyinenKulma === null) return
     setMittaukset(prev => [...prev, {
-      id: 'k' + Date.now(),
+      id:     'k' + Date.now(),
       tyyppi: valittuTyyppi,
-      p1: pisteet[0],
-      p2: pisteet[1],
-      kulma: nykyinenKulma,
-      pvm: new Date().toISOString(),
+      pisteet: [...pisteet],
+      kulma:  nykyinenKulma,
+      pvm:    new Date().toISOString(),
     }])
     setPisteet([])
     setNykyinenKulma(null)
@@ -164,7 +171,9 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     setTila('kamera')
   }
 
-  const tyyppiObj = MITTAUSTYYPIT.find(t => t.id === valittuTyyppi)
+  const tyyppiObj   = MITTAUSTYYPIT[valittuTyyppi]
+  const tarvittavia = tyyppiObj.pistemaara
+  const valmis      = pisteet.length === tarvittavia
 
   // ── Vaihe 1: Kamera ────────────────────────────────────────────────────
   if (tila === 'kamera') {
@@ -222,43 +231,36 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         </div>
 
         {/* Mittaustyyppi */}
-        <div className="flex gap-2">
-          {MITTAUSTYYPIT.map(t => (
+        <div className="flex flex-wrap gap-2">
+          {Object.entries(MITTAUSTYYPIT).map(([id, t]) => (
             <button
-              key={t.id}
+              key={id}
               type="button"
-              onClick={() => { setValittuTyyppi(t.id); tyhjennäPisteet() }}
-              className="flex-1 py-2.5 px-3 rounded-lg border-2 text-sm font-medium transition-colors"
+              onClick={() => { setValittuTyyppi(id); tyhjennäPisteet() }}
+              className="py-2 px-3 rounded-lg border-2 text-sm font-medium transition-colors"
               style={{
-                borderColor:     valittuTyyppi === t.id ? t.vari : '#e5e7eb',
-                backgroundColor: valittuTyyppi === t.id ? t.vari : 'white',
-                color:           valittuTyyppi === t.id ? 'white' : '#4b5563',
+                borderColor:     valittuTyyppi === id ? t.vari : '#e5e7eb',
+                backgroundColor: valittuTyyppi === id ? t.vari : 'white',
+                color:           valittuTyyppi === id ? 'white' : '#4b5563',
               }}
             >
-              {t.label}
+              {t.nimi}
             </button>
           ))}
         </div>
 
         {/* Ohjeteksti */}
         <p className="text-sm text-center font-medium"
-          style={{ color: pisteet.length === 2 ? tyyppiObj.vari : '#6b7280' }}>
-          {pisteet.length === 0
-            ? 'Napauta kaksi pistettä mittausta varten'
-            : pisteet.length === 1
-            ? 'Napauta toinen piste'
-            : `${tyyppiObj.label}: ${nykyinenKulma}° ${tyyppiObj.viiva === 'vaaka' ? 'vaakalinjasta' : 'pystylinjasta'}`
+          style={{ color: valmis ? tyyppiObj.vari : '#6b7280' }}>
+          {valmis
+            ? `${tyyppiObj.nimi}: ${nykyinenKulma}° ${tyyppiObj.viite === 'vaaka' ? 'vaakalinjasta' : 'kulmaus'}`
+            : `Napauta ${tarvittavia} pistettä — ${pisteet.length}/${tarvittavia} merkitty`
           }
         </p>
 
         {/* Kuva + canvas overlay */}
         <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 select-none bg-gray-900">
-          <img
-            src={kuva}
-            alt="Analysoitava kuva"
-            className="w-full block"
-            onLoad={piirrä}
-          />
+          <img src={kuva} alt="Analysoitava kuva" className="w-full block" onLoad={piirrä} />
           <canvas
             ref={kanvaasiRef}
             onClick={lisääPiste}
@@ -280,7 +282,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
           <button
             type="button"
             onClick={lisääMittaus}
-            disabled={pisteet.length !== 2}
+            disabled={!valmis}
             className="flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
           >
             Lisää mittaus
@@ -295,15 +297,15 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
             </p>
             <ul className="flex flex-col gap-2 mb-3">
               {mittaukset.map(m => {
-                const t = MITTAUSTYYPIT.find(x => x.id === m.tyyppi)
+                const t = MITTAUSTYYPIT[m.tyyppi]
                 return (
                   <li key={m.id} className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: t.vari }} />
-                      <span className="text-sm text-gray-700">{t.label}</span>
+                      <span className="text-sm text-gray-700">{t.nimi}</span>
                     </div>
                     <span className="text-sm font-semibold text-gray-800">
-                      {m.kulma}° {t.viiva === 'vaaka' ? 'vaakalinjasta' : 'pystylinjasta'}
+                      {m.kulma}° {t.viite === 'vaaka' ? 'vaakalinjasta' : 'kulmaus'}
                     </span>
                   </li>
                 )
@@ -332,16 +334,11 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         </button>
       </div>
 
-      {/* Kuva kaikilla viivoilla */}
       <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 bg-gray-900">
         <img src={kuva} alt="Analysoitu kuva" className="w-full block" onLoad={piirrä} />
-        <canvas
-          ref={kanvaasiRef}
-          className="absolute inset-0 w-full h-full pointer-events-none"
-        />
+        <canvas ref={kanvaasiRef} className="absolute inset-0 w-full h-full pointer-events-none" />
       </div>
 
-      {/* Mittaustulokset */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Mittaustulokset</p>
         {mittaukset.length === 0 ? (
@@ -349,19 +346,17 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         ) : (
           <ul className="flex flex-col">
             {mittaukset.map(m => {
-              const t = MITTAUSTYYPIT.find(x => x.id === m.tyyppi)
+              const t = MITTAUSTYYPIT[m.tyyppi]
               return (
                 <li key={m.id} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
                   <div className="flex items-center gap-2">
                     <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: t.vari }} />
-                    <span className="text-sm font-medium text-gray-700">{t.label}</span>
+                    <span className="text-sm font-medium text-gray-700">{t.nimi}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-lg font-bold" style={{ color: t.vari }}>
-                      {m.kulma}°
-                    </span>
+                    <span className="text-lg font-bold" style={{ color: t.vari }}>{m.kulma}°</span>
                     <span className="text-xs text-gray-400 ml-1.5">
-                      {t.viiva === 'vaaka' ? 'vaakalinjasta' : 'pystylinjasta'}
+                      {t.viite === 'vaaka' ? 'vaakalinjasta' : 'kulmaus'}
                     </span>
                   </div>
                 </li>
@@ -371,20 +366,13 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         )}
       </div>
 
-      {/* Toiminnot */}
       <div className="flex flex-col gap-2">
-        <button
-          type="button"
-          onClick={tallenna}
-          className="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-        >
+        <button type="button" onClick={tallenna}
+          className="w-full py-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm">
           Tallenna käyntiin
         </button>
-        <button
-          type="button"
-          onClick={aloitaAlusta}
-          className="w-full py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-        >
+        <button type="button" onClick={aloitaAlusta}
+          className="w-full py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
           Ota uusi kuva
         </button>
       </div>
