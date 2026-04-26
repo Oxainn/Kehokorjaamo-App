@@ -14,23 +14,40 @@ function laskeKulmaKahdelleP(p1, p2) {
   )
 }
 
-function laskeKulma(pisteet, tyyppi) {
+function laskeKulma(pisteet, tyyppi, kuvaussuunta = 'edestä') {
   if (pisteet.length === 2) {
     const [p1, p2] = pisteet
     const asteet   = Math.abs(
       Math.atan2(Math.abs(p2.y - p1.y), Math.abs(p2.x - p1.x)) * 180 / Math.PI
     ).toFixed(1)
-    const suunta = p2.y > p1.y ? 'oikealle' : 'vasemmalle'
-    return { asteet, suunta, teksti: `${asteet}° ${suunta}` }
+    // Edestä: peilikuva — kuvan vasen = asiakkaan oikea
+    const kuvanOikeaAlempana = p2.y > p1.y
+    let suunta
+    if (kuvaussuunta === 'edestä') {
+      suunta = kuvanOikeaAlempana
+        ? 'asiakkaan vasen alempana'
+        : 'asiakkaan oikea alempana'
+    } else {
+      suunta = kuvanOikeaAlempana
+        ? 'asiakkaan oikea alempana'
+        : 'asiakkaan vasen alempana'
+    }
+    return { asteet, suunta, teksti: `${asteet}° — ${suunta}` }
   }
 
   // 3 pistettä: selkäranka (p1=ylä, p2=keski, p3=ala)
   const [p1, p2, p3] = pisteet
   const linjax        = p1.x + (p2.y - p1.y) / (p3.y - p1.y) * (p3.x - p1.x)
   const poikkeama     = p2.x - linjax
-  const suunta        = poikkeama > 0 ? 'C-oikea' : 'C-vasen'
-  const kulma1        = laskeKulmaKahdelleP(p1, p2)
-  const kulma2        = laskeKulmaKahdelleP(p2, p3)
+  // Edestä: peilikuva — kuvan oikea = asiakkaan vasen
+  let suunta
+  if (kuvaussuunta === 'edestä') {
+    suunta = poikkeama > 0 ? 'C-vasen' : 'C-oikea'
+  } else {
+    suunta = poikkeama > 0 ? 'C-oikea' : 'C-vasen'
+  }
+  const kulma1 = laskeKulmaKahdelleP(p1, p2)
+  const kulma2 = laskeKulmaKahdelleP(p2, p3)
 
   // S-muoto jos segmentit eri suuntiin
   if (Math.sign(p2.x - p1.x) !== Math.sign(p3.x - p2.x)) {
@@ -50,6 +67,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   const [nykyinenKulma, setNykyinenKulma]     = useState(null)
   const [vedetäänPistettä, setVedetäänPistettä] = useState(null)
   const [interaktio, setInteraktio]             = useState('piirrä')
+  const [kuvaussuunta, setKuvaussuunta]         = useState('edestä')
 
   const kanvaasiRef = useRef(null)
   const kameraRef   = useRef(null)
@@ -175,7 +193,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     if (uudet.length < pisteet.length) setNykyinenKulma(null)
     setPisteet(uudet)
     if (uudet.length === pistemaara) {
-      setNykyinenKulma(laskeKulma(uudet, valittuTyyppi))
+      setNykyinenKulma(laskeKulma(uudet, valittuTyyppi, kuvaussuunta))
     }
   }
 
@@ -234,7 +252,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         const key     = keys[vedetäänPistettä.pisteIndex]
         const updated = { ...m, [key]: { x, y } }
         const ps      = [updated.p1, updated.p2, updated.p3].filter(Boolean)
-        return { ...updated, kulma: laskeKulma(ps, m.tyyppi) }
+        return { ...updated, kulma: laskeKulma(ps, m.tyyppi, kuvaussuunta) }
       }))
     }
   }
@@ -403,6 +421,25 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
             : `Napauta ${tarvittavia} pistettä — ${pisteet.length}/${tarvittavia} merkitty`
           }
         </p>
+
+        {/* Kuvaussuunta */}
+        <div className="flex gap-2">
+          {[['edestä', 'Edestä'], ['takaa', 'Takaa'], ['sivulta', 'Sivulta']].map(([arvo, label]) => (
+            <button
+              key={arvo}
+              type="button"
+              onClick={() => setKuvaussuunta(arvo)}
+              className="flex-1 py-2 rounded-lg border text-sm font-medium transition-colors"
+              style={{
+                borderColor:     kuvaussuunta === arvo ? '#6b7280' : '#e5e7eb',
+                backgroundColor: kuvaussuunta === arvo ? '#6b7280' : 'white',
+                color:           kuvaussuunta === arvo ? 'white'   : '#4b5563',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
 
         {/* Piirrä / Scrollaa -toggle */}
         <div className="flex gap-2">
