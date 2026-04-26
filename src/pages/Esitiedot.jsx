@@ -30,6 +30,8 @@ const TYHJÄ = {
   syntymaaika:    '',
   puhelin:        '',
   sahkoposti:     '',
+  pituus:         '',
+  paino:          '',
   hoitoon_syy:    '',
   kipuaste:       0,
   kontraindikaatiot: {},
@@ -147,6 +149,8 @@ export default function Esitiedot() {
       syntymaaika:      data.syntymaaika,
       puhelin:          data.puhelin,
       sahkoposti:       data.sahkoposti,
+      pituus:           data.pituus,
+      paino:            data.paino,
       hoitoon_syy:      data.hoitoon_syy,
       kipuaste:         data.kipuaste,
       kontraindikaatiot:   data.kontraindikaatiot,
@@ -291,6 +295,25 @@ export default function Esitiedot() {
                   type="email" placeholder="matti@esimerkki.fi"
                 />
               </div>
+              <div style={{display:'flex',gap:'12px',marginBottom:'12px'}}>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:'12px',color:'#666',display:'block',marginBottom:'3px'}}>Pituus (cm)</label>
+                  <input type="number" name="pituus" min="100" max="250"
+                    value={data.pituus || ''} onChange={päivitä} placeholder="170"
+                    style={{width:'100%',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'13px'}}
+                  />
+                </div>
+                <div style={{flex:1}}>
+                  <label style={{fontSize:'12px',color:'#666',display:'block',marginBottom:'3px'}}>Paino (kg)</label>
+                  <input type="number" name="paino" min="30" max="300"
+                    value={data.paino || ''} onChange={päivitä} placeholder="70"
+                    style={{width:'100%',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'13px'}}
+                  />
+                </div>
+              </div>
+              <p style={{fontSize:'11px',color:'#999',marginBottom:'16px',fontStyle:'italic'}}>
+                Pituus- ja painotietoja käytetään tilastointiin ja palvelun kehittämiseen.
+              </p>
             </>
           } />
 
