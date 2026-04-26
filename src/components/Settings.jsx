@@ -184,6 +184,25 @@ export default function Settings() {
     return lueAsetukset().palvelut ?? OLETUS_PALVELUT
   })
 
+  const lisääPalvelu = () => {
+    const uusi = { id: 'p' + Date.now(), nimi: 'Uusi palvelu', kuvaus: '', aktiivinen: true }
+    const päivitetty = [...palvelut, uusi]
+    setPalvelut(päivitetty)
+    tallennnaOsa('palvelut', päivitetty)
+  }
+
+  const poistaPalvelu = (id) => {
+    const päivitetty = palvelut.filter(p => p.id !== id)
+    setPalvelut(päivitetty)
+    tallennnaOsa('palvelut', päivitetty)
+  }
+
+  const päivitäPalvelu = (id, kenttä, arvo) => {
+    const päivitetty = palvelut.map(p => p.id === id ? { ...p, [kenttä]: arvo } : p)
+    setPalvelut(päivitetty)
+    tallennnaOsa('palvelut', päivitetty)
+  }
+
   // ── Lomakerakentaja ───────────────────────────────────────────────────────
   const [lomake, setLomake] = useState(() => {
     const s = lueAsetukset().lomake ?? {}
