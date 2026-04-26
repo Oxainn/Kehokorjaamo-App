@@ -420,8 +420,9 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     const avain   = 'kuva_analyysi_' + (asiakasId || 'testi')
     const aiemmat = JSON.parse(localStorage.getItem(avain) || '[]')
     localStorage.setItem(avain, JSON.stringify([...aiemmat, data]))
+    console.log('Kutsutaan onTallenna:', data)
     onTallenna?.(data)
-    alert('Tallennettu!')
+    alert('Tallennettu! ' + mittaukset.length + ' mittausta.')
   }
 
   const aloitaAlusta = () => {
