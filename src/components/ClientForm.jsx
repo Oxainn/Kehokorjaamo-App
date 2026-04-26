@@ -516,7 +516,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
     )}
     <section className="flex flex-col gap-6 no-print">
       <div>
-        <h2 className="text-2xl font-semibold text-gray-800">Asiakastiedot</h2>
+        <h2 className="text-2xl font-semibold text-gray-800">ASIAKASTIETOLOMAKE</h2>
         <p className="mt-1 text-gray-500 text-sm">
           Täytä tiedot ennen hoitoa. Tiedot tallennetaan automaattisesti.
         </p>
@@ -524,8 +524,8 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
 
       <form onSubmit={lähetä} className="flex flex-col gap-5">
 
-        {/* ── Osio 1: Perustiedot ─────────────────────────────────────────── */}
-        <Osio otsikko="Perustiedot" lapset={
+        {/* ── Osio 1: Asiakastiedot ───────────────────────────────────────── */}
+        <Osio otsikko="Asiakastiedot" lapset={
           <>
             <TextInput label="Nimi" name="nimi" value={data.nimi} onChange={päivitä} required error={virheet.nimi} />
             <TextInput
