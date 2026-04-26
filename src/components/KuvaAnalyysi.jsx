@@ -106,14 +106,15 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       }
     })
 
-    // Aktiiviset pisteet
+    // Aktiiviset pisteet — aina oranssi, selkeästi erillään tallennetuista
     if (pisteet.length > 0) {
       const vari = MITTAUSTYYPIT[valittuTyyppi]?.vari ?? '#1D9E75'
       for (let i = 0; i < pisteet.length - 1; i++) piirräViiva(pisteet[i], pisteet[i + 1], vari)
-      pisteet.forEach((p, i) => {
-        const isDragged = vedetäänPistettä?.mittausId === 'aktiivinen' &&
-                          vedetäänPistettä?.pisteIndex === i
-        piirräPiste(p, vari, isDragged)
+      pisteet.forEach(p => {
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 12, 0, Math.PI * 2)
+        ctx.fillStyle = '#EF9F27'
+        ctx.fill()
       })
     }
   }
