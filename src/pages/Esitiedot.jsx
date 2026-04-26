@@ -98,6 +98,7 @@ export default function Esitiedot() {
   const aktiivinenPalvelut = palvelut.filter(p => p.aktiivinen)
   const [valittuPalvelu, setValittuPalvelu] = useState(aktiivinenPalvelut[0]?.id ?? '')
   const [lisaVastaukset, setLisaVastaukset] = useState({})
+  const [kuvausAuki, setKuvausAuki] = useState(false)
 
   const valitunPalvelunLomake = aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.lomake
     ?? { piilotetutOsiot: {}, lisaKysymykset: [] }
@@ -239,8 +240,25 @@ export default function Esitiedot() {
             </div>
           )}
 
-          {/* ── Osio 1: Perustiedot ──────────────────────────────────────── */}
-          <Osio otsikko="Perustiedot" lapset={
+          {/* ── Palvelun kuvaus ──────────────────────────────────────────── */}
+          <div style={{textAlign:'center',marginBottom:'16px'}}>
+            <button type="button"
+              onClick={() => setKuvausAuki(!kuvausAuki)}
+              style={{fontSize:'13px',padding:'6px 16px',borderRadius:'20px',
+                border:'1px solid #e2e8f0',background:'transparent',cursor:'pointer',color:'#666'}}>
+              {kuvausAuki ? '▲ Piilota kuvaus' : '▼ Palvelun kuvaus'}
+            </button>
+          </div>
+          {kuvausAuki && (
+            <div style={{marginBottom:'16px',padding:'12px 16px',background:'#F8FAFC',
+              borderRadius:'8px',border:'1px solid #e2e8f0',fontSize:'13px',
+              color:'#444',lineHeight:'1.6',whiteSpace:'pre-wrap'}}>
+              {aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.kuvaus || 'Ei kuvausta tälle palvelulle.'}
+            </div>
+          )}
+
+          {/* ── Osio 1: Asiakastiedot ─────────────────────────────────────── */}
+          <Osio otsikko="Asiakastiedot" lapset={
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <TextInput
