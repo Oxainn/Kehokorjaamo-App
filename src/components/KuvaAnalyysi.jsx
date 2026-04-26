@@ -6,6 +6,7 @@ const MITTAUSTYYPIT = {
   polvet:     { nimi: 'Polvet',     pistemaara: 2, viite: 'vaaka', vari: '#534AB7' },
   korvat:     { nimi: 'Korvat',     pistemaara: 2, viite: 'vaaka', vari: '#EF9F27' },
   selkaranka: { nimi: 'Selkäranka', pistemaara: 4, viite: 'pysty', vari: '#185FA5' },
+  sivulinja:  { nimi: 'Sivulinja',  pistemaara: 5, viite: 'pysty', vari: '#993C1D' },
 }
 
 function laskeKulmaKahdelleP(p1, p2) {
@@ -15,8 +16,8 @@ function laskeKulmaKahdelleP(p1, p2) {
 }
 
 function laskeKulma(pisteet, tyyppi, kuvaussuunta = 'edestä') {
-  if (pisteet.length === 2) {
-    const [p1, p2] = pisteet
+  if (pisteet.length === 5) return laskeSivulinja(pisteet)
+  if (pisteet.length === 2) {    const [p1, p2] = pisteet
     const asteet   = Math.abs(
       Math.atan2(Math.abs(p2.y - p1.y), Math.abs(p2.x - p1.x)) * 180 / Math.PI
     ).toFixed(1)
@@ -69,6 +70,33 @@ function laskeKulma(pisteet, tyyppi, kuvaussuunta = 'edestä') {
   // C-muoto: käytä koko selkärangan kallistuskulmaa p1→p4
   const kulma = Math.abs(Math.atan2(p4.x - p1.x, p4.y - p1.y) * 180 / Math.PI).toFixed(1)
   return { asteet: kulma, suunta: `C-${suunta_yla}`, teksti: `C-${suunta_yla} ${kulma}°` }
+}
+
+function laskeSivulinja(pisteet) {
+  const [p1, p2, p3, p4, p5] = pisteet
+  const laskePoikkeama = (p) => {
+    const t        = (p.y - p1.y) / (p5.y - p1.y)
+    const ideaaliX = p1.x + t * (p5.x - p1.x)
+    return p.x - ideaaliX
+  }
+  const poikkeamat   = [p2, p3, p4].map(laskePoikkeama)
+  const maxPoikkeama = poikkeamat.reduce(
+    (max, p) => Math.abs(p) > Math.abs(max) ? p : max, 0
+  )
+  const suunta = maxPoikkeama > 0 ? 'eteen' : 'taakse'
+  const kulma  = Math.abs(
+    Math.atan2(maxPoikkeama, p5.y - p1.y) * 180 / Math.PI
+  ).toFixed(1)
+  return {
+    asteet: kulma,
+    suunta: `${suunta}kallistuma`,
+    teksti: `Sivulinja: ${suunta} ${kulma}°`,
+    poikkeamat: {
+      olkapaa: poikkeamat[0].toFixed(0),
+      lantio:  poikkeamat[1].toFixed(0),
+      polvi:   poikkeamat[2].toFixed(0),
+    },
+  }
 }
 
 export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
@@ -153,7 +181,19 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     // Tallennetut mittaukset
     mittaukset.forEach(m => {
       const vari = MITTAUSTYYPIT[m.tyyppi]?.vari ?? '#1D9E75'
-      const ps   = [m.p1, m.p2, m.p3, m.p4].filter(Boolean)
+      const ps   = [m.p1, m.p2, m.p3, m.p4, m.p5].filter(Boolean)
+      // Katkoviiva ideaalilinja sivulinjalle
+      if (m.tyyppi === 'sivulinja' && ps.length === 5) {
+        ctx.save()
+        ctx.setLineDash([8, 4])
+        ctx.strokeStyle = 'rgba(150,150,150,0.6)'
+        ctx.lineWidth   = Math.max(canvas.width, canvas.height) * 0.002
+        ctx.beginPath()
+        ctx.moveTo(ps[0].x, ps[0].y)
+        ctx.lineTo(ps[4].x, ps[4].y)
+        ctx.stroke()
+        ctx.restore()
+      }
       for (let i = 0; i < ps.length - 1; i++) piirräViiva(ps[i], ps[i + 1], vari)
       ps.forEach((p, i) => {
         const isDragged = vedetäänPistettä?.mittausId === m.id &&
@@ -172,6 +212,18 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     // Aktiiviset pisteet — aina oranssi, selkeästi erillään tallennetuista
     if (pisteet.length > 0) {
       const vari = MITTAUSTYYPIT[valittuTyyppi]?.vari ?? '#1D9E75'
+      // Katkoviiva ideaalilinja kun sivulinja on täynnä
+      if (valittuTyyppi === 'sivulinja' && pisteet.length === 5) {
+        ctx.save()
+        ctx.setLineDash([8, 4])
+        ctx.strokeStyle = 'rgba(150,150,150,0.6)'
+        ctx.lineWidth   = Math.max(canvas.width, canvas.height) * 0.002
+        ctx.beginPath()
+        ctx.moveTo(pisteet[0].x, pisteet[0].y)
+        ctx.lineTo(pisteet[4].x, pisteet[4].y)
+        ctx.stroke()
+        ctx.restore()
+      }
       for (let i = 0; i < pisteet.length - 1; i++) piirräViiva(pisteet[i], pisteet[i + 1], vari)
       pisteet.forEach(p => {
         ctx.beginPath()
@@ -217,7 +269,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
 
     // Osuuko tallennettuun pisteeseen?
     for (const m of mittaukset) {
-      const pisteetArr = [m.p1, m.p2, m.p3, m.p4].filter(Boolean)
+      const pisteetArr = [m.p1, m.p2, m.p3, m.p4, m.p5].filter(Boolean)
       for (let i = 0; i < pisteetArr.length; i++) {
         const p        = pisteetArr[i]
         const etäisyys = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2)
@@ -261,10 +313,10 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     } else {
       setMittaukset(prev => prev.map(m => {
         if (m.id !== vedetäänPistettä.mittausId) return m
-        const keys    = ['p1', 'p2', 'p3', 'p4']
+        const keys    = ['p1', 'p2', 'p3', 'p4', 'p5']
         const key     = keys[vedetäänPistettä.pisteIndex]
         const updated = { ...m, [key]: { x, y } }
-        const ps      = [updated.p1, updated.p2, updated.p3, updated.p4].filter(Boolean)
+        const ps      = [updated.p1, updated.p2, updated.p3, updated.p4, updated.p5].filter(Boolean)
         return { ...updated, kulma: laskeKulma(ps, m.tyyppi, kuvaussuunta) }
       }))
     }
@@ -292,13 +344,14 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   const lisääMittaus = () => {
     const pistemaara = MITTAUSTYYPIT[valittuTyyppi].pistemaara
     if (pisteet.length !== pistemaara || nykyinenKulma === null) return
-    const [p1, p2, p3, p4] = pisteet
+    const [p1, p2, p3, p4, p5] = pisteet
     setMittaukset(prev => [...prev, {
       id:    'k' + Date.now(),
       tyyppi: valittuTyyppi,
       p1, p2,
       ...(p3 ? { p3 } : {}),
       ...(p4 ? { p4 } : {}),
+      ...(p5 ? { p5 } : {}),
       kulma: nykyinenKulma,
       pvm:   new Date().toISOString(),
     }])
