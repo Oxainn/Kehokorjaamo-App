@@ -276,7 +276,11 @@ export default function App() {
         <div style={{ display: activeTab === 'kuva'      ? 'block' : 'none' }}>
           <KuvaAnalyysi
             asiakasId={asiakas?.id}
-            onTallenna={(data) => setKuvaAnalyysiMittaukset(data.mittaukset ?? [])}
+            onTallenna={(data) => {
+              console.log('onTallenna kutsuttu:', data)
+              console.log('Mittaukset:', data?.mittaukset)
+              setKuvaAnalyysiMittaukset(data?.mittaukset ?? [])
+            }}
           />
         </div>
         <div style={{ display: activeTab === 'treatment' ? 'block' : 'none' }}>

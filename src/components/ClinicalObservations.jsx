@@ -246,6 +246,7 @@ export default function ClinicalObservations({ asiakasData, onComplete, onSiirry
   }, [raportit, asiakasId])
 
   useEffect(() => {
+    console.log('Mittaukset saapui:', mittaukset?.length, mittaukset)
     if (!mittaukset?.length) return
     const päivitykset = {}
     mittaukset.forEach(m => {
