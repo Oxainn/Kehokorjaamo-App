@@ -25,16 +25,27 @@ function laskeKulma(pisteet, tyyppi) {
 }
 
 export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
-  const [tila, setTila]                   = useState('kamera')
-  const [kuva, setKuva]                   = useState(null)
-  const [pisteet, setPisteet]             = useState([])
-  const [mittaukset, setMittaukset]       = useState([])
-  const [valittuTyyppi, setValittuTyyppi] = useState('hartiat')
-  const [nykyinenKulma, setNykyinenKulma] = useState(null)
+  const [tila, setTila]                       = useState('kamera')
+  const [kuva, setKuva]                       = useState(null)
+  const [pisteet, setPisteet]                 = useState([])
+  const [mittaukset, setMittaukset]           = useState([])
+  const [valittuTyyppi, setValittuTyyppi]     = useState('hartiat')
+  const [nykyinenKulma, setNykyinenKulma]     = useState(null)
+  const [vedetäänPistettä, setVedetäänPistettä] = useState(null)
 
   const kanvaasiRef = useRef(null)
   const kameraRef   = useRef(null)
   const galleriRef  = useRef(null)
+
+  const getKoordinaatit = (e) => {
+    const canvas = kanvaasiRef.current
+    const rect   = canvas.getBoundingClientRect()
+    const touch  = e.touches?.[0] ?? e
+    return {
+      x: (touch.clientX - rect.left) * (canvas.width  / rect.width),
+      y: (touch.clientY - rect.top)  * (canvas.height / rect.height),
+    }
+  }
 
   const piirrä = () => {
     const canvas = kanvaasiRef.current
@@ -49,25 +60,30 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(b.x, b.y)
       ctx.strokeStyle = vari
-      ctx.lineWidth = 3
+      ctx.lineWidth   = 3
       ctx.stroke()
     }
 
-    const piirräPiste = (p, vari) => {
+    const piirräPiste = (p, vari, isDragged = false) => {
       ctx.beginPath()
-      ctx.arc(p.x, p.y, 8, 0, Math.PI * 2)
-      ctx.fillStyle = '#ffffff'
-      ctx.fill()
-      ctx.strokeStyle = vari
-      ctx.lineWidth = 2
-      ctx.stroke()
+      ctx.arc(p.x, p.y, 12, 0, Math.PI * 2)
+      if (isDragged) {
+        ctx.fillStyle = '#EF9F27'
+        ctx.fill()
+      } else {
+        ctx.fillStyle = '#ffffff'
+        ctx.fill()
+        ctx.strokeStyle = vari
+        ctx.lineWidth   = 2
+        ctx.stroke()
+      }
     }
 
     const piirräLabel = (teksti, x, y) => {
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(x - 28, y - 13, 56, 22)
       ctx.fillStyle = '#333'
-      ctx.font = 'bold 13px sans-serif'
+      ctx.font      = 'bold 13px sans-serif'
       ctx.textAlign = 'center'
       ctx.fillText(teksti, x, y + 3)
     }
@@ -75,47 +91,106 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     // Tallennetut mittaukset
     mittaukset.forEach(m => {
       const vari = MITTAUSTYYPIT[m.tyyppi]?.vari ?? '#1D9E75'
-      const ps   = m.pisteet
+      const ps   = [m.p1, m.p2, m.p3].filter(Boolean)
       for (let i = 0; i < ps.length - 1; i++) piirräViiva(ps[i], ps[i + 1], vari)
-      ps.forEach(p => piirräPiste(p, vari))
-      // Label viimeisen segmentin puoliväliin
-      const last = ps.length - 1
-      const mx = (ps[last - 1].x + ps[last].x) / 2
-      const my = (ps[last - 1].y + ps[last].y) / 2
-      piirräLabel(m.kulma + '°', mx, my)
+      ps.forEach((p, i) => {
+        const isDragged = vedetäänPistettä?.mittausId === m.id &&
+                          vedetäänPistettä?.pisteIndex === i
+        piirräPiste(p, vari, isDragged)
+      })
+      if (ps.length >= 2) {
+        const last = ps.length - 1
+        const mx   = (ps[last - 1].x + ps[last].x) / 2
+        const my   = (ps[last - 1].y + ps[last].y) / 2
+        piirräLabel(m.kulma + '°', mx, my)
+      }
     })
 
-    // Aktiiviset pisteet ja viivat
+    // Aktiiviset pisteet
     if (pisteet.length > 0) {
       const vari = MITTAUSTYYPIT[valittuTyyppi]?.vari ?? '#1D9E75'
       for (let i = 0; i < pisteet.length - 1; i++) piirräViiva(pisteet[i], pisteet[i + 1], vari)
-      pisteet.forEach(p => {
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, 10, 0, Math.PI * 2)
-        ctx.fillStyle = '#EF9F27'
-        ctx.fill()
+      pisteet.forEach((p, i) => {
+        const isDragged = vedetäänPistettä?.mittausId === 'aktiivinen' &&
+                          vedetäänPistettä?.pisteIndex === i
+        piirräPiste(p, vari, isDragged)
       })
     }
   }
 
-  useEffect(() => { piirrä() }, [pisteet, mittaukset]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { piirrä() }, [pisteet, mittaukset, vedetäänPistettä]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const lisääPiste = (e) => {
-    e.preventDefault()
-    const canvas = kanvaasiRef.current
-    if (!canvas) return
-    const rect      = canvas.getBoundingClientRect()
-    const x         = (e.touches?.[0]?.clientX ?? e.clientX) - rect.left
-    const y         = (e.touches?.[0]?.clientY ?? e.clientY) - rect.top
+  const lisääPiste = (x, y) => {
     const pistemaara = MITTAUSTYYPIT[valittuTyyppi].pistemaara
-
-    const uudet = pisteet.length >= pistemaara ? [{ x, y }] : [...pisteet, { x, y }]
+    const uudet      = pisteet.length >= pistemaara ? [{ x, y }] : [...pisteet, { x, y }]
     if (uudet.length < pisteet.length) setNykyinenKulma(null)
     setPisteet(uudet)
-
     if (uudet.length === pistemaara) {
       setNykyinenKulma(laskeKulma(uudet, valittuTyyppi))
     }
+  }
+
+  const onTouchStart = (e) => {
+    e.preventDefault()
+    const { x, y } = getKoordinaatit(e)
+
+    // Osuuko tallennettuun pisteeseen?
+    for (const m of mittaukset) {
+      const pisteetArr = [m.p1, m.p2, m.p3].filter(Boolean)
+      for (let i = 0; i < pisteetArr.length; i++) {
+        const p        = pisteetArr[i]
+        const etäisyys = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2)
+        if (etäisyys < 24) {
+          setVedetäänPistettä({ mittausId: m.id, pisteIndex: i })
+          return
+        }
+      }
+    }
+
+    // Osuuko aktiiviseen pisteeseen?
+    for (let i = 0; i < pisteet.length; i++) {
+      const p        = pisteet[i]
+      const etäisyys = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2)
+      if (etäisyys < 24) {
+        setVedetäänPistettä({ mittausId: 'aktiivinen', pisteIndex: i })
+        return
+      }
+    }
+
+    // Uusi piste
+    lisääPiste(x, y)
+  }
+
+  const onTouchMove = (e) => {
+    e.preventDefault()
+    if (!vedetäänPistettä) return
+    const { x, y } = getKoordinaatit(e)
+
+    if (vedetäänPistettä.mittausId === 'aktiivinen') {
+      setPisteet(prev => {
+        const newPisteet = prev.map((p, i) =>
+          i === vedetäänPistettä.pisteIndex ? { x, y } : p
+        )
+        const pistemaara = MITTAUSTYYPIT[valittuTyyppi].pistemaara
+        if (newPisteet.length === pistemaara) {
+          setNykyinenKulma(laskeKulma(newPisteet, valittuTyyppi))
+        }
+        return newPisteet
+      })
+    } else {
+      setMittaukset(prev => prev.map(m => {
+        if (m.id !== vedetäänPistettä.mittausId) return m
+        const keys    = ['p1', 'p2', 'p3']
+        const key     = keys[vedetäänPistettä.pisteIndex]
+        const updated = { ...m, [key]: { x, y } }
+        const ps      = [updated.p1, updated.p2, updated.p3].filter(Boolean)
+        return { ...updated, kulma: laskeKulma(ps, m.tyyppi) }
+      }))
+    }
+  }
+
+  const onTouchEnd = () => {
+    setVedetäänPistettä(null)
   }
 
   const käsitteleKuvaTiedosto = (e) => {
@@ -136,12 +211,14 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   const lisääMittaus = () => {
     const pistemaara = MITTAUSTYYPIT[valittuTyyppi].pistemaara
     if (pisteet.length !== pistemaara || nykyinenKulma === null) return
+    const [p1, p2, p3] = pisteet
     setMittaukset(prev => [...prev, {
-      id:     'k' + Date.now(),
+      id:    'k' + Date.now(),
       tyyppi: valittuTyyppi,
-      pisteet: [...pisteet],
-      kulma:  nykyinenKulma,
-      pvm:    new Date().toISOString(),
+      p1, p2,
+      ...(p3 ? { p3 } : {}),
+      kulma: nykyinenKulma,
+      pvm:   new Date().toISOString(),
     }])
     setPisteet([])
     setNykyinenKulma(null)
@@ -263,10 +340,14 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
           <img src={kuva} alt="Analysoitava kuva" className="w-full block" onLoad={piirrä} />
           <canvas
             ref={kanvaasiRef}
-            onClick={lisääPiste}
-            onTouchStart={lisääPiste}
+            onTouchStart={onTouchStart}
+            onTouchMove={onTouchMove}
+            onTouchEnd={onTouchEnd}
+            onMouseDown={onTouchStart}
+            onMouseMove={(e) => { if (e.buttons === 1) onTouchMove(e) }}
+            onMouseUp={onTouchEnd}
             className="absolute inset-0 w-full h-full cursor-crosshair"
-            style={{ touchAction: 'manipulation' }}
+            style={{ touchAction: 'none' }}
           />
         </div>
 
