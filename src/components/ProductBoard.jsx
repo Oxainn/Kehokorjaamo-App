@@ -38,7 +38,6 @@ const VALMISTUNEET_IDT = new Set(['dt-m1', 'dt-k2', 'dt-k5'])
 
 const OLETUS_IDEAT = [
   { id: 'di-1', teksti: 'Tallenna PDF automaattisesti hoitokerran päätteeksi asiakkaalle sähköpostilla', lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
-  { id: 'di-2', teksti: 'Esikatselu-näkymä ennen tulostusta jossa voi valita mitä osioita otetaan mukaan', lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
   { id: 'di-3', teksti: 'QR-koodi PDF:ään jonka asiakas skannaa ja näkee omat tietonsa mobiilissa',         lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
   { id: 'di-4', teksti: 'Tulostusasettelu: vaaka- tai pystysuunta valittavissa, logo näkyy yläkulmassa',   lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
 ]
@@ -55,6 +54,7 @@ const OLETUS_CHANGELOG = [
   { id: 'cl-9', teksti: 'Koodaajan ideat liitetään suoraan sovellukseen',      valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-10', teksti: 'Lomakkeiden tulostus / PDF-vienti (window.print)',   valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
   { id: 'cl-11', teksti: 'Kehon merkinnät anatomisiin vyöhykkeisiin (SVG snap)', valmistunut: '2026-04-25T00:00:00.000Z', versio: 'V1' },
+  { id: 'cl-12', teksti: 'Tulostuksen esikatselu — valitse mitä osioita tulostetaan', valmistunut: '2026-04-26T00:00:00.000Z', versio: 'V1' },
 ]
 
 function luePB() {

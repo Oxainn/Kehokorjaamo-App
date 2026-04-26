@@ -77,7 +77,20 @@ const S = { // inline style helpers for print view
   label:  { color: '#666', minWidth: '130px', flexShrink: 0 },
 }
 
-function PrintView({ data, ika }) {
+const TULOSTUS_OSIOT = [
+  { id: 'perustiedot',     label: 'Perustiedot',                kuvaus: 'Nimi, syntymäaika, yhteystiedot, ammatti' },
+  { id: 'kiputilanne',     label: 'Kiputilanne',                kuvaus: 'Kipuasteikko (VAS) ja oiretyypit kehokuvassa' },
+  { id: 'hoitoon_syy',     label: 'Hoitoon tulon syy',          kuvaus: 'Asiakkaan vapaa kuvaus vaivastaan' },
+  { id: 'terveystiedot',   label: 'Terveystiedot',              kuvaus: 'Kontraindikaatiot, sairaudet, vammat, lääkitys' },
+  { id: 'kehon_merkinnat', label: 'Kehon merkinnät',            kuvaus: 'Kehokuva merkityillä vyöhykkeillä' },
+  { id: 'allekirjoitus',   label: 'Tietosuoja & allekirjoitus', kuvaus: 'Rekisterisuostumus ja allekirjoitus' },
+]
+
+const TULOSTUS_OLETUKSET = Object.fromEntries(TULOSTUS_OSIOT.map(o => [o.id, true]))
+
+function PrintView({ data, ika, asetukset = TULOSTUS_OLETUKSET }) {
+  const vis = (id) => asetukset[id] !== false
+
   const kontraValitut = Object.entries(data.kontraindikaatiot).filter(([, v]) => v).map(([k]) => k)
   const normaalit  = kontraValitut.filter(n => !EHDOTTOMAT_KONTRA.includes(n))
   const ehdottomat = kontraValitut.filter(n =>  EHDOTTOMAT_KONTRA.includes(n))
@@ -90,6 +103,16 @@ function PrintView({ data, ika }) {
     </div>
   ) : null
 
+  const merkinnät    = data.merkinnät ?? {}
+  const hasMerkinnät = Object.keys(merkinnät).length > 0
+
+  const showPerustiedot   = vis('perustiedot')
+  const showKiputilanne   = vis('kiputilanne')
+  const showHoitoonSyy    = vis('hoitoon_syy')
+  const showTerveystiedot = vis('terveystiedot')
+  const showKehonMerk     = vis('kehon_merkinnat') && hasMerkinnät
+  const showAllekirjoitus = vis('allekirjoitus')
+
   return (
     <div className="hidden print:block" style={{ fontFamily: 'system-ui, sans-serif', fontSize: '12px', color: '#111', lineHeight: 1.5 }}>
 
@@ -99,45 +122,51 @@ function PrintView({ data, ika }) {
         <div style={{ color: '#555', fontSize: '11px' }}>{new Date().toLocaleDateString('fi-FI')}</div>
       </div>
 
-      {/* Perustiedot + kiputilanne rinnakkain */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 32px' }}>
-        <div>
-          <div style={S.osasto}>Perustiedot</div>
-          <Rivi label="Nimi" arvo={data.nimi} />
-          <Rivi label="Syntymäaika" arvo={data.syntymaaika
-            ? `${new Date(data.syntymaaika).toLocaleDateString('fi-FI')}${ika !== null ? ` (${ika} v)` : ''}`
-            : null} />
-          <Rivi label="Puhelin" arvo={data.puhelin} />
-          <Rivi label="Sähköposti" arvo={data.sahkoposti} />
-          <Rivi label="Lähiosoite" arvo={data.lahiosoite} />
-          <Rivi label="Postiosoite" arvo={[data.postinumero, data.postitoimipaikka].filter(Boolean).join(' ') || null} />
-          <Rivi label="Ammatti" arvo={data.ammatti} />
-          <Rivi label="Miten löysi" arvo={data.miten_loysi} />
-        </div>
-        <div>
-          <div style={S.osasto}>Kiputilanne</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-            <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: `3px solid ${kipuV.kehys}`, background: kipuV.tausta, color: kipuV.teksti, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '700' }}>
-              {data.kipuaste}
+      {/* Perustiedot + Kiputilanne */}
+      {(showPerustiedot || showKiputilanne) && (
+        <div style={{ display: 'grid', gridTemplateColumns: showPerustiedot && showKiputilanne ? '1fr 1fr' : '1fr', gap: '0 32px' }}>
+          {showPerustiedot && (
+            <div>
+              <div style={S.osasto}>Perustiedot</div>
+              <Rivi label="Nimi" arvo={data.nimi} />
+              <Rivi label="Syntymäaika" arvo={data.syntymaaika
+                ? `${new Date(data.syntymaaika).toLocaleDateString('fi-FI')}${ika !== null ? ` (${ika} v)` : ''}`
+                : null} />
+              <Rivi label="Puhelin" arvo={data.puhelin} />
+              <Rivi label="Sähköposti" arvo={data.sahkoposti} />
+              <Rivi label="Lähiosoite" arvo={data.lahiosoite} />
+              <Rivi label="Postiosoite" arvo={[data.postinumero, data.postitoimipaikka].filter(Boolean).join(' ') || null} />
+              <Rivi label="Ammatti" arvo={data.ammatti} />
+              <Rivi label="Miten löysi" arvo={data.miten_loysi} />
             </div>
-            <span style={{ color: '#555' }}>/ 10 (VAS)</span>
-          </div>
-          {Object.keys(data.merkinnät ?? {}).length > 0 && (() => {
-            const tyypit = {}
-            KEHON_VYÖHYKKEET.forEach(z => {
-              const t = (data.merkinnät ?? {})[z.id]
-              if (t) { if (!tyypit[t]) tyypit[t] = []; tyypit[t].push(z.nimi) }
-            })
-            return Object.entries(tyypit).map(([tyyppiId, nimet]) => {
-              const oire = OIRETYYPIT.find(o => o.id === Number(tyyppiId))
-              return <div key={tyyppiId} style={{ marginBottom: '2px' }}>{oire?.nimi}: {nimet.join(', ')}</div>
-            })
-          })()}
+          )}
+          {showKiputilanne && (
+            <div>
+              <div style={S.osasto}>Kiputilanne</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: `3px solid ${kipuV.kehys}`, background: kipuV.tausta, color: kipuV.teksti, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '700' }}>
+                  {data.kipuaste}
+                </div>
+                <span style={{ color: '#555' }}>/ 10 (VAS)</span>
+              </div>
+              {Object.keys(merkinnät).length > 0 && (() => {
+                const tyypit = {}
+                KEHON_VYÖHYKKEET.forEach(z => {
+                  const t = merkinnät[z.id]
+                  if (t) { if (!tyypit[t]) tyypit[t] = []; tyypit[t].push(z.nimi) }
+                })
+                return Object.entries(tyypit).map(([tyyppiId, nimet]) => {
+                  const oire = OIRETYYPIT.find(o => o.id === Number(tyyppiId))
+                  return <div key={tyyppiId} style={{ marginBottom: '2px' }}>{oire?.nimi}: {nimet.join(', ')}</div>
+                })
+              })()}
+            </div>
+          )}
         </div>
-      </div>
+      )}
 
       {/* Hoitoon tulon syy */}
-      {data.hoitoon_syy && (
+      {showHoitoonSyy && data.hoitoon_syy && (
         <div>
           <div style={S.osasto}>Hoitoon tulon syy</div>
           <div style={{ padding: '6px 10px', background: '#f8f8f8', borderRadius: '4px', whiteSpace: 'pre-wrap' }}>{data.hoitoon_syy}</div>
@@ -145,7 +174,7 @@ function PrintView({ data, ika }) {
       )}
 
       {/* Terveystiedot */}
-      {(normaalit.length > 0 || ehdottomat.length > 0 || data.sairaudet || data.vammat || data.laakitys) && (
+      {showTerveystiedot && (normaalit.length > 0 || ehdottomat.length > 0 || data.sairaudet || data.vammat || data.laakitys) && (
         <div>
           <div style={S.osasto}>Terveystiedot</div>
           {normaalit.length > 0 && (
@@ -170,28 +199,26 @@ function PrintView({ data, ika }) {
         </div>
       )}
 
-      {/* Kehon merkinnät + tietosuoja/allekirjoitus rinnakkain */}
-      {(() => {
-        const merkinnät = data.merkinnät ?? {}
-        const hasMerkinnät = Object.keys(merkinnät).length > 0
-        return (
-          <div style={{ display: 'grid', gridTemplateColumns: hasMerkinnät ? '1fr 1fr' : '1fr', gap: '0 32px', marginTop: '4px' }}>
-            {hasMerkinnät && (
-              <div>
-                <div style={S.osasto}>Kehon merkinnät</div>
-                <div style={{ position: 'relative', width: '100%' }}>
-                  <img src="/hahmokuvat.svg" alt="" style={{ width: '100%', display: 'block' }} />
-                  <svg viewBox="0 0 1471 1069" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
-                    {KEHON_VYÖHYKKEET.filter(z => merkinnät[z.id]).map(z => (
-                      <circle key={z.id} cx={z.cx} cy={z.cy} r={32}
-                        fill={PIIRTOVÄRIT[merkinnät[z.id]] + 'cc'}
-                        stroke={PIIRTOVÄRIT[merkinnät[z.id]]}
-                        strokeWidth={3} />
-                    ))}
-                  </svg>
-                </div>
+      {/* Kehon merkinnät + Tietosuoja/allekirjoitus */}
+      {(showKehonMerk || showAllekirjoitus) && (
+        <div style={{ display: 'grid', gridTemplateColumns: showKehonMerk && showAllekirjoitus ? '1fr 1fr' : '1fr', gap: '0 32px', marginTop: '4px' }}>
+          {showKehonMerk && (
+            <div>
+              <div style={S.osasto}>Kehon merkinnät</div>
+              <div style={{ position: 'relative', width: '100%' }}>
+                <img src="/hahmokuvat.svg" alt="" style={{ width: '100%', display: 'block' }} />
+                <svg viewBox="0 0 1471 1069" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+                  {KEHON_VYÖHYKKEET.filter(z => merkinnät[z.id]).map(z => (
+                    <circle key={z.id} cx={z.cx} cy={z.cy} r={32}
+                      fill={PIIRTOVÄRIT[merkinnät[z.id]] + 'cc'}
+                      stroke={PIIRTOVÄRIT[merkinnät[z.id]]}
+                      strokeWidth={3} />
+                  ))}
+                </svg>
               </div>
-            )}
+            </div>
+          )}
+          {showAllekirjoitus && (
             <div>
               {data.harrastukset && <Rivi label="Harrastukset" arvo={data.harrastukset} />}
               <div style={S.osasto}>Tietosuoja</div>
@@ -206,13 +233,82 @@ function PrintView({ data, ika }) {
                 </div>
               )}
             </div>
-          </div>
-        )
-      })()}
+          )}
+        </div>
+      )}
 
       {/* Footer */}
       <div style={{ borderTop: '1px solid #ddd', marginTop: '16px', paddingTop: '6px', color: '#888', fontSize: '10px', textAlign: 'center' }}>
         Kehokorjaamo — tietoja käsitellään EU:n tietosuoja-asetuksen (GDPR) mukaisesti
+      </div>
+    </div>
+  )
+}
+
+function EsikatseluModal({ asetukset, onToggle, onTulosta, onSulje }) {
+  const valittujaOsioita = Object.values(asetukset).filter(Boolean).length
+  return (
+    <div className="no-print fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-xl flex flex-col max-h-[90vh]">
+
+        {/* Otsikko */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="text-base font-semibold text-gray-800">Tulostusasetukset</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Valitse mukaan otettavat osiot</p>
+          </div>
+          <button
+            type="button"
+            onClick={onSulje}
+            className="text-gray-400 hover:text-gray-600 text-2xl leading-none w-8 h-8 flex items-center justify-center"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Osiolista */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-1">
+          {TULOSTUS_OSIOT.map(osio => (
+            <label
+              key={osio.id}
+              className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-colors ${
+                asetukset[osio.id] ? 'bg-brand-50 border border-brand-100' : 'bg-gray-50 border border-gray-100'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={!!asetukset[osio.id]}
+                onChange={() => onToggle(osio.id)}
+                className="mt-0.5 w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500 flex-shrink-0"
+              />
+              <div className="min-w-0">
+                <div className={`text-sm font-medium ${asetukset[osio.id] ? 'text-gray-800' : 'text-gray-400 line-through'}`}>
+                  {osio.label}
+                </div>
+                <div className="text-xs text-gray-400 mt-0.5">{osio.kuvaus}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+
+        {/* Toimintopainikkeet */}
+        <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
+          <button
+            type="button"
+            onClick={onSulje}
+            className="flex-1 py-3 border-2 border-gray-200 text-gray-600 hover:bg-gray-50 font-semibold rounded-xl transition-colors text-sm"
+          >
+            Peruuta
+          </button>
+          <button
+            type="button"
+            onClick={onTulosta}
+            disabled={valittujaOsioita === 0}
+            className="flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-400 text-white font-semibold rounded-xl transition-colors shadow-sm text-sm"
+          >
+            {valittujaOsioita === 0 ? 'Valitse osioita' : `Tulosta (${valittujaOsioita} osiota) →`}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -300,7 +396,12 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
   })
 
   const [yritettyLähettää, setYritettyLähettää] = useState(false)
-  const [valittuPiirto, setValittuPiirto] = useState(1)
+  const [valittuPiirto, setValittuPiirto]         = useState(1)
+  const [esikatselu, setEsikatselu]               = useState(false)
+  const [tulostusAsetukset, setTulostusAsetukset] = useState(TULOSTUS_OLETUKSET)
+
+  const toggleTulostusOsio = (id) =>
+    setTulostusAsetukset(prev => ({ ...prev, [id]: !prev[id] }))
 
   const toggleVyöhyke = (zoneId) => {
     setData((prev) => {
@@ -338,7 +439,8 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
     setData((prev) => ({ ...prev, [kenttä]: !prev[kenttä] }))
   }
 
-  const tulosta = () => window.print()
+  const tulosta = () => setEsikatselu(true)
+  const tulostaVahvistettu = () => { setEsikatselu(false); window.print() }
 
   const lähetä = (e) => {
     e.preventDefault()
@@ -364,7 +466,15 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
 
   return (
     <>
-    <PrintView data={data} ika={ika} />
+    <PrintView data={data} ika={ika} asetukset={tulostusAsetukset} />
+    {esikatselu && (
+      <EsikatseluModal
+        asetukset={tulostusAsetukset}
+        onToggle={toggleTulostusOsio}
+        onTulosta={tulostaVahvistettu}
+        onSulje={() => setEsikatselu(false)}
+      />
+    )}
     <section className="flex flex-col gap-6 no-print">
       <div>
         <h2 className="text-2xl font-semibold text-gray-800">Asiakastiedot</h2>
