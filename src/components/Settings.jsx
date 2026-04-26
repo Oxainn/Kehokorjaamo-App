@@ -462,7 +462,65 @@ export default function Settings() {
         }
       />
 
-      {/* ── 4: Lomakerakentaja ──────────────────────────────────────────── */}
+      {/* ── 4: Palvelut ──────────────────────────────────────────────────── */}
+      <AccordionOsio
+        id="palvelut" otsikko="Palvelut" ikoni="🏥"
+        auki={aukiOsio === 'palvelut'} onToggle={toggle}
+        lapset={
+          <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+
+            {palvelut.map(p => (
+              <div key={p.id} style={{
+                border:'1px solid #e2e8f0',
+                borderRadius:'8px',
+                padding:'12px'
+              }}>
+                <input
+                  value={p.nimi}
+                  onChange={e => päivitäPalvelu(p.id,'nimi',e.target.value)}
+                  style={{width:'100%',fontWeight:'500',
+                    fontSize:'14px',border:'none',
+                    borderBottom:'1px solid #e2e8f0',
+                    paddingBottom:'4px',marginBottom:'8px'}}
+                />
+                <input
+                  value={p.kuvaus}
+                  placeholder="Lyhyt kuvaus..."
+                  onChange={e => päivitäPalvelu(p.id,'kuvaus',e.target.value)}
+                  style={{width:'100%',fontSize:'13px',
+                    color:'#666',border:'none'}}
+                />
+                <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
+                  <button onClick={() => päivitäPalvelu(p.id,'aktiivinen',!p.aktiivinen)}
+                    style={{fontSize:'12px',padding:'3px 8px',
+                      borderRadius:'20px',border:'none',cursor:'pointer',
+                      background: p.aktiivinen ? '#E1F5EE' : '#F1F5F9',
+                      color: p.aktiivinen ? '#085041' : '#666'}}>
+                    {p.aktiivinen ? '✓ Aktiivinen' : 'Ei aktiivinen'}
+                  </button>
+                  <button onClick={() => poistaPalvelu(p.id)}
+                    style={{fontSize:'12px',padding:'3px 8px',
+                      borderRadius:'20px',border:'none',cursor:'pointer',
+                      background:'#FEE2E2',color:'#991B1B'}}>
+                    Poista
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            <button onClick={lisääPalvelu}
+              style={{padding:'8px',fontSize:'13px',
+                border:'1px dashed #CBD5E1',
+                borderRadius:'8px',cursor:'pointer',
+                background:'transparent',color:'#666'}}>
+              + Lisää palvelu
+            </button>
+
+          </div>
+        }
+      />
+
+      {/* ── 5: Lomakerakentaja ──────────────────────────────────────────── */}
       <AccordionOsio
         id="lomakerakentaja" otsikko="Lomakerakentaja" ikoni="📋"
         auki={aukiOsio === 'lomakerakentaja'} onToggle={toggle}
