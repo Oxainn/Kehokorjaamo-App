@@ -48,10 +48,18 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     }
   }
 
+  const pisteSäde = () => {
+    const canvas = kanvaasiRef.current
+    if (!canvas) return 24
+    return Math.max(canvas.width, canvas.height) * 0.025
+  }
+
   const piirrä = () => {
     const canvas = kanvaasiRef.current
     if (!canvas || canvas.width === 0) return
-    const ctx = canvas.getContext('2d')
+    const ctx        = canvas.getContext('2d')
+    const PISTE_SÄDE = Math.max(canvas.width, canvas.height) * 0.025
+    const fontSize   = Math.round(Math.max(canvas.width, canvas.height) * 0.02)
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     const piirräViiva = (a, b, vari) => {
@@ -59,14 +67,14 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(b.x, b.y)
       ctx.strokeStyle = vari
-      ctx.lineWidth   = 6
+      ctx.lineWidth   = Math.max(canvas.width, canvas.height) * 0.004
       ctx.stroke()
     }
 
     const piirräPiste = (p, vari, isDragged = false) => {
       // Ulompi ympyrä
       ctx.beginPath()
-      ctx.arc(p.x, p.y, 24, 0, Math.PI * 2)
+      ctx.arc(p.x, p.y, PISTE_SÄDE, 0, Math.PI * 2)
       if (isDragged) {
         ctx.fillStyle = '#EF9F27'
         ctx.fill()
@@ -74,23 +82,24 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         ctx.fillStyle = '#ffffff'
         ctx.fill()
         ctx.strokeStyle = vari
-        ctx.lineWidth   = 3
+        ctx.lineWidth   = PISTE_SÄDE * 0.15
         ctx.stroke()
         // Sisempi ympyrä värillä
         ctx.beginPath()
-        ctx.arc(p.x, p.y, 16, 0, Math.PI * 2)
+        ctx.arc(p.x, p.y, PISTE_SÄDE * 0.6, 0, Math.PI * 2)
         ctx.fillStyle = vari
         ctx.fill()
       }
     }
 
     const piirräLabel = (teksti, x, y) => {
+      const pad = fontSize * 0.8
       ctx.fillStyle = '#ffffff'
-      ctx.fillRect(x - 32, y - 16, 64, 28)
+      ctx.fillRect(x - pad * 2, y - pad, pad * 4, pad * 2)
       ctx.fillStyle = '#333'
-      ctx.font      = 'bold 18px sans-serif'
+      ctx.font      = `bold ${fontSize}px sans-serif`
       ctx.textAlign = 'center'
-      ctx.fillText(teksti, x, y + 5)
+      ctx.fillText(teksti, x, y + fontSize * 0.35)
     }
 
     // Tallennetut mittaukset
@@ -117,11 +126,11 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       for (let i = 0; i < pisteet.length - 1; i++) piirräViiva(pisteet[i], pisteet[i + 1], vari)
       pisteet.forEach(p => {
         ctx.beginPath()
-        ctx.arc(p.x, p.y, 24, 0, Math.PI * 2)
+        ctx.arc(p.x, p.y, PISTE_SÄDE, 0, Math.PI * 2)
         ctx.fillStyle = '#EF9F27'
         ctx.fill()
         ctx.beginPath()
-        ctx.arc(p.x, p.y, 16, 0, Math.PI * 2)
+        ctx.arc(p.x, p.y, PISTE_SÄDE * 0.6, 0, Math.PI * 2)
         ctx.fillStyle = '#ffffff'
         ctx.fill()
       })
@@ -155,6 +164,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   const onTouchStart = (e) => {
     e.preventDefault()
     const { x, y } = getKoordinaatit(e)
+    const osuma     = pisteSäde() * 2
 
     // Osuuko tallennettuun pisteeseen?
     for (const m of mittaukset) {
@@ -162,7 +172,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       for (let i = 0; i < pisteetArr.length; i++) {
         const p        = pisteetArr[i]
         const etäisyys = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2)
-        if (etäisyys < 40) {
+        if (etäisyys < osuma) {
           setVedetäänPistettä({ mittausId: m.id, pisteIndex: i })
           return
         }
@@ -173,7 +183,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     for (let i = 0; i < pisteet.length; i++) {
       const p        = pisteet[i]
       const etäisyys = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2)
-      if (etäisyys < 40) {
+      if (etäisyys < osuma) {
         setVedetäänPistettä({ mittausId: 'aktiivinen', pisteIndex: i })
         return
       }
