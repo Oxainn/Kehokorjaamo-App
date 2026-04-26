@@ -73,29 +73,24 @@ function laskeKulma(pisteet, tyyppi, kuvaussuunta = 'edestä') {
 }
 
 function laskeSivulinja(pisteet) {
+  // p1=jalkaterä (ala), p2=hartia (ylä) → referenssilinja
+  // p3=lantio, p4=polvi, p5=korva → mitataan poikkeama
   const [p1, p2, p3, p4, p5] = pisteet
   const laskePoikkeama = (p) => {
-    const t        = (p.y - p1.y) / (p5.y - p1.y)
-    const ideaaliX = p1.x + t * (p5.x - p1.x)
-    return p.x - ideaaliX
+    const t      = (p.y - p1.y) / (p2.y - p1.y)
+    const linjax = p1.x + t * (p2.x - p1.x)
+    const px     = Math.round(p.x - linjax)
+    return { px: Math.abs(px), suunta: px > 0 ? 'eteen' : 'taakse', raaka: px }
   }
-  const poikkeamat   = [p2, p3, p4].map(laskePoikkeama)
-  const maxPoikkeama = poikkeamat.reduce(
-    (max, p) => Math.abs(p) > Math.abs(max) ? p : max, 0
-  )
-  const suunta = maxPoikkeama > 0 ? 'eteen' : 'taakse'
-  const kulma  = Math.abs(
-    Math.atan2(maxPoikkeama, p5.y - p1.y) * 180 / Math.PI
-  ).toFixed(1)
+  const lantio = laskePoikkeama(p3)
+  const polvi  = laskePoikkeama(p4)
+  const korva  = laskePoikkeama(p5)
+  const teksti = `Lantio: ${lantio.px}px ${lantio.suunta} | Polvi: ${polvi.px}px ${polvi.suunta} | Korva: ${korva.px}px ${korva.suunta}`
   return {
-    asteet: kulma,
-    suunta: `${suunta}kallistuma`,
-    teksti: `Sivulinja: ${suunta} ${kulma}°`,
-    poikkeamat: {
-      olkapaa: poikkeamat[0].toFixed(0),
-      lantio:  poikkeamat[1].toFixed(0),
-      polvi:   poikkeamat[2].toFixed(0),
-    },
+    asteet: lantio.px.toString(),
+    suunta: `${lantio.suunta}kallistuma`,
+    teksti,
+    lantio, polvi, korva,
   }
 }
 
@@ -178,21 +173,65 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       ctx.fillText(teksti, x, y + fontSize * 0.35)
     }
 
+    const piirräSivulinja = (ps, isDraggedFn) => {
+      const vari  = MITTAUSTYYPIT.sivulinja.vari
+      const lw    = Math.max(canvas.width, canvas.height) * 0.004
+      // Katkoviiva referenssilinja p1→p2
+      if (ps.length >= 2) {
+        ctx.save()
+        ctx.setLineDash([10, 5])
+        ctx.strokeStyle = 'rgba(150,150,150,0.7)'
+        ctx.lineWidth   = lw * 0.7
+        ctx.beginPath()
+        ctx.moveTo(ps[0].x, ps[0].y)
+        ctx.lineTo(ps[1].x, ps[1].y)
+        ctx.stroke()
+        ctx.restore()
+      }
+      // Lisäpisteet p3=lantio, p4=polvi, p5=korva
+      const nimet = ['Lantio', 'Polvi', 'Korva']
+      for (let i = 2; i < ps.length; i++) {
+        const p = ps[i]
+        if (ps.length >= 2) {
+          const t      = (p.y - ps[0].y) / (ps[1].y - ps[0].y)
+          const linjax = ps[0].x + t * (ps[1].x - ps[0].x)
+          // Vaakaviiva referenssistä pisteeseen
+          ctx.save()
+          ctx.setLineDash([])
+          ctx.strokeStyle = vari
+          ctx.lineWidth   = lw
+          ctx.beginPath()
+          ctx.moveTo(linjax, p.y)
+          ctx.lineTo(p.x, p.y)
+          ctx.stroke()
+          ctx.restore()
+          // Label vaakaviivan yläpuolelle
+          const px      = Math.round(p.x - linjax)
+          const suunta  = px > 0 ? 'eteen' : 'taakse'
+          const labelX  = (linjax + p.x) / 2
+          piirräLabel(`${nimet[i - 2]}: ${Math.abs(px)}px ${suunta}`, labelX, p.y - PISTE_SÄDE * 1.8)
+        }
+        const isDragged = isDraggedFn ? isDraggedFn(i) : false
+        piirräPiste(p, vari, isDragged)
+      }
+      // Referenssipisteet p1 ja p2 harmaana
+      if (ps.length >= 1) {
+        const refVari = 'rgba(130,130,130,0.9)'
+        ps.slice(0, 2).forEach((p, i) => {
+          piirräPiste(p, refVari, isDraggedFn ? isDraggedFn(i) : false)
+        })
+      }
+    }
+
     // Tallennetut mittaukset
     mittaukset.forEach(m => {
       const vari = MITTAUSTYYPIT[m.tyyppi]?.vari ?? '#1D9E75'
       const ps   = [m.p1, m.p2, m.p3, m.p4, m.p5].filter(Boolean)
-      // Katkoviiva ideaalilinja sivulinjalle
-      if (m.tyyppi === 'sivulinja' && ps.length === 5) {
-        ctx.save()
-        ctx.setLineDash([8, 4])
-        ctx.strokeStyle = 'rgba(150,150,150,0.6)'
-        ctx.lineWidth   = Math.max(canvas.width, canvas.height) * 0.002
-        ctx.beginPath()
-        ctx.moveTo(ps[0].x, ps[0].y)
-        ctx.lineTo(ps[4].x, ps[4].y)
-        ctx.stroke()
-        ctx.restore()
+      if (m.tyyppi === 'sivulinja') {
+        piirräSivulinja(ps, (i) =>
+          vedetäänPistettä?.mittausId === m.id && vedetäänPistettä?.pisteIndex === i
+        )
+        return
       }
       for (let i = 0; i < ps.length - 1; i++) piirräViiva(ps[i], ps[i + 1], vari)
       ps.forEach((p, i) => {
@@ -211,30 +250,22 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
 
     // Aktiiviset pisteet — aina oranssi, selkeästi erillään tallennetuista
     if (pisteet.length > 0) {
-      const vari = MITTAUSTYYPIT[valittuTyyppi]?.vari ?? '#1D9E75'
-      // Katkoviiva ideaalilinja kun sivulinja on täynnä
-      if (valittuTyyppi === 'sivulinja' && pisteet.length === 5) {
-        ctx.save()
-        ctx.setLineDash([8, 4])
-        ctx.strokeStyle = 'rgba(150,150,150,0.6)'
-        ctx.lineWidth   = Math.max(canvas.width, canvas.height) * 0.002
-        ctx.beginPath()
-        ctx.moveTo(pisteet[0].x, pisteet[0].y)
-        ctx.lineTo(pisteet[4].x, pisteet[4].y)
-        ctx.stroke()
-        ctx.restore()
+      if (valittuTyyppi === 'sivulinja') {
+        piirräSivulinja(pisteet, null)
+      } else {
+        const vari = MITTAUSTYYPIT[valittuTyyppi]?.vari ?? '#1D9E75'
+        for (let i = 0; i < pisteet.length - 1; i++) piirräViiva(pisteet[i], pisteet[i + 1], vari)
+        pisteet.forEach(p => {
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, PISTE_SÄDE, 0, Math.PI * 2)
+          ctx.fillStyle = '#EF9F27'
+          ctx.fill()
+          ctx.beginPath()
+          ctx.arc(p.x, p.y, PISTE_SÄDE * 0.6, 0, Math.PI * 2)
+          ctx.fillStyle = '#ffffff'
+          ctx.fill()
+        })
       }
-      for (let i = 0; i < pisteet.length - 1; i++) piirräViiva(pisteet[i], pisteet[i + 1], vari)
-      pisteet.forEach(p => {
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, PISTE_SÄDE, 0, Math.PI * 2)
-        ctx.fillStyle = '#EF9F27'
-        ctx.fill()
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, PISTE_SÄDE * 0.6, 0, Math.PI * 2)
-        ctx.fillStyle = '#ffffff'
-        ctx.fill()
-      })
     }
   }
 
