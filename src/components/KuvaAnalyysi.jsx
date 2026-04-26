@@ -8,20 +8,37 @@ const MITTAUSTYYPIT = {
   selkaranka: { nimi: 'Selkäranka', pistemaara: 3, viite: 'pysty', vari: '#185FA5' },
 }
 
+function laskeKulmaKahdelleP(p1, p2) {
+  return Math.abs(
+    Math.atan2(Math.abs(p2.x - p1.x), Math.abs(p2.y - p1.y)) * 180 / Math.PI
+  )
+}
+
 function laskeKulma(pisteet, tyyppi) {
   if (pisteet.length === 2) {
     const [p1, p2] = pisteet
-    return Math.abs(
+    const asteet   = Math.abs(
       Math.atan2(Math.abs(p2.y - p1.y), Math.abs(p2.x - p1.x)) * 180 / Math.PI
     ).toFixed(1)
+    const suunta = p2.y > p1.y ? 'oikealle' : 'vasemmalle'
+    return { asteet, suunta, teksti: `${asteet}° ${suunta}` }
   }
-  // 3 pistettä: kulmaus p2:ssa (selkäranka)
+
+  // 3 pistettä: selkäranka (p1=ylä, p2=keski, p3=ala)
   const [p1, p2, p3] = pisteet
-  const v1  = { x: p1.x - p2.x, y: p1.y - p2.y }
-  const v2  = { x: p3.x - p2.x, y: p3.y - p2.y }
-  const dot = v1.x * v2.x + v1.y * v2.y
-  const cr  = v1.x * v2.y - v1.y * v2.x
-  return (180 - Math.atan2(Math.abs(cr), dot) * 180 / Math.PI).toFixed(1)
+  const linjax        = p1.x + (p2.y - p1.y) / (p3.y - p1.y) * (p3.x - p1.x)
+  const poikkeama     = p2.x - linjax
+  const suunta        = poikkeama > 0 ? 'C-oikea' : 'C-vasen'
+  const kulma1        = laskeKulmaKahdelleP(p1, p2)
+  const kulma2        = laskeKulmaKahdelleP(p2, p3)
+
+  // S-muoto jos segmentit eri suuntiin
+  if (Math.sign(p2.x - p1.x) !== Math.sign(p3.x - p2.x)) {
+    const asteet = Math.max(kulma1, kulma2).toFixed(1)
+    return { asteet, suunta: 'S-muoto', teksti: `S-muoto ${asteet}°` }
+  }
+  const asteet = kulma1.toFixed(1)
+  return { asteet, suunta, teksti: `${suunta} ${asteet}°` }
 }
 
 export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
@@ -117,7 +134,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         const mx      = (ps[last - 1].x + ps[last].x) / 2
         const my      = (ps[last - 1].y + ps[last].y) / 2
         const yOffset = mittaukset.indexOf(m) * fontSize * 1.6
-        piirräLabel(m.kulma + '°', mx, my + yOffset)
+        piirräLabel(m.kulma.teksti, mx, my + yOffset)
       }
     })
 
@@ -382,7 +399,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         <p className="text-sm text-center font-medium"
           style={{ color: valmis ? tyyppiObj.vari : '#6b7280' }}>
           {valmis
-            ? `${tyyppiObj.nimi}: ${nykyinenKulma}° ${tyyppiObj.viite === 'vaaka' ? 'vaakalinjasta' : 'kulmaus'}`
+            ? `${tyyppiObj.nimi}: ${nykyinenKulma?.teksti}`
             : `Napauta ${tarvittavia} pistettä — ${pisteet.length}/${tarvittavia} merkitty`
           }
         </p>
@@ -450,7 +467,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
                       <span className="text-sm text-gray-700">{t.nimi}</span>
                     </div>
                     <span className="text-sm font-semibold text-gray-800">
-                      {m.kulma}° {t.viite === 'vaaka' ? 'vaakalinjasta' : 'kulmaus'}
+                      {m.kulma.teksti}
                     </span>
                   </li>
                 )
@@ -508,10 +525,8 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
                     <span className="text-sm font-medium text-gray-700">{t.nimi}</span>
                   </div>
                   <div className="text-right">
-                    <span className="text-lg font-bold" style={{ color: t.vari }}>{m.kulma}°</span>
-                    <span className="text-xs text-gray-400 ml-1.5">
-                      {t.viite === 'vaaka' ? 'vaakalinjasta' : 'kulmaus'}
-                    </span>
+                    <span className="text-lg font-bold" style={{ color: t.vari }}>{m.kulma.asteet}°</span>
+                    <span className="text-xs text-gray-400 ml-1.5">{m.kulma.suunta}</span>
                   </div>
                 </li>
               )
