@@ -97,6 +97,11 @@ export default function Esitiedot() {
   ]
   const aktiivinenPalvelut = palvelut.filter(p => p.aktiivinen)
   const [valittuPalvelu, setValittuPalvelu] = useState(aktiivinenPalvelut[0]?.id ?? '')
+  const [lisaVastaukset, setLisaVastaukset] = useState({})
+
+  const valitunPalvelunLomake = aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.lomake
+    ?? { piilotetutOsiot: {}, lisaKysymykset: [] }
+  const piilotettu = (osioId) => valitunPalvelunLomake.piilotetutOsiot?.[osioId] ?? false
 
   const päivitä = (e) => {
     const { name, value } = e.target
@@ -149,6 +154,7 @@ export default function Esitiedot() {
       raskaus_lisatieto:   data.raskaus_lisatieto,
       lisatiedot:          data.lisatiedot,
       merkinnät:           data.merkinnät,
+      lisaVastaukset:      lisaVastaukset,
       palvelu:             valittuPalvelu,
       aikaleima:        new Date().toISOString(),
     }
@@ -214,7 +220,7 @@ export default function Esitiedot() {
                 {aktiivinenPalvelut.map(p => (
                   <button key={p.id}
                     type="button"
-                    onClick={() => setValittuPalvelu(p.id)}
+                    onClick={() => { setValittuPalvelu(p.id); setLisaVastaukset({}) }}
                     style={{
                       padding:'8px 16px',
                       borderRadius:'20px',
@@ -284,7 +290,7 @@ export default function Esitiedot() {
                 />
               </Kenttä>
 
-              <Kenttä label={`Kipuasteikko (VAS) — tällä hetkellä ${data.kipuaste}/10`}>
+              {!piilotettu('kiputilanne') && <Kenttä label={`Kipuasteikko (VAS) — tällä hetkellä ${data.kipuaste}/10`}>
                 <div className="flex items-center gap-4 mt-1">
                   <div
                     className="flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold border-4 transition-colors"
@@ -315,12 +321,12 @@ export default function Esitiedot() {
                     </div>
                   </div>
                 </div>
-              </Kenttä>
+              </Kenttä>}
             </>
           } />
 
           {/* ── Osio 3: Kehon merkinnät ──────────────────────────────────── */}
-          <Osio otsikko="Kehon merkinnät" lapset={
+          {!piilotettu('keho_merkinnat') && <Osio otsikko="Kehon merkinnät" lapset={
             <>
               <p className="text-xs text-gray-500">
                 Valitse oiretyyppi ja napauta kehokuvasta haluamasi kohta. Napauta uudelleen poistaaksesi merkinnän.
@@ -381,10 +387,10 @@ export default function Esitiedot() {
                 </button>
               )}
             </>
-          } />
+          } />}
 
           {/* ── Osio 4: Kontraindikaatiot ────────────────────────────────── */}
-          <Osio otsikko="Terveystiedot" lapset={
+          {!piilotettu('kontraindikaatiot') && <Osio otsikko="Terveystiedot" lapset={
             <>
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
@@ -492,7 +498,7 @@ export default function Esitiedot() {
                 </div>
               )}
             </>
-          } />
+          } />}
 
           {/* ── Osio 5: Lisätiedot ───────────────────────────────────────── */}
           <Osio otsikko="Lisätiedot" lapset={
@@ -507,6 +513,37 @@ export default function Esitiedot() {
               />
             </Kenttä>
           } />
+
+          {/* ── Lisäkysymykset ───────────────────────────────────────────── */}
+          {valitunPalvelunLomake.lisaKysymykset.length > 0 && (
+            <Osio otsikko="Lisäkysymykset" lapset={
+              <>
+                {valitunPalvelunLomake.lisaKysymykset.map(k => (
+                  <div key={k.id} style={{marginBottom:'12px'}}>
+                    <label style={{fontSize:'13px',fontWeight:'500',display:'block',marginBottom:'4px'}}>
+                      {k.otsikko}
+                    </label>
+                    {k.tyyppi === 'kylla_ei' ? (
+                      <div style={{display:'flex',gap:'12px'}}>
+                        <label><input type="radio" name={k.id} value="kylla" onChange={e => setLisaVastaukset(prev => ({...prev, [k.id]: e.target.value}))}/> Kyllä</label>
+                        <label><input type="radio" name={k.id} value="ei"    onChange={e => setLisaVastaukset(prev => ({...prev, [k.id]: e.target.value}))}/> Ei</label>
+                      </div>
+                    ) : k.tyyppi === 'numero' ? (
+                      <input type="number"
+                        onChange={e => setLisaVastaukset(prev => ({...prev, [k.id]: e.target.value}))}
+                        style={{width:'100%',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0'}}
+                      />
+                    ) : (
+                      <textarea rows={2}
+                        onChange={e => setLisaVastaukset(prev => ({...prev, [k.id]: e.target.value}))}
+                        style={{width:'100%',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'13px'}}
+                      />
+                    )}
+                  </div>
+                ))}
+              </>
+            } />
+          )}
 
           {/* ── Lähetä-nappi ─────────────────────────────────────────────── */}
           <button
