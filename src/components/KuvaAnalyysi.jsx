@@ -586,6 +586,9 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         </div>
 
         {/* Kuva + canvas overlay — scrollattava */}
+        <p style={{ fontSize: '13px', color: '#666', textAlign: 'center', margin: '4px 0' }}>
+          Pisteitä: {pisteet.length} / {MITTAUSTYYPIT[valittuTyyppi].pistemaara} | Mittauksia tallennettu: {mittaukset.length}
+        </p>
         <div style={{
           width: '100%', overflowX: 'auto', overflowY: 'auto',
           maxHeight: '70vh', WebkitOverflowScrolling: 'touch',
