@@ -7,11 +7,13 @@ import MuscleLibrary from './MuscleLibrary'
 import Aftercare from './Aftercare'
 import Settings from './Settings'
 import ProductBoard from './ProductBoard'
+import KuvaAnalyysi from './KuvaAnalyysi'
 
 const NAV_ITEMS = [
   { id: 'client',    label: 'Asiakastiedot' },
   { id: 'clinical',  label: 'Havainnot' },
   { id: 'bodymap',   label: 'Kehokartta' },
+  { id: 'kuva',      label: 'Kuva-analyysi' },
   { id: 'treatment', label: 'Hoitosuunnitelma' },
   { id: 'muscles',   label: 'Lihakset' },
   { id: 'aftercare', label: 'Jälkihoito' },
@@ -269,6 +271,12 @@ export default function App() {
         </div>
         <div style={{ display: activeTab === 'bodymap'   ? 'block' : 'none' }}>
           <BodyMap onAnalyze={handleAnalyze} />
+        </div>
+        <div style={{ display: activeTab === 'kuva'      ? 'block' : 'none' }}>
+          <KuvaAnalyysi
+            asiakasId={asiakas?.id}
+            onTallenna={(data) => console.log('KuvaAnalyysi tallennettu', data)}
+          />
         </div>
         <div style={{ display: activeTab === 'treatment' ? 'block' : 'none' }}>
           <TreatmentPlan key={analysisKey} findings={findings} havainnot={havainnot} onResult={handleResult} />

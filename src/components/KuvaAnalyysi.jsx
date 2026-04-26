@@ -129,11 +129,12 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   const lisääMittaus = () => {
     if (pisteet.length !== 2 || nykyinenKulma === null) return
     setMittaukset(prev => [...prev, {
-      id: Date.now().toString(),
+      id: 'k' + Date.now(),
       tyyppi: valittuTyyppi,
       p1: pisteet[0],
       p2: pisteet[1],
       kulma: nykyinenKulma,
+      pvm: new Date().toISOString(),
     }])
     setPisteet([])
     setNykyinenKulma(null)
@@ -141,9 +142,19 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
 
   const tyhjennäPisteet = () => { setPisteet([]); setNykyinenKulma(null) }
 
-  const tallenna = () => onTallenna?.({
-    kuva, mittaukset, aika: new Date().toISOString(), asiakasId,
-  })
+  const tallenna = () => {
+    const data = {
+      id:        'ka' + Date.now(),
+      pvm:       new Date().toISOString(),
+      kuva,
+      mittaukset,
+    }
+    const avain   = 'kuva_analyysi_' + (asiakasId || 'testi')
+    const aiemmat = JSON.parse(localStorage.getItem(avain) || '[]')
+    localStorage.setItem(avain, JSON.stringify([...aiemmat, data]))
+    onTallenna?.(data)
+    alert('Tallennettu!')
+  }
 
   const aloitaAlusta = () => {
     setKuva(null)
