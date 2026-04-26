@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 
 const MITTAUSTYYPIT = {
-  hartiat:    { nimi: 'Hartiat',    pistemaara: 2, viite: 'vaaka', vari: '#1D9E75' },
+  hartiat:    { nimi: 'Hartiat',    pistemaara: 2, viite: 'vaaka', vari: '#E24B4A' },
   lantio:     { nimi: 'Lantio',     pistemaara: 2, viite: 'vaaka', vari: '#1D9E75' },
-  polvet:     { nimi: 'Polvet',     pistemaara: 2, viite: 'vaaka', vari: '#1D9E75' },
-  korvat:     { nimi: 'Korvat',     pistemaara: 2, viite: 'vaaka', vari: '#1D9E75' },
+  polvet:     { nimi: 'Polvet',     pistemaara: 2, viite: 'vaaka', vari: '#534AB7' },
+  korvat:     { nimi: 'Korvat',     pistemaara: 2, viite: 'vaaka', vari: '#EF9F27' },
   selkaranka: { nimi: 'Selkäranka', pistemaara: 3, viite: 'pysty', vari: '#185FA5' },
 }
 
@@ -339,8 +339,8 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
           </button>
         </div>
 
-        {/* Mittaustyyppi */}
-        <div className="flex flex-wrap gap-2">
+        {/* Mittaustyyppi + Lisää mittaus samalla rivillä */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
           {Object.entries(MITTAUSTYYPIT).map(([id, t]) => (
             <button
               key={id}
@@ -356,6 +356,23 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
               {t.nimi}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={lisääMittaus}
+            disabled={!valmis}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '20px',
+              border: 'none',
+              background:  valmis ? tyyppiObj.vari : '#e2e8f0',
+              color:       valmis ? 'white' : '#999',
+              fontWeight:  '500',
+              fontSize:    '13px',
+              cursor:      valmis ? 'pointer' : 'not-allowed',
+            }}
+          >
+            + Lisää mittaus
+          </button>
         </div>
 
         {/* Ohjeteksti */}
@@ -412,25 +429,6 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
               }}
             />
           </div>
-        </div>
-
-        {/* Toiminnot */}
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={tyhjennäPisteet}
-            className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-          >
-            Uusi mittaus
-          </button>
-          <button
-            type="button"
-            onClick={lisääMittaus}
-            disabled={!valmis}
-            className="flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:bg-gray-200 disabled:text-gray-400 text-white rounded-xl text-sm font-semibold transition-colors shadow-sm"
-          >
-            Lisää mittaus
-          </button>
         </div>
 
         {/* Tallennetut mittaukset */}
