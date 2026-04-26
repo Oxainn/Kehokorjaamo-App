@@ -38,6 +38,14 @@ const KYSYMYS_TYYPIT = [
   { id: 'kyllä_ei',  label: 'Kyllä / Ei'   },
 ]
 
+const TYHJÄ_PALVELU = {
+  id: '', nimi: '', kuvaus: '', aktiivinen: true,
+}
+
+const OLETUS_PALVELUT = [
+  { id: 'p1', nimi: 'Kalevalainen jäsenkorjaus', kuvaus: 'Manuaalinen kehon tasapainotus', aktiivinen: true },
+]
+
 function lueAsetukset() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
@@ -170,6 +178,11 @@ export default function Settings() {
   }
 
   const OHJE = 'Tätä osoitetta käytetään esitietolomakkeen lähetyksen jälkeen ajanvaraukseen.'
+
+  // ── Palvelut ──────────────────────────────────────────────────────────────
+  const [palvelut, setPalvelut] = useState(() => {
+    return lueAsetukset().palvelut ?? OLETUS_PALVELUT
+  })
 
   // ── Lomakerakentaja ───────────────────────────────────────────────────────
   const [lomake, setLomake] = useState(() => {
