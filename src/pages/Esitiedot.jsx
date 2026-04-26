@@ -92,6 +92,12 @@ export default function Esitiedot() {
   const [yritettyLähettää, setYritettyLähettää] = useState(false)
   const [valittuPiirto, setValittuPiirto] = useState(1)
 
+  const palvelut = (JSON.parse(localStorage.getItem('kehokorjaamo_asetukset') || '{}').palvelut) ?? [
+    { id: 'p1', nimi: 'Kalevalainen jäsenkorjaus', aktiivinen: true },
+  ]
+  const aktiivinenPalvelut = palvelut.filter(p => p.aktiivinen)
+  const [valittuPalvelu, setValittuPalvelu] = useState(aktiivinenPalvelut[0]?.id ?? '')
+
   const päivitä = (e) => {
     const { name, value } = e.target
     setData(prev => ({ ...prev, [name]: value }))
@@ -143,6 +149,7 @@ export default function Esitiedot() {
       raskaus_lisatieto:   data.raskaus_lisatieto,
       lisatiedot:          data.lisatiedot,
       merkinnät:           data.merkinnät,
+      palvelu:             valittuPalvelu,
       aikaleima:        new Date().toISOString(),
     }
     localStorage.setItem(avain, JSON.stringify(tallennettava))
@@ -196,6 +203,35 @@ export default function Esitiedot() {
 
       <main className="max-w-2xl mx-auto px-4 py-8">
         <form onSubmit={lähetä} className="flex flex-col gap-5">
+
+          {/* ── Palvelunvalinta ──────────────────────────────────────────── */}
+          {aktiivinenPalvelut.length > 1 && (
+            <div style={{marginBottom:'16px'}}>
+              <p style={{fontSize:'13px',fontWeight:'500',marginBottom:'8px'}}>
+                Valitse palvelu
+              </p>
+              <div style={{display:'flex',flexWrap:'wrap',gap:'8px'}}>
+                {aktiivinenPalvelut.map(p => (
+                  <button key={p.id}
+                    type="button"
+                    onClick={() => setValittuPalvelu(p.id)}
+                    style={{
+                      padding:'8px 16px',
+                      borderRadius:'20px',
+                      border:'1px solid',
+                      cursor:'pointer',
+                      fontSize:'13px',
+                      borderColor: valittuPalvelu === p.id ? '#1D9E75' : '#e2e8f0',
+                      background:  valittuPalvelu === p.id ? '#E1F5EE' : 'white',
+                      color:       valittuPalvelu === p.id ? '#085041' : '#666',
+                    }}
+                  >
+                    {p.nimi}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* ── Osio 1: Perustiedot ──────────────────────────────────────── */}
           <Osio otsikko="Perustiedot" lapset={
