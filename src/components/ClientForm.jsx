@@ -293,7 +293,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
     if (esitäytö) return { ...TYHJÄ, ...esitäytö }
     try {
       const tallennettu = localStorage.getItem(STORAGE_KEY)
-      return tallennettu ? JSON.parse(tallennettu) : TYHJÄ
+      return tallennettu ? { ...TYHJÄ, ...JSON.parse(tallennettu) } : TYHJÄ
     } catch {
       return TYHJÄ
     }
@@ -602,10 +602,10 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
               <img src="/hahmokuvat.svg" style={{ width: '100%', display: 'block' }} alt="Kehon merkintäalue" />
               <svg
                 viewBox="0 0 1471 1069"
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', touchAction: 'manipulation' }}
               >
                 {KEHON_VYÖHYKKEET.map(z => {
-                  const merkitty = data.merkinnät[z.id]
+                  const merkitty = (data.merkinnät ?? {})[z.id]
                   return (
                     <circle
                       key={z.id}
@@ -622,7 +622,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
               </svg>
             </div>
 
-            {Object.keys(data.merkinnät).length > 0 && (
+            {Object.keys(data.merkinnät ?? {}).length > 0 && (
               <button
                 type="button"
                 onClick={() => setData(prev => ({ ...prev, merkinnät: {} }))}
@@ -732,7 +732,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
             </div>
 
             {/* Kehon merkinnät yhteenveto */}
-            {Object.keys(data.merkinnät).length > 0 && (
+            {Object.keys(data.merkinnät ?? {}).length > 0 && (
               <div>
                 <span className="text-gray-500 block mb-1">Kehon merkinnät</span>
                 <div className="flex flex-col gap-1">

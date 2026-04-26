@@ -315,7 +315,7 @@ export default function Esitiedot() {
                 <img src="/hahmokuvat.svg" style={{ width: '100%', display: 'block' }} alt="Kehon merkintäalue" />
                 <svg
                   viewBox="0 0 1471 1069"
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer' }}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', touchAction: 'manipulation' }}
                 >
                   {KEHON_VYÖHYKKEET.map(z => {
                     const merkitty = data.merkinnät[z.id]
