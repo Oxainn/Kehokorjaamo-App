@@ -1,33 +1,23 @@
 import { useState, useRef, useEffect } from 'react'
 
 const MITTAUSTYYPIT = [
-  { id: 'lantio',     label: 'Lantio',     viiva: 'vaaka', vari: '#3b82f6' },
-  { id: 'hartiat',    label: 'Hartiat',    viiva: 'vaaka', vari: '#f97316' },
-  { id: 'selkaranka', label: 'Selkäranka', viiva: 'pysty', vari: '#10b981' },
+  { id: 'lantio',     label: 'Lantio',     viiva: 'vaaka', vari: '#1D9E75' },
+  { id: 'hartiat',    label: 'Hartiat',    viiva: 'vaaka', vari: '#1D9E75' },
+  { id: 'selkaranka', label: 'Selkäranka', viiva: 'pysty', vari: '#185FA5' },
 ]
 
-function laskeKulma(p1, p2, viivaTyyppi) {
-  const dx = Math.abs(p2.x - p1.x)
-  const dy = Math.abs(p2.y - p1.y)
-  const asteetVaakalinjasta = Math.atan2(dy, dx) * 180 / Math.PI
-  return viivaTyyppi === 'vaaka' ? asteetVaakalinjasta : 90 - asteetVaakalinjasta
-}
-
-function tapahtumaKoordinaatit(e, kanvaasi) {
-  const rect = kanvaasi.getBoundingClientRect()
-  const scaleX = kanvaasi.width / rect.width
-  const scaleY = kanvaasi.height / rect.height
-  const src = e.touches ? e.touches[0] : e
-  return {
-    x: (src.clientX - rect.left) * scaleX,
-    y: (src.clientY - rect.top) * scaleY,
+function laskeKulma(p1, p2, tyyppi) {
+  const dx = p2.x - p1.x
+  const dy = p2.y - p1.y
+  if (tyyppi === 'selkaranka') {
+    return Math.abs(Math.atan2(dx, Math.abs(dy)) * 180 / Math.PI).toFixed(1)
   }
+  return Math.abs(Math.atan2(Math.abs(dy), Math.abs(dx)) * 180 / Math.PI).toFixed(1)
 }
 
 export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   const [tila, setTila]                   = useState('kamera')
   const [kuva, setKuva]                   = useState(null)
-  const [kuvaKoko, setKuvaKoko]           = useState({ w: 0, h: 0 })
   const [pisteet, setPisteet]             = useState([])
   const [mittaukset, setMittaukset]       = useState([])
   const [valittuTyyppi, setValittuTyyppi] = useState('lantio')
@@ -37,70 +27,89 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   const kameraRef   = useRef(null)
   const galleriRef  = useRef(null)
 
-  // Piirtää canvas aina kun tila, pisteet tai mittaukset muuttuvat
-  useEffect(() => {
-    const kanvaasi = kanvaasiRef.current
-    if (!kanvaasi || kuvaKoko.w === 0) return
+  const piirrä = () => {
+    const canvas = kanvaasiRef.current
+    if (!canvas || canvas.offsetWidth === 0) return
 
-    kanvaasi.width  = kuvaKoko.w
-    kanvaasi.height = kuvaKoko.h
-    const ctx = kanvaasi.getContext('2d')
-
-    const fontSize = Math.max(16, kuvaKoko.w / 45)
-    const dotR     = Math.max(10, kuvaKoko.w / 80)
-    const lineW    = Math.max(3,  kuvaKoko.w / 250)
-
-    const piirräPiste = (p, vari) => {
-      ctx.fillStyle = vari
-      ctx.beginPath()
-      ctx.arc(p.x, p.y, dotR, 0, Math.PI * 2)
-      ctx.fill()
-      ctx.strokeStyle = 'white'
-      ctx.lineWidth = 2
-      ctx.stroke()
-    }
-
-    const piirräViiva = (p1, p2, vari) => {
-      ctx.strokeStyle = vari
-      ctx.lineWidth = lineW
-      ctx.lineCap = 'round'
-      ctx.beginPath()
-      ctx.moveTo(p1.x, p1.y)
-      ctx.lineTo(p2.x, p2.y)
-      ctx.stroke()
-    }
-
-    const piirräTeksti = (teksti, x, y, vari) => {
-      ctx.font      = `bold ${fontSize}px system-ui`
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'bottom'
-      ctx.lineWidth    = fontSize / 4
-      ctx.strokeStyle  = 'rgba(0,0,0,0.85)'
-      ctx.strokeText(teksti, x, y)
-      ctx.fillStyle = vari
-      ctx.fillText(teksti, x, y)
-    }
+    canvas.width  = canvas.offsetWidth
+    canvas.height = canvas.offsetHeight
+    const ctx = canvas.getContext('2d')
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
 
     // Tallennetut mittaukset
     mittaukset.forEach(m => {
-      const t = MITTAUSTYYPIT.find(x => x.id === m.tyyppi)
-      piirräViiva(m.pisteet[0], m.pisteet[1], t.vari)
-      piirräPiste(m.pisteet[0], t.vari)
-      piirräPiste(m.pisteet[1], t.vari)
-      const midX = (m.pisteet[0].x + m.pisteet[1].x) / 2
-      const midY = (m.pisteet[0].y + m.pisteet[1].y) / 2
-      piirräTeksti(`${t.label}: ${m.kulma.toFixed(1)}°`, midX, midY - dotR - 4, 'white')
+      const vari = m.tyyppi === 'selkaranka' ? '#185FA5' : '#1D9E75'
+
+      ctx.beginPath()
+      ctx.moveTo(m.p1.x, m.p1.y)
+      ctx.lineTo(m.p2.x, m.p2.y)
+      ctx.strokeStyle = vari
+      ctx.lineWidth = 3
+      ctx.stroke()
+
+      ;[m.p1, m.p2].forEach(p => {
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 8, 0, Math.PI * 2)
+        ctx.fillStyle = '#ffffff'
+        ctx.fill()
+        ctx.strokeStyle = vari
+        ctx.lineWidth = 2
+        ctx.stroke()
+      })
+
+      const mx = (m.p1.x + m.p2.x) / 2
+      const my = (m.p1.y + m.p2.y) / 2
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(mx - 24, my - 12, 48, 22)
+      ctx.fillStyle = '#333'
+      ctx.font = 'bold 13px sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(m.kulma + '°', mx, my + 4)
     })
 
-    // Nykyinen mittaus käynnissä
-    if (tila === 'merkinta') {
-      const t = MITTAUSTYYPIT.find(x => x.id === valittuTyyppi)
-      pisteet.forEach(p => piirräPiste(p, '#ef4444'))
-      if (pisteet.length === 2) {
-        piirräViiva(pisteet[0], pisteet[1], t.vari)
-      }
+    // Aktiiviset pisteet
+    pisteet.forEach(p => {
+      ctx.beginPath()
+      ctx.arc(p.x, p.y, 10, 0, Math.PI * 2)
+      ctx.fillStyle = '#EF9F27'
+      ctx.fill()
+    })
+
+    // Aktiivinen viiva jos 2 pistettä
+    if (pisteet.length === 2) {
+      const vari = valittuTyyppi === 'selkaranka' ? '#185FA5' : '#1D9E75'
+      ctx.beginPath()
+      ctx.moveTo(pisteet[0].x, pisteet[0].y)
+      ctx.lineTo(pisteet[1].x, pisteet[1].y)
+      ctx.strokeStyle = vari
+      ctx.lineWidth = 3
+      ctx.stroke()
     }
-  }, [tila, pisteet, mittaukset, valittuTyyppi, kuvaKoko])
+  }
+
+  useEffect(() => { piirrä() }, [pisteet, mittaukset]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const lisääPiste = (e) => {
+    e.preventDefault()
+    const canvas = kanvaasiRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const x = (e.touches?.[0]?.clientX ?? e.clientX) - rect.left
+    const y = (e.touches?.[0]?.clientY ?? e.clientY) - rect.top
+
+    let uudet
+    if (pisteet.length >= 2) {
+      uudet = [{ x, y }]
+      setNykyinenKulma(null)
+    } else {
+      uudet = [...pisteet, { x, y }]
+    }
+    setPisteet(uudet)
+
+    if (uudet.length === 2) {
+      setNykyinenKulma(laskeKulma(uudet[0], uudet[1], valittuTyyppi))
+    }
+  }
 
   const käsitteleKuvaTiedosto = (e) => {
     const tiedosto = e.target.files?.[0]
@@ -117,25 +126,13 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     e.target.value = ''
   }
 
-  const käsitteleNapautus = (e) => {
-    e.preventDefault()
-    if (pisteet.length >= 2) return
-    const kanvaasi = kanvaasiRef.current
-    if (!kanvaasi) return
-    const uudet = [...pisteet, tapahtumaKoordinaatit(e, kanvaasi)]
-    setPisteet(uudet)
-    if (uudet.length === 2) {
-      const t = MITTAUSTYYPIT.find(x => x.id === valittuTyyppi)
-      setNykyinenKulma(laskeKulma(uudet[0], uudet[1], t.viiva))
-    }
-  }
-
   const lisääMittaus = () => {
     if (pisteet.length !== 2 || nykyinenKulma === null) return
     setMittaukset(prev => [...prev, {
       id: Date.now().toString(),
       tyyppi: valittuTyyppi,
-      pisteet: [...pisteet],
+      p1: pisteet[0],
+      p2: pisteet[1],
       kulma: nykyinenKulma,
     }])
     setPisteet([])
@@ -150,7 +147,6 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
 
   const aloitaAlusta = () => {
     setKuva(null)
-    setKuvaKoko({ w: 0, h: 0 })
     setPisteet([])
     setMittaukset([])
     setNykyinenKulma(null)
@@ -240,7 +236,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
             ? 'Napauta kaksi pistettä mittausta varten'
             : pisteet.length === 1
             ? 'Napauta toinen piste'
-            : `${tyyppiObj.label}: ${nykyinenKulma?.toFixed(1)}° ${tyyppiObj.viiva === 'vaaka' ? 'vaakalinjasta' : 'pystylinjasta'}`
+            : `${tyyppiObj.label}: ${nykyinenKulma}° ${tyyppiObj.viiva === 'vaaka' ? 'vaakalinjasta' : 'pystylinjasta'}`
           }
         </p>
 
@@ -250,14 +246,12 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
             src={kuva}
             alt="Analysoitava kuva"
             className="w-full block"
-            onLoad={e => setKuvaKoko({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
+            onLoad={piirrä}
           />
           <canvas
             ref={kanvaasiRef}
-            width={kuvaKoko.w || 1}
-            height={kuvaKoko.h || 1}
-            onClick={käsitteleNapautus}
-            onTouchStart={käsitteleNapautus}
+            onClick={lisääPiste}
+            onTouchStart={lisääPiste}
             className="absolute inset-0 w-full h-full cursor-crosshair"
             style={{ touchAction: 'manipulation' }}
           />
@@ -298,7 +292,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
                       <span className="text-sm text-gray-700">{t.label}</span>
                     </div>
                     <span className="text-sm font-semibold text-gray-800">
-                      {m.kulma.toFixed(1)}° {t.viiva === 'vaaka' ? 'vaakalinjasta' : 'pystylinjasta'}
+                      {m.kulma}° {t.viiva === 'vaaka' ? 'vaakalinjasta' : 'pystylinjasta'}
                     </span>
                   </li>
                 )
@@ -329,11 +323,9 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
 
       {/* Kuva kaikilla viivoilla */}
       <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 bg-gray-900">
-        <img src={kuva} alt="Analysoitu kuva" className="w-full block" />
+        <img src={kuva} alt="Analysoitu kuva" className="w-full block" onLoad={piirrä} />
         <canvas
           ref={kanvaasiRef}
-          width={kuvaKoko.w || 1}
-          height={kuvaKoko.h || 1}
           className="absolute inset-0 w-full h-full pointer-events-none"
         />
       </div>
@@ -355,7 +347,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
                   </div>
                   <div className="text-right">
                     <span className="text-lg font-bold" style={{ color: t.vari }}>
-                      {m.kulma.toFixed(1)}°
+                      {m.kulma}°
                     </span>
                     <span className="text-xs text-gray-400 ml-1.5">
                       {t.viiva === 'vaaka' ? 'vaakalinjasta' : 'pystylinjasta'}
