@@ -32,6 +32,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
   const [valittuTyyppi, setValittuTyyppi]     = useState('hartiat')
   const [nykyinenKulma, setNykyinenKulma]     = useState(null)
   const [vedetäänPistettä, setVedetäänPistettä] = useState(null)
+  const [interaktio, setInteraktio]             = useState('piirrä')
 
   const kanvaasiRef = useRef(null)
   const kameraRef   = useRef(null)
@@ -58,13 +59,13 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       ctx.moveTo(a.x, a.y)
       ctx.lineTo(b.x, b.y)
       ctx.strokeStyle = vari
-      ctx.lineWidth   = 3
+      ctx.lineWidth   = 4
       ctx.stroke()
     }
 
     const piirräPiste = (p, vari, isDragged = false) => {
       ctx.beginPath()
-      ctx.arc(p.x, p.y, 12, 0, Math.PI * 2)
+      ctx.arc(p.x, p.y, 16, 0, Math.PI * 2)
       if (isDragged) {
         ctx.fillStyle = '#EF9F27'
         ctx.fill()
@@ -72,18 +73,18 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
         ctx.fillStyle = '#ffffff'
         ctx.fill()
         ctx.strokeStyle = vari
-        ctx.lineWidth   = 2
+        ctx.lineWidth   = 3
         ctx.stroke()
       }
     }
 
     const piirräLabel = (teksti, x, y) => {
       ctx.fillStyle = '#ffffff'
-      ctx.fillRect(x - 28, y - 13, 56, 22)
+      ctx.fillRect(x - 34, y - 15, 68, 26)
       ctx.fillStyle = '#333'
-      ctx.font      = 'bold 13px sans-serif'
+      ctx.font      = 'bold 16px sans-serif'
       ctx.textAlign = 'center'
-      ctx.fillText(teksti, x, y + 3)
+      ctx.fillText(teksti, x, y + 4)
     }
 
     // Tallennetut mittaukset
@@ -110,7 +111,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       for (let i = 0; i < pisteet.length - 1; i++) piirräViiva(pisteet[i], pisteet[i + 1], vari)
       pisteet.forEach(p => {
         ctx.beginPath()
-        ctx.arc(p.x, p.y, 12, 0, Math.PI * 2)
+        ctx.arc(p.x, p.y, 16, 0, Math.PI * 2)
         ctx.fillStyle = '#EF9F27'
         ctx.fill()
       })
@@ -151,7 +152,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       for (let i = 0; i < pisteetArr.length; i++) {
         const p        = pisteetArr[i]
         const etäisyys = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2)
-        if (etäisyys < 24) {
+        if (etäisyys < 32) {
           setVedetäänPistettä({ mittausId: m.id, pisteIndex: i })
           return
         }
@@ -346,20 +347,51 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
           }
         </p>
 
-        {/* Kuva + canvas overlay */}
-        <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 select-none bg-gray-900">
-          <img src={kuva} alt="Analysoitava kuva" className="w-full block" onLoad={piirrä} />
-          <canvas
-            ref={kanvaasiRef}
-            onTouchStart={onTouchStart}
-            onTouchMove={onTouchMove}
-            onTouchEnd={onTouchEnd}
-            onMouseDown={onTouchStart}
-            onMouseMove={(e) => { if (e.buttons === 1) onTouchMove(e) }}
-            onMouseUp={onTouchEnd}
-            className="absolute inset-0 w-full h-full cursor-crosshair"
-            style={{ touchAction: 'none' }}
-          />
+        {/* Piirrä / Scrollaa -toggle */}
+        <div className="flex gap-2">
+          {[['piirrä', '✏️ Piirrä'], ['scrollaa', '↕️ Scrollaa']].map(([arvo, label]) => (
+            <button
+              key={arvo}
+              type="button"
+              onClick={() => setInteraktio(arvo)}
+              className="flex-1 py-2 rounded-lg border-2 text-sm font-medium transition-colors"
+              style={{
+                borderColor:     interaktio === arvo ? '#1D9E75' : '#e5e7eb',
+                backgroundColor: interaktio === arvo ? '#1D9E75' : 'white',
+                color:           interaktio === arvo ? 'white'   : '#4b5563',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Kuva + canvas overlay — scrollattava */}
+        <div style={{
+          width: '100%', overflowX: 'auto', overflowY: 'auto',
+          maxHeight: '70vh', WebkitOverflowScrolling: 'touch',
+          borderRadius: '0.75rem', border: '1px solid #e5e7eb',
+          background: '#111827', userSelect: 'none',
+        }}>
+          <div style={{ position: 'relative', minWidth: '100%', display: 'inline-block' }}>
+            <img src={kuva} alt="Analysoitava kuva" style={{ display: 'block', width: '100%' }} />
+            <canvas
+              ref={kanvaasiRef}
+              onTouchStart={interaktio === 'piirrä' ? onTouchStart : undefined}
+              onTouchMove={interaktio  === 'piirrä' ? onTouchMove  : undefined}
+              onTouchEnd={interaktio   === 'piirrä' ? onTouchEnd   : undefined}
+              onMouseDown={interaktio  === 'piirrä' ? onTouchStart : undefined}
+              onMouseMove={interaktio  === 'piirrä' ? (e) => { if (e.buttons === 1) onTouchMove(e) } : undefined}
+              onMouseUp={interaktio    === 'piirrä' ? onTouchEnd   : undefined}
+              style={{
+                position: 'absolute', top: 0, left: 0,
+                width: '100%', height: '100%',
+                cursor: interaktio === 'piirrä' ? 'crosshair' : 'default',
+                touchAction:   interaktio === 'piirrä' ? 'none' : 'auto',
+                pointerEvents: interaktio === 'piirrä' ? 'auto' : 'none',
+              }}
+            />
+          </div>
         </div>
 
         {/* Toiminnot */}
