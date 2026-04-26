@@ -201,7 +201,7 @@ function UusiRaporttiLomake({ onTallenna, onPeruuta }) {
   )
 }
 
-export default function ClinicalObservations({ asiakasData, onComplete, onSiirryVälilehdelle }) {
+export default function ClinicalObservations({ asiakasData, onComplete, onSiirryVälilehdelle, mittaukset }) {
   const [data, setData] = useState(() => {
     try {
       const tallennettu = localStorage.getItem(STORAGE_KEY)
@@ -244,6 +244,40 @@ export default function ClinicalObservations({ asiakasData, onComplete, onSiirry
   useEffect(() => {
     localStorage.setItem(RAPORTIT_KEY(asiakasId), JSON.stringify(raportit))
   }, [raportit, asiakasId])
+
+  useEffect(() => {
+    if (!mittaukset?.length) return
+    const päivitykset = {}
+    mittaukset.forEach(m => {
+      const teksti = m.kulma?.teksti || ''
+      const lisää = (avain) => {
+        päivitykset[avain] = (päivitykset[avain] ? päivitykset[avain] + '\n' : '') + `Kuva-analyysi: ${teksti}`
+      }
+      switch (m.tyyppi) {
+        case 'hartiat':         lisää('hartiat'); break
+        case 'lantio':
+        case 'lantio_kierto':   lisää('lantio'); break
+        case 'polvet':          lisää('polvet'); break
+        case 'korvat':
+        case 'paa_kierto':      lisää('paa_korvat'); break
+        case 'selkaranka':      lisää('selkaranka'); break
+        case 'sivulinja':       lisää('lanneranka'); break
+        case 'rintaranka_kierto': lisää('rintaranka'); break
+      }
+    })
+    setData(prev => ({
+      ...prev,
+      havainnot: {
+        ...prev.havainnot,
+        ...Object.fromEntries(
+          Object.entries(päivitykset).map(([k, v]) => [
+            k,
+            prev.havainnot[k] ? prev.havainnot[k] + '\n' + v : v,
+          ])
+        ),
+      },
+    }))
+  }, [mittaukset])
 
   const päivitäHavainto = (alue, arvo) => {
     setData((prev) => ({

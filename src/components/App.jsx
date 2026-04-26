@@ -99,6 +99,7 @@ export default function App() {
   const [treatmentPlan, setTreatmentPlan] = useState(null)
   const [esitiedot, setEsitiedot]         = useState([])
   const [paneAuki, setPaneAuki]           = useState(false)
+  const [kuvaAnalyysiMittaukset, setKuvaAnalyysiMittaukset] = useState([])
   const [clientFormKey, setClientFormKey] = useState(0)
   const [esitäytöData, setEsitäytöData]   = useState(null)
   const esitäytöRef                       = useRef(null)
@@ -267,7 +268,7 @@ export default function App() {
           />
         </div>
         <div style={{ display: activeTab === 'clinical'  ? 'block' : 'none' }}>
-          <ClinicalObservations asiakasData={asiakas} onComplete={handleHavainnot} onSiirryVälilehdelle={(välilehti) => setActiveTab(välilehti)} />
+          <ClinicalObservations asiakasData={asiakas} onComplete={handleHavainnot} onSiirryVälilehdelle={(välilehti) => setActiveTab(välilehti)} mittaukset={kuvaAnalyysiMittaukset} />
         </div>
         <div style={{ display: activeTab === 'bodymap'   ? 'block' : 'none' }}>
           <BodyMap onAnalyze={handleAnalyze} />
@@ -275,7 +276,7 @@ export default function App() {
         <div style={{ display: activeTab === 'kuva'      ? 'block' : 'none' }}>
           <KuvaAnalyysi
             asiakasId={asiakas?.id}
-            onTallenna={(data) => console.log('KuvaAnalyysi tallennettu', data)}
+            onTallenna={(data) => setKuvaAnalyysiMittaukset(data.mittaukset ?? [])}
           />
         </div>
         <div style={{ display: activeTab === 'treatment' ? 'block' : 'none' }}>
