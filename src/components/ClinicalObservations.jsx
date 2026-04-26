@@ -1,25 +1,26 @@
 import { useState, useEffect } from 'react'
 
-const STORAGE_KEY = 'kehokorjaamo_kliiniset'
-const RAPORTIT_KEY = (asiakasId) => `kehokorjaamo_raportit_${asiakasId}`
+const STORAGE_KEY   = 'kehokorjaamo_kliiniset'
+const LISATYT_KEY   = 'kehokorjaamo_lisatyt_kentat'
+const RAPORTIT_KEY  = (asiakasId) => `kehokorjaamo_raportit_${asiakasId}`
 
 const VASEN_SARAKE = [
-  'Jalkaterät',
-  'Polvet',
-  'Alaraajat',
-  'Lantion alue',
-  'Lannerangan alue',
+  { key: 'jalkaterät',  label: 'Jalkaterät' },
+  { key: 'nilkat',      label: 'Nilkat' },
+  { key: 'polvet',      label: 'Polvet' },
+  { key: 'lantio',      label: 'Lantio (kallistus + kierto)' },
+  { key: 'lanneranka',  label: 'Lanneranka / alaselkä' },
 ]
 
 const OIKEA_SARAKE = [
-  'Rintarangan alue',
-  'Yläraajat',
-  'Hartiaseutu',
-  'Kaularangan alue',
-  'Pää ja leukanivelet',
+  { key: 'rintaranka',  label: 'Rintaranka' },
+  { key: 'hartiat',     label: 'Hartiat' },
+  { key: 'kaularanka',  label: 'Kaularanka' },
+  { key: 'paa_korvat',  label: 'Pää / korvat' },
+  { key: 'selkaranka',  label: 'Selkäranka (skolioosi)' },
 ]
 
-const KAIKKI_ALUEET = [...VASEN_SARAKE, ...OIKEA_SARAKE]
+const KAIKKI_ALUEET = [...VASEN_SARAKE, ...OIKEA_SARAKE].map(f => f.label)
 
 const MUUTOSTYYPIT = ['Kallistus', 'Siirtymä', 'Kierto', 'Taivutus', 'Mittaero']
 
@@ -36,16 +37,16 @@ const TYHJÄ_RAPORTTI = () => ({
   muistio: '',
 })
 
-function AlueKenttä({ alue, arvo, onChange }) {
+function AlueKenttä({ avain, label, arvo, onChange }) {
   return (
     <div>
       <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
-        {alue}
+        {label}
       </label>
       <textarea
         rows={2}
         value={arvo ?? ''}
-        onChange={(e) => onChange(alue, e.target.value)}
+        onChange={(e) => onChange(avain, e.target.value)}
         placeholder="Havaintoja..."
         className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
       />
@@ -223,12 +224,22 @@ export default function ClinicalObservations({ asiakasData, onComplete, onSiirry
     }
   })
 
+  const [lisaatytKentat, setLisaatytKentat] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(LISATYT_KEY) || '[]') }
+    catch { return [] }
+  })
+  const [lisaaKenttaAuki, setLisaaKenttaAuki] = useState(false)
+  const [uusiKenttaNimi, setUusiKenttaNimi] = useState('')
   const [lisaaAuki, setLisaaAuki] = useState(false)
   const [kuvausAuki, setKuvausAuki] = useState(false)
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
   }, [data])
+
+  useEffect(() => {
+    localStorage.setItem(LISATYT_KEY, JSON.stringify(lisaatytKentat))
+  }, [lisaatytKentat])
 
   useEffect(() => {
     localStorage.setItem(RAPORTIT_KEY(asiakasId), JSON.stringify(raportit))
@@ -252,6 +263,16 @@ export default function ClinicalObservations({ asiakasData, onComplete, onSiirry
         },
       },
     }))
+  }
+
+  const lisaaKentta = () => {
+    const nimi = uusiKenttaNimi.trim()
+    if (!nimi) return
+    const avain = nimi.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_äöåÄÖÅ]/g, '')
+    if (lisaatytKentat.some(k => k.key === avain)) return
+    setLisaatytKentat(prev => [...prev, { key: avain, label: nimi }])
+    setUusiKenttaNimi('')
+    setLisaaKenttaAuki(false)
   }
 
   const tallennaRaportti = (raportti) => {
@@ -348,25 +369,82 @@ export default function ClinicalObservations({ asiakasData, onComplete, onSiirry
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             <div className="flex flex-col gap-4">
-              {VASEN_SARAKE.map((alue) => (
+              {VASEN_SARAKE.map(({ key, label }) => (
                 <AlueKenttä
-                  key={alue}
-                  alue={alue}
-                  arvo={data.havainnot[alue]}
+                  key={key}
+                  avain={key}
+                  label={label}
+                  arvo={data.havainnot[key]}
                   onChange={päivitäHavainto}
                 />
               ))}
             </div>
             <div className="flex flex-col gap-4">
-              {OIKEA_SARAKE.map((alue) => (
+              {OIKEA_SARAKE.map(({ key, label }) => (
                 <AlueKenttä
-                  key={alue}
-                  alue={alue}
-                  arvo={data.havainnot[alue]}
+                  key={key}
+                  avain={key}
+                  label={label}
+                  arvo={data.havainnot[key]}
                   onChange={päivitäHavainto}
                 />
               ))}
             </div>
+          </div>
+
+          {lisaatytKentat.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+              {lisaatytKentat.map(({ key, label }) => (
+                <AlueKenttä
+                  key={key}
+                  avain={key}
+                  label={label}
+                  arvo={data.havainnot[key]}
+                  onChange={päivitäHavainto}
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            {lisaaKenttaAuki ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={uusiKenttaNimi}
+                  onChange={(e) => setUusiKenttaNimi(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); lisaaKentta() }
+                    if (e.key === 'Escape') { setLisaaKenttaAuki(false); setUusiKenttaNimi('') }
+                  }}
+                  placeholder="Kentän nimi..."
+                  autoFocus
+                  className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                />
+                <button
+                  type="button"
+                  onClick={lisaaKentta}
+                  className="px-3 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Lisää
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setLisaaKenttaAuki(false); setUusiKenttaNimi('') }}
+                  className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm font-medium rounded-lg transition-colors"
+                >
+                  Peruuta
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setLisaaKenttaAuki(true)}
+                className="text-sm font-medium text-brand-600 hover:text-brand-700 transition-colors"
+              >
+                + Lisää kenttä
+              </button>
+            )}
           </div>
         </div>
 
