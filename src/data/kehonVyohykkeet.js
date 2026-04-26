@@ -1,23 +1,23 @@
 // Anatomical zones in body image SVG coordinate space (viewBox 0 0 1471 1069)
-// Layout L→R: vasen sivu (50-370) | takakuva center x≈540 (390-730) | etukuva center x≈855 (760-1100) | oikea sivu (1110-1430)
+// Layout L→R: vasen sivu (50-370) | takakuva center x≈540 (390-730) | etukuva center x≈875 (760-1100) | oikea sivu (1110-1430)
 export const KEHON_VYÖHYKKEET = [
-  // ── Etukuva (kolmas hahmo, center x≈855) ───────────────────────────────
-  { id: 'paa-e',      nimi: 'Pää',             puoli: 'Edestä', cx:  855, cy:  88 },
-  { id: 'kaula-e',    nimi: 'Kaula',           puoli: 'Edestä', cx:  855, cy: 152 },
-  { id: 'olka-o-e',   nimi: 'Oikea olkapää',   puoli: 'Edestä', cx:  745, cy: 210 },
-  { id: 'olka-v-e',   nimi: 'Vasen olkapää',   puoli: 'Edestä', cx:  965, cy: 210 },
-  { id: 'kasiv-o-e',  nimi: 'Oikea käsivarsi', puoli: 'Edestä', cx:  691, cy: 330 },
-  { id: 'kasiv-v-e',  nimi: 'Vasen käsivarsi', puoli: 'Edestä', cx: 1019, cy: 330 },
-  { id: 'rinta-e',    nimi: 'Rintakehä',       puoli: 'Edestä', cx:  855, cy: 272 },
-  { id: 'vatsa-e',    nimi: 'Vatsa',           puoli: 'Edestä', cx:  855, cy: 390 },
-  { id: 'lonkka-o-e', nimi: 'Oikea lonkka',    puoli: 'Edestä', cx:  781, cy: 496 },
-  { id: 'lonkka-v-e', nimi: 'Vasen lonkka',    puoli: 'Edestä', cx:  929, cy: 496 },
-  { id: 'reisi-o-e',  nimi: 'Oikea reisi',     puoli: 'Edestä', cx:  781, cy: 602 },
-  { id: 'reisi-v-e',  nimi: 'Vasen reisi',     puoli: 'Edestä', cx:  929, cy: 602 },
-  { id: 'polvi-o-e',  nimi: 'Oikea polvi',     puoli: 'Edestä', cx:  781, cy: 706 },
-  { id: 'polvi-v-e',  nimi: 'Vasen polvi',     puoli: 'Edestä', cx:  929, cy: 706 },
-  { id: 'saari-o-e',  nimi: 'Oikea sääri',     puoli: 'Edestä', cx:  781, cy: 796 },
-  { id: 'saari-v-e',  nimi: 'Vasen sääri',     puoli: 'Edestä', cx:  929, cy: 796 },
+  // ── Etukuva (kolmas hahmo, center x≈875) ───────────────────────────────
+  { id: 'paa-e',      nimi: 'Pää',             puoli: 'Edestä', cx:  875, cy:  88 },
+  { id: 'kaula-e',    nimi: 'Kaula',           puoli: 'Edestä', cx:  875, cy: 152 },
+  { id: 'olka-o-e',   nimi: 'Oikea olkapää',   puoli: 'Edestä', cx:  765, cy: 210 },
+  { id: 'olka-v-e',   nimi: 'Vasen olkapää',   puoli: 'Edestä', cx:  985, cy: 210 },
+  { id: 'kasiv-o-e',  nimi: 'Oikea käsivarsi', puoli: 'Edestä', cx:  711, cy: 330 },
+  { id: 'kasiv-v-e',  nimi: 'Vasen käsivarsi', puoli: 'Edestä', cx: 1039, cy: 330 },
+  { id: 'rinta-e',    nimi: 'Rintakehä',       puoli: 'Edestä', cx:  875, cy: 272 },
+  { id: 'vatsa-e',    nimi: 'Vatsa',           puoli: 'Edestä', cx:  875, cy: 390 },
+  { id: 'lonkka-o-e', nimi: 'Oikea lonkka',    puoli: 'Edestä', cx:  801, cy: 496 },
+  { id: 'lonkka-v-e', nimi: 'Vasen lonkka',    puoli: 'Edestä', cx:  949, cy: 496 },
+  { id: 'reisi-o-e',  nimi: 'Oikea reisi',     puoli: 'Edestä', cx:  801, cy: 602 },
+  { id: 'reisi-v-e',  nimi: 'Vasen reisi',     puoli: 'Edestä', cx:  949, cy: 602 },
+  { id: 'polvi-o-e',  nimi: 'Oikea polvi',     puoli: 'Edestä', cx:  801, cy: 706 },
+  { id: 'polvi-v-e',  nimi: 'Vasen polvi',     puoli: 'Edestä', cx:  949, cy: 706 },
+  { id: 'saari-o-e',  nimi: 'Oikea sääri',     puoli: 'Edestä', cx:  801, cy: 796 },
+  { id: 'saari-v-e',  nimi: 'Vasen sääri',     puoli: 'Edestä', cx:  949, cy: 796 },
 
   // ── Takakuva (toinen hahmo, center x≈540) ──────────────────────────────
   { id: 'paa-t',      nimi: 'Pää',             puoli: 'Takaa',  cx:  540, cy:  88 },
