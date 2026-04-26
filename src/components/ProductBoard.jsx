@@ -259,6 +259,13 @@ Tee seuraavat asiat järjestyksessä:
    - Idea kolme selkokielellä
    IDEAT_LOPPUU
 
+7. ILMOITA VALMISTUMINEN:
+   Kun tehtävä on valmis, lisää vastauksesi loppuun tämä rivi täsmälleen näin:
+
+   VALMIS: ${tehtävä.teksti}
+
+   Sovellus tunnistaa tämän ja poistaa tehtävän automaattisesti To Do -listalta.
+
 Projektin konteksti:
 - React + Vite + Tailwind
 - Vercel hosting
@@ -270,6 +277,8 @@ Projektin konteksti:
   const lisääIdeatTekstistä = () => {
     const teksti = ideaInput.trim()
     if (!teksti) return
+
+    // Etsi IDEAT_ALKAA...IDEAT_LOPPUU tai pelkät - rivit
     const alku  = teksti.indexOf('IDEAT_ALKAA')
     const loppu = teksti.indexOf('IDEAT_LOPPUU')
     let rivit = []
@@ -289,14 +298,44 @@ Projektin konteksti:
         .map(r => r.slice(2).trim())
         .filter(Boolean)
     }
-    if (rivit.length === 0) return
+
+    // Etsi VALMIS:-rivit ja vertaa To Do -listan tehtäviin
+    const valmisTekstit = teksti
+      .split('\n')
+      .map(r => r.trim())
+      .filter(r => r.startsWith('VALMIS:'))
+      .map(r => r.slice('VALMIS:'.length).trim())
+      .filter(Boolean)
+
+    if (rivit.length === 0 && valmisTekstit.length === 0) return
+
     const uudet = rivit.map(r => ({
       id: uid(), teksti: r,
       lisätty: new Date().toISOString(), tila: 'idea',
     }))
-    setPb(prev => ({ ...prev, ideat: [...prev.ideat, ...uudet] }))
+
+    // Täsmäytä VALMIS-tekstit tehtävälistan tehtäviin (ei case-sensitive)
+    const valmistuvat = pb.tehtävät.filter(t =>
+      valmisTekstit.some(v => v.toLowerCase() === t.teksti.toLowerCase())
+    )
+    const valmistuvienIdt = new Set(valmistuvat.map(t => t.id))
+    const uudetCL = valmistuvat.map(t => ({
+      id: uid(), teksti: t.teksti,
+      valmistunut: new Date().toISOString(), versio: VERSIO,
+    }))
+
+    setPb(prev => ({
+      ...prev,
+      ideat:     uudet.length     > 0 ? [...prev.ideat, ...uudet]                               : prev.ideat,
+      tehtävät:  valmistuvienIdt.size > 0 ? prev.tehtävät.filter(t => !valmistuvienIdt.has(t.id)) : prev.tehtävät,
+      changelog: uudetCL.length   > 0 ? [...prev.changelog, ...uudetCL]                         : prev.changelog,
+    }))
+
     setIdeaInput('')
-    setLisättyVahvistus(`Lisätty ${rivit.length} ideaa!`)
+    const osat = []
+    if (uudet.length     > 0) osat.push(`Lisätty ${uudet.length} ideaa`)
+    if (valmistuvat.length > 0) osat.push(`${valmistuvat.length} tehtävä merkitty valmiiksi`)
+    setLisättyVahvistus(osat.join(' · ') + '!')
     setTimeout(() => setLisättyVahvistus(''), 3000)
   }
 
