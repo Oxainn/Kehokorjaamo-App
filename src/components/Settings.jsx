@@ -491,12 +491,14 @@ export default function Settings() {
                     borderBottom:'1px solid #e2e8f0',
                     paddingBottom:'4px',marginBottom:'8px'}}
                 />
-                <input
+                <textarea
                   value={p.kuvaus}
-                  placeholder="Lyhyt kuvaus..."
+                  placeholder="Kirjoita palvelun kuvaus..."
                   onChange={e => päivitäPalvelu(p.id,'kuvaus',e.target.value)}
-                  style={{width:'100%',fontSize:'13px',
-                    color:'#666',border:'none'}}
+                  rows={4}
+                  style={{width:'100%',fontSize:'13px',color:'#444',
+                    border:'1px solid #e2e8f0',borderRadius:'6px',padding:'8px',
+                    resize:'vertical',fontFamily:'inherit',lineHeight:'1.6'}}
                 />
                 <div style={{display:'flex',gap:'8px',marginTop:'8px',flexWrap:'wrap'}}>
                   <button type="button" onClick={() => päivitäPalvelu(p.id,'aktiivinen',!p.aktiivinen)}
