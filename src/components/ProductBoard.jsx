@@ -18,6 +18,7 @@ const OLETUS_TEHTÄVÄT = [
   { id: 'dt-k3', teksti: 'Supabase-tallennus pilveen',                            prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-k4', teksti: 'Lihaskartat hoitosuunnitelmaan',                        prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-k5', teksti: 'Kehonkuvan pisteet oikeille kohdille',                  prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'dt-k6', teksti: 'Kuva-analyysi työkalu: hoitaja ottaa kuvan kameralla, merkitsee mittauspisteet sormella, sovellus laskee ja näyttää kulman viivoina — lantio/hartiat vaakalinjaan, selkäranka pystylinjaan. Tallennetaan asiakkaan tietoihin ja voidaan verrata edelliseen käyntiin.', prioriteetti: 'korkea', lisätty: '2026-04-26T00:00:00.000Z' },
   { id: 'dt-m2', teksti: 'Hoitokertojen historia ja seuranta',                    prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-m3', teksti: 'Ennen/jälkeen vertailu käyntien välillä',               prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
   { id: 'dt-m4', teksti: 'Automaattinen Claude API ilman kopioi/liitä',           prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
