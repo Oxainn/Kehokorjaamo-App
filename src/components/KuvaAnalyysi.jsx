@@ -173,7 +173,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     for (let i = 0; i < pisteet.length; i++) {
       const p        = pisteet[i]
       const etäisyys = Math.sqrt((p.x - x) ** 2 + (p.y - y) ** 2)
-      if (etäisyys < 24) {
+      if (etäisyys < 40) {
         setVedetäänPistettä({ mittausId: 'aktiivinen', pisteIndex: i })
         return
       }
