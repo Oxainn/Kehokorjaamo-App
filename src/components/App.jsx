@@ -154,17 +154,25 @@ export default function App() {
     setPaneAuki(false)
 
     const asiakasData = {
-      nimi:        esitietoEntry.nimi ?? '',
-      syntymaaika: esitietoEntry.syntymaaika  ?? '',
-      puhelin:     esitietoEntry.puhelin      ?? '',
-      sahkoposti:  esitietoEntry.sahkoposti   ?? '',
-      hoitoon_syy: esitietoEntry.hoitoon_syy  ?? '',
-      kipuaste:    esitietoEntry.kipuaste      ?? 0,
+      nimi:                esitietoEntry.nimi                ?? '',
+      syntymaaika:         esitietoEntry.syntymaaika         ?? '',
+      lahiosoite:          esitietoEntry.lahiosoite          ?? '',
+      postinumero:         esitietoEntry.postinumero         ?? '',
+      postitoimipaikka:    esitietoEntry.postitoimipaikka    ?? '',
+      sahkoposti:          esitietoEntry.sahkoposti          ?? '',
+      puhelin:             esitietoEntry.puhelin             ?? '',
+      pituus:              esitietoEntry.pituus              ?? '',
+      paino:               esitietoEntry.paino               ?? '',
+      ammatti:             esitietoEntry.ammatti             ?? '',
+      harrastukset:        esitietoEntry.harrastukset        ?? '',
+      hoitoon_syy:         esitietoEntry.hoitoon_syy         ?? '',
+      laakitys:            esitietoEntry.laakitys            ?? '',
+      miten_loysi:         esitietoEntry.miten_loysi         ?? '',
+      kipuaste:            esitietoEntry.kipuaste            ?? 0,
       kontraindikaatiot:   esitietoEntry.kontraindikaatiot   ?? {},
       allergia_lisatieto:  esitietoEntry.allergia_lisatieto  ?? '',
       tekonivel_lisatieto: esitietoEntry.tekonivel_lisatieto ?? '',
       raskaus_lisatieto:   esitietoEntry.raskaus_lisatieto   ?? '',
-      sairaudet:           esitietoEntry.lisatiedot          ?? '',
       merkinnät:           esitietoEntry.merkinnät           ?? {},
     }
 

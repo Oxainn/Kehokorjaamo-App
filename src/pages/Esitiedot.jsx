@@ -25,20 +25,27 @@ const OIRETYYPIT = [
 const PIIRTOVÄRIT = { 1: '#ef4444', 2: '#f97316', 3: '#3b82f6', 4: '#9ca3af' }
 
 const TYHJÄ = {
-  nimi:           '',
-  syntymaaika:    '',
-  puhelin:        '',
-  sahkoposti:     '',
-  pituus:         '',
-  paino:          '',
-  hoitoon_syy:    '',
-  kipuaste:       0,
-  kontraindikaatiot: {},
+  nimi:             '',
+  syntymaaika:      '',
+  lahiosoite:       '',
+  postinumero:      '',
+  postitoimipaikka: '',
+  sahkoposti:       '',
+  puhelin:          '',
+  pituus:           '',
+  paino:            '',
+  ammatti:          '',
+  harrastukset:     '',
+  hoitoon_syy:      '',
+  laakitys:         '',
+  miten_loysi:      '',
+  kipuaste:         0,
+  kontraindikaatiot:   {},
   allergia_lisatieto:  '',
   tekonivel_lisatieto: '',
   raskaus_lisatieto:   '',
-  lisatiedot:     '',
-  merkinnät:      {},
+  lisatiedot:       '',
+  merkinnät:        {},
 }
 
 function kipuVari(arvo) {
@@ -142,24 +149,30 @@ export default function Esitiedot() {
 
     const avain = 'esitiedot_' + Date.now()
     const tallennettava = {
-      _key:             avain,
-      nimi:             data.nimi,
-      syntymaaika:      data.syntymaaika,
-      puhelin:          data.puhelin,
-      sahkoposti:       data.sahkoposti,
-      pituus:           data.pituus,
-      paino:            data.paino,
-      hoitoon_syy:      data.hoitoon_syy,
-      kipuaste:         data.kipuaste,
+      _key:                avain,
+      nimi:                data.nimi,
+      syntymaaika:         data.syntymaaika,
+      lahiosoite:          data.lahiosoite,
+      postinumero:         data.postinumero,
+      postitoimipaikka:    data.postitoimipaikka,
+      sahkoposti:          data.sahkoposti,
+      puhelin:             data.puhelin,
+      pituus:              data.pituus,
+      paino:               data.paino,
+      ammatti:             data.ammatti,
+      harrastukset:        data.harrastukset,
+      hoitoon_syy:         data.hoitoon_syy,
+      laakitys:            data.laakitys,
+      miten_loysi:         data.miten_loysi,
+      kipuaste:            data.kipuaste,
       kontraindikaatiot:   data.kontraindikaatiot,
       allergia_lisatieto:  data.allergia_lisatieto,
       tekonivel_lisatieto: data.tekonivel_lisatieto,
       raskaus_lisatieto:   data.raskaus_lisatieto,
-      lisatiedot:          data.lisatiedot,
       merkinnät:           data.merkinnät,
       lisaVastaukset:      lisaVastaukset,
       palvelu:             valittuPalvelu,
-      aikaleima:        new Date().toISOString(),
+      aikaleima:           new Date().toISOString(),
     }
     localStorage.setItem(avain, JSON.stringify(tallennettava))
 
@@ -268,22 +281,15 @@ export default function Esitiedot() {
                 required placeholder="Matti Meikäläinen"
                 error={yritettyLähettää && !data.nimi.trim() ? 'Nimi on pakollinen' : ''}
               />
-              <TextInput
-                label="Syntymäaika" name="syntymaaika"
-                value={data.syntymaaika} onChange={päivitä}
-                type="date"
-              />
+              <TextInput label="Syntymäaika" name="syntymaaika" value={data.syntymaaika} onChange={päivitä} type="date" />
+              <TextInput label="Lähiosoite" name="lahiosoite" value={data.lahiosoite} onChange={päivitä} placeholder="Esimerkkikatu 1 A 2" />
+              <div className="grid grid-cols-2 gap-4">
+                <TextInput label="Postinumero" name="postinumero" value={data.postinumero} onChange={päivitä} placeholder="00100" />
+                <TextInput label="Postitoimipaikka" name="postitoimipaikka" value={data.postitoimipaikka} onChange={päivitä} placeholder="Helsinki" />
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextInput
-                  label="Sähköposti" name="sahkoposti"
-                  value={data.sahkoposti} onChange={päivitä}
-                  type="email" placeholder="matti@esimerkki.fi"
-                />
-                <TextInput
-                  label="Puhelin" name="puhelin"
-                  value={data.puhelin} onChange={päivitä}
-                  type="tel" placeholder="+358 40 123 4567"
-                />
+                <TextInput label="Sähköposti" name="sahkoposti" value={data.sahkoposti} onChange={päivitä} type="email" placeholder="matti@esimerkki.fi" />
+                <TextInput label="Puhelin" name="puhelin" value={data.puhelin} onChange={päivitä} type="tel" placeholder="+358 40 123 4567" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <TextInput label="Pituus (cm)" name="pituus" value={data.pituus} onChange={päivitä} type="number" placeholder="170" />
@@ -292,13 +298,17 @@ export default function Esitiedot() {
               <p className="text-xs text-gray-400 italic -mt-2">
                 Pituus- ja painotietoja käytetään tilastointiin ja palvelun kehittämiseen.
               </p>
-            </>
-          } />
-
-          {/* ── Osio 2: Hoitoon tulon syy ────────────────────────────────── */}
-          <Osio otsikko="Hoitoon tulon syy" lapset={
-            <>
-              <Kenttä label="Mikä vaiva tai ongelma toi sinut hoitoon?">
+              <TextInput label="Työ / ammatti" name="ammatti" value={data.ammatti} onChange={päivitä} />
+              <Kenttä label="Harrastuksia">
+                <textarea
+                  name="harrastukset"
+                  value={data.harrastukset}
+                  onChange={päivitä}
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </Kenttä>
+              <Kenttä label="Hoitoon tulon syy">
                 <textarea
                   name="hoitoon_syy"
                   value={data.hoitoon_syy}
@@ -308,7 +318,22 @@ export default function Esitiedot() {
                   className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
               </Kenttä>
+              <Kenttä label="Säännöllinen lääkitys">
+                <textarea
+                  name="laakitys"
+                  value={data.laakitys}
+                  onChange={päivitä}
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                />
+              </Kenttä>
+              <TextInput label="Miten löysit meidät" name="miten_loysi" value={data.miten_loysi} onChange={päivitä} />
+            </>
+          } />
 
+          {/* ── Osio 2: Kiputilanne ──────────────────────────────────────── */}
+          <Osio otsikko="Kiputilanne" lapset={
+            <>
               {!piilotettu('kiputilanne') && <Kenttä label={`Kipuasteikko (VAS) — tällä hetkellä ${data.kipuaste}/10`}>
                 <div className="flex items-center gap-4 mt-1">
                   <div
@@ -518,20 +543,6 @@ export default function Esitiedot() {
               )}
             </>
           } />}
-
-          {/* ── Osio 5: Lisätiedot ───────────────────────────────────────── */}
-          <Osio otsikko="Lisätiedot" lapset={
-            <Kenttä label="Muuta huomioitavaa">
-              <textarea
-                name="lisatiedot"
-                value={data.lisatiedot}
-                onChange={päivitä}
-                rows={3}
-                placeholder="Lääkitys, allergiat, aiemmat hoidot tai muu hoitajalle tärkeä tieto..."
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-              />
-            </Kenttä>
-          } />
 
           {/* ── Lisäkysymykset ───────────────────────────────────────────── */}
           {valitunPalvelunLomake.lisaKysymykset.length > 0 && (
