@@ -267,7 +267,7 @@ export default function App() {
           />
         </div>
         <div style={{ display: activeTab === 'clinical'  ? 'block' : 'none' }}>
-          <ClinicalObservations asiakasData={asiakas} onComplete={handleHavainnot} />
+          <ClinicalObservations asiakasData={asiakas} onComplete={handleHavainnot} onSiirryVälilehdelle={(välilehti) => setActiveTab(välilehti)} />
         </div>
         <div style={{ display: activeTab === 'bodymap'   ? 'block' : 'none' }}>
           <BodyMap onAnalyze={handleAnalyze} />

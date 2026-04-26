@@ -200,7 +200,7 @@ function UusiRaporttiLomake({ onTallenna, onPeruuta }) {
   )
 }
 
-export default function ClinicalObservations({ asiakasData, onComplete }) {
+export default function ClinicalObservations({ asiakasData, onComplete, onSiirryVälilehdelle }) {
   const [data, setData] = useState(() => {
     try {
       const tallennettu = localStorage.getItem(STORAGE_KEY)
@@ -284,7 +284,23 @@ export default function ClinicalObservations({ asiakasData, onComplete }) {
         )}
       </div>
 
-      <div style={{ textAlign: 'center', margin: '8px 0 16px' }}>
+      <div style={{ textAlign: 'center', margin: '8px 0 16px', display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <button
+          type="button"
+          onClick={() => onSiirryVälilehdelle?.('kuva')}
+          style={{
+            padding: '8px 20px',
+            borderRadius: '8px',
+            border: '1px solid #1D9E75',
+            background: '#E1F5EE',
+            color: '#085041',
+            fontSize: '13px',
+            fontWeight: '500',
+            cursor: 'pointer',
+          }}
+        >
+          📷 Avaa kuva-analyysi
+        </button>
         <button
           type="button"
           onClick={() => setKuvausAuki(!kuvausAuki)}
