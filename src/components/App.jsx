@@ -53,7 +53,7 @@ function EsitiedotPane({ lista, onAvaa, onPoista, onTyhjennä, onSulje }) {
             <div className="flex items-start justify-between gap-2 mb-2">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-gray-800">
-                  {e.etunimi} {e.sukunimi}
+                  {e.nimi}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {new Date(e.aikaleima).toLocaleString('fi-FI', {
@@ -154,7 +154,7 @@ export default function App() {
     setPaneAuki(false)
 
     const asiakasData = {
-      nimi:        `${esitietoEntry.etunimi ?? ''} ${esitietoEntry.sukunimi ?? ''}`.trim(),
+      nimi:        esitietoEntry.nimi ?? '',
       syntymaaika: esitietoEntry.syntymaaika  ?? '',
       puhelin:     esitietoEntry.puhelin      ?? '',
       sahkoposti:  esitietoEntry.sahkoposti   ?? '',

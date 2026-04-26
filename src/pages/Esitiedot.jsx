@@ -25,8 +25,7 @@ const OIRETYYPIT = [
 const PIIRTOVÄRIT = { 1: '#ef4444', 2: '#f97316', 3: '#3b82f6', 4: '#9ca3af' }
 
 const TYHJÄ = {
-  etunimi:        '',
-  sukunimi:       '',
+  nimi:           '',
   syntymaaika:    '',
   puhelin:        '',
   sahkoposti:     '',
@@ -134,7 +133,7 @@ export default function Esitiedot() {
   }
 
   const ehdotonValittu = EHDOTTOMAT_KONTRA.some(e => data.kontraindikaatiot[e])
-  const voidaanLähettää = data.etunimi.trim() && data.sukunimi.trim() && !ehdotonValittu
+  const voidaanLähettää = data.nimi.trim() && !ehdotonValittu
 
   const lähetä = (e) => {
     e.preventDefault()
@@ -144,8 +143,7 @@ export default function Esitiedot() {
     const avain = 'esitiedot_' + Date.now()
     const tallennettava = {
       _key:             avain,
-      etunimi:          data.etunimi,
-      sukunimi:         data.sukunimi,
+      nimi:             data.nimi,
       syntymaaika:      data.syntymaaika,
       puhelin:          data.puhelin,
       sahkoposti:       data.sahkoposti,
@@ -188,7 +186,7 @@ export default function Esitiedot() {
           </div>
           <h2 className="text-xl font-semibold text-gray-800 mb-2">Esitiedot lähetetty!</h2>
           <p className="text-gray-500 text-sm leading-relaxed">
-            Kiitos, {data.etunimi}! Esitietosi on vastaanotettu. Otamme sinuun yhteyttä
+            Kiitos, {data.nimi.split(' ')[0]}! Esitietosi on vastaanotettu. Otamme sinuun yhteyttä
             ajanvarauksen vahvistamiseksi.
           </p>
         </div>
@@ -264,20 +262,12 @@ export default function Esitiedot() {
           {/* ── Osio 1: Asiakastiedot ─────────────────────────────────────── */}
           <Osio otsikko="Asiakastiedot" lapset={
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <TextInput
-                  label="Etunimi" name="etunimi"
-                  value={data.etunimi} onChange={päivitä}
-                  required placeholder="Matti"
-                  error={yritettyLähettää && !data.etunimi.trim() ? 'Etunimi on pakollinen' : ''}
-                />
-                <TextInput
-                  label="Sukunimi" name="sukunimi"
-                  value={data.sukunimi} onChange={päivitä}
-                  required placeholder="Meikäläinen"
-                  error={yritettyLähettää && !data.sukunimi.trim() ? 'Sukunimi on pakollinen' : ''}
-                />
-              </div>
+              <TextInput
+                label="Nimi" name="nimi"
+                value={data.nimi} onChange={päivitä}
+                required placeholder="Matti Meikäläinen"
+                error={yritettyLähettää && !data.nimi.trim() ? 'Nimi on pakollinen' : ''}
+              />
               <TextInput
                 label="Syntymäaika" name="syntymaaika"
                 value={data.syntymaaika} onChange={päivitä}
@@ -285,33 +275,21 @@ export default function Esitiedot() {
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <TextInput
-                  label="Puhelin" name="puhelin"
-                  value={data.puhelin} onChange={päivitä}
-                  type="tel" placeholder="+358 40 123 4567"
-                />
-                <TextInput
                   label="Sähköposti" name="sahkoposti"
                   value={data.sahkoposti} onChange={päivitä}
                   type="email" placeholder="matti@esimerkki.fi"
                 />
+                <TextInput
+                  label="Puhelin" name="puhelin"
+                  value={data.puhelin} onChange={päivitä}
+                  type="tel" placeholder="+358 40 123 4567"
+                />
               </div>
-              <div style={{display:'flex',gap:'12px',marginBottom:'12px'}}>
-                <div style={{flex:1}}>
-                  <label style={{fontSize:'12px',color:'#666',display:'block',marginBottom:'3px'}}>Pituus (cm)</label>
-                  <input type="number" name="pituus" min="100" max="250"
-                    value={data.pituus || ''} onChange={päivitä} placeholder="170"
-                    style={{width:'100%',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'13px'}}
-                  />
-                </div>
-                <div style={{flex:1}}>
-                  <label style={{fontSize:'12px',color:'#666',display:'block',marginBottom:'3px'}}>Paino (kg)</label>
-                  <input type="number" name="paino" min="30" max="300"
-                    value={data.paino || ''} onChange={päivitä} placeholder="70"
-                    style={{width:'100%',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',fontSize:'13px'}}
-                  />
-                </div>
+              <div className="grid grid-cols-2 gap-4">
+                <TextInput label="Pituus (cm)" name="pituus" value={data.pituus} onChange={päivitä} type="number" placeholder="170" />
+                <TextInput label="Paino (kg)"  name="paino"  value={data.paino}  onChange={päivitä} type="number" placeholder="70"  />
               </div>
-              <p style={{fontSize:'11px',color:'#999',marginBottom:'16px',fontStyle:'italic'}}>
+              <p className="text-xs text-gray-400 italic -mt-2">
                 Pituus- ja painotietoja käytetään tilastointiin ja palvelun kehittämiseen.
               </p>
             </>
