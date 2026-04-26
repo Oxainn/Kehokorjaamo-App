@@ -49,9 +49,7 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
 
   const piirrä = () => {
     const canvas = kanvaasiRef.current
-    if (!canvas || canvas.offsetWidth === 0) return
-    canvas.width  = canvas.offsetWidth
-    canvas.height = canvas.offsetHeight
+    if (!canvas || canvas.width === 0) return
     const ctx = canvas.getContext('2d')
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
@@ -118,6 +116,18 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       })
     }
   }
+
+  useEffect(() => {
+    if (!kuva || !kanvaasiRef.current) return
+    const canvas = kanvaasiRef.current
+    const img = new Image()
+    img.onload = () => {
+      canvas.width  = img.naturalWidth
+      canvas.height = img.naturalHeight
+      piirrä()
+    }
+    img.src = kuva
+  }, [kuva]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { piirrä() }, [pisteet, mittaukset, vedetäänPistettä]) // eslint-disable-line react-hooks/exhaustive-deps
 
