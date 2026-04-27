@@ -131,6 +131,13 @@ export default function App() {
 
   const päivitäLista = () => haeAsiakkaat().then(setAsiakasLista)
 
+  const kayntejaTallaViikolla = () => {
+    const viikkoAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    return asiakasLista.filter(a =>
+      a.viimeisinKaynti && new Date(a.viimeisinKaynti) > viikkoAgo
+    ).length
+  }
+
   const avaaAsiakas = (a) => {
     setAsiakas({ ...a, supabase_id: a.id })
     setActiveTab('client')
@@ -385,7 +392,7 @@ export default function App() {
                     <p className="text-sm text-gray-500 mt-1">Asiakkaita yhteensä</p>
                   </div>
                   <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-center">
-                    <p className="text-3xl font-bold text-brand-700">—</p>
+                    <p className="text-3xl font-bold text-brand-700">{kayntejaTallaViikolla()}</p>
                     <p className="text-sm text-gray-500 mt-1">Käyntejä tällä viikolla</p>
                   </div>
                   <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-center">
