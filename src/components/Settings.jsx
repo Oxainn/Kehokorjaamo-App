@@ -1,5 +1,5 @@
 import { useState, useRef, Fragment } from 'react'
-import { parsiiIdeatTekstistä } from '../utils/productboard'
+import { rakennaPbPäivitys } from '../utils/productboard'
 import { supabase } from '../services/supabase'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
@@ -976,7 +976,7 @@ VALMIS: Tehtävän teksti tässä
                     .eq('hoitaja_id', hoitajaId)
                     .maybeSingle()
                   const pb = rows?.data ?? { ideat: [], tehtävät: [], changelog: [] }
-                  const { uudet, valmistuvat, valmistuvienIdt, uudetCL } = parsiiIdeatTekstistä(teksti, pb.tehtävät)
+                  const { uudet, valmistuvat, valmistuvienIdt, uudetCL } = rakennaPbPäivitys(teksti, pb.tehtävät)
                   if (uudet.length === 0 && valmistuvat.length === 0) {
                     alert('Ei ideoita tai VALMIS-merkintöjä löydetty.')
                     return

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../services/supabase'
-import { uid, parsiiIdeatTekstistä } from '../utils/productboard'
+import { uid, rakennaPbPäivitys } from '../utils/productboard'
 
 const STORAGE_KEY = 'kehokorjaamo_productboard'
 const VERSIO = 'V1'
@@ -322,7 +322,7 @@ Projektin konteksti:
   const lisääIdeatTekstistä = () => {
     const teksti = ideaInput.trim()
     if (!teksti) return
-    const { uudet, valmistuvat, valmistuvienIdt, uudetCL } = parsiiIdeatTekstistä(teksti, pb.tehtävät)
+    const { uudet, valmistuvat, valmistuvienIdt, uudetCL } = rakennaPbPäivitys(teksti, pb.tehtävät)
     if (uudet.length === 0 && valmistuvat.length === 0) return
     setPb(prev => ({
       ...prev,
