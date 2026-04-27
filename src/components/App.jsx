@@ -61,6 +61,7 @@ export default function App() {
       }, 100)
 
       if (error) {
+        console.error('OAuth-virhe:', error)
         setLataaAuth(false)
         setKayttaja(null)
       }
