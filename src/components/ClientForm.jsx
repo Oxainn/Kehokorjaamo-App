@@ -487,19 +487,19 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
     e.preventDefault()
     setYritettyLähettää(true)
     if (!data.nimi.trim() || !data.suostumus_rekisteri || ehdotonValittu) return
+    console.log('Vahvista painettu, data:', data)
     setTallentaa(true)
     const tallennettu = await tallennaAsiakas(data)
+    console.log('Tallennus tulos:', tallennettu)
+    setTallentaa(false)
     if (tallennettu) {
-      console.log('Asiakas tallennettu:', tallennettu.id)
       const asiakasData = { ...data, supabase_id: tallennettu.id }
       localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(asiakasData))
       onComplete?.(asiakasData)
     } else {
-      console.log('Supabase epäonnistui, käytetään localStoragea')
       localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(data))
       onComplete?.(data)
     }
-    setTallentaa(false)
   }
 
   const ika = laskikaIka(data.syntymaaika)
