@@ -11,8 +11,9 @@ import Aftercare from './Aftercare'
 import Settings from './Settings'
 import ProductBoard from './ProductBoard'
 import KuvaAnalyysi from './KuvaAnalyysi'
+import AsiakasHistoria from './AsiakasHistoria'
 
-const NAV_ITEMS = [
+const NAV_ITEMS_BASE = [
   { id: 'client',    label: 'Asiakastiedot' },
   { id: 'clinical',  label: 'Havainnot' },
   { id: 'bodymap',   label: 'Kehokartta' },
@@ -125,6 +126,8 @@ export default function App() {
     if (kayttaja) haeAsiakkaat().then(setAsiakasLista)
   }, [kayttaja])
 
+  const päivitäLista = () => haeAsiakkaat().then(setAsiakasLista)
+
   const avaaAsiakas = (a) => {
     setAsiakas({ ...a, supabase_id: a.id })
     setActiveTab('client')
@@ -142,7 +145,7 @@ export default function App() {
       null,
       kuvaAnalyysiMittaukset
     )
-    if (tulos) alert('Käynti tallennettu!')
+    if (tulos) { päivitäLista(); alert('Käynti tallennettu!') }
     else alert('Tallennus epäonnistui')
   }
 
@@ -166,6 +169,7 @@ export default function App() {
 
   const handleAsiakas = (asiakasData) => {
     setAsiakas(asiakasData)
+    päivitäLista()
     setActiveTab('clinical')
   }
 
@@ -304,16 +308,21 @@ export default function App() {
 
       <nav className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 flex gap-1 overflow-x-auto">
-          {NAV_ITEMS.map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setActiveTab(id)}
-              className={`py-3 px-5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap
-                ${activeTab === id
-                  ? 'border-brand-600 text-brand-700'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-            >
+          {NAV_ITEMS_BASE.slice(0, 1).map(({ id, label }) => (
+            <button key={id} onClick={() => setActiveTab(id)}
+              className={`py-3 px-5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === id ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+              {label}
+            </button>
+          ))}
+          {asiakas && (
+            <button onClick={() => setActiveTab('historia')}
+              className={`py-3 px-5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'historia' ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
+              Historia
+            </button>
+          )}
+          {NAV_ITEMS_BASE.slice(1).map(({ id, label }) => (
+            <button key={id} onClick={() => setActiveTab(id)}
+              className={`py-3 px-5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === id ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
               {label}
             </button>
           ))}
@@ -385,6 +394,9 @@ export default function App() {
             esitäytö={esitäytöRef.current ?? esitäytöData}
             onComplete={handleAsiakas}
           />
+        </div>
+        <div style={{ display: activeTab === 'historia'  ? 'block' : 'none' }}>
+          {asiakas ? <AsiakasHistoria asiakas={asiakas} /> : <p>Valitse ensin asiakas</p>}
         </div>
         <div style={{ display: activeTab === 'clinical'  ? 'block' : 'none' }}>
           <ClinicalObservations asiakasData={asiakas} onComplete={handleHavainnot} onSiirryVälilehdelle={(välilehti) => setActiveTab(välilehti)} mittaukset={kuvaAnalyysiMittaukset} />
