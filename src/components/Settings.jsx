@@ -188,6 +188,15 @@ export default function Settings() {
   })
   const [muokkausId, setMuokkausId] = useState(null)
   const [tallennettuPalvelut, setTallennettuPalvelut] = useState(false)
+  const [kopioituId, setKopioituId] = useState(null)
+
+  const kopioiLinkki = (palveluId) => {
+    const url = `${window.location.origin}/esitiedot?palvelu=${palveluId}`
+    navigator.clipboard.writeText(url).then(() => {
+      setKopioituId(palveluId)
+      setTimeout(() => setKopioituId(null), 2000)
+    })
+  }
 
   const tallennaPalvelut = (lista = palvelut) => {
     tallennnaOsa('palvelut', lista)
@@ -483,6 +492,27 @@ export default function Settings() {
                     style={{fontSize:'12px',padding:'4px 10px',borderRadius:'20px',border:'none',cursor:'pointer',
                       background:'#FEE2E2',color:'#991B1B'}}>
                     Poista
+                  </button>
+                </div>
+
+                {/* Esitietolomakkeen linkki */}
+                <div style={{display:'flex',alignItems:'center',gap:'8px',marginTop:'4px'}}>
+                  <input
+                    readOnly
+                    value={`${window.location.origin}/esitiedot?palvelu=${p.id}`}
+                    style={{flex:1,fontSize:'12px',padding:'5px 8px',borderRadius:'6px',border:'1px solid #e2e8f0',background:'#f9fafb',color:'#6b7280',cursor:'text',minWidth:0}}
+                    onFocus={e => e.target.select()}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => kopioiLinkki(p.id)}
+                    style={{fontSize:'12px',padding:'5px 12px',borderRadius:'6px',border:'none',cursor:'pointer',flexShrink:0,
+                      background: kopioituId === p.id ? '#E1F5EE' : '#f1f5f9',
+                      color:      kopioituId === p.id ? '#085041' : '#374151',
+                      fontWeight: '500',
+                    }}
+                  >
+                    {kopioituId === p.id ? '✓ Kopioitu' : 'Kopioi'}
                   </button>
                 </div>
 

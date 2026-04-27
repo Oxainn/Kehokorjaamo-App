@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
 import { tallennaUusiAsiakas } from '../lib/db'
 import AllekirjoitusPad from '../components/AllekirjoitusPad'
@@ -104,11 +105,16 @@ export default function Esitiedot() {
   const [yritettyLähettää, setYritettyLähettää] = useState(false)
   const [valittuPiirto, setValittuPiirto] = useState(1)
 
+  const [searchParams] = useSearchParams()
   const palvelut = (JSON.parse(localStorage.getItem('kehokorjaamo_asetukset') || '{}').palvelut) ?? [
     { id: 'p1', nimi: 'Kalevalainen jäsenkorjaus', aktiivinen: true },
   ]
   const aktiivinenPalvelut = palvelut.filter(p => p.aktiivinen)
-  const [valittuPalvelu, setValittuPalvelu] = useState(aktiivinenPalvelut[0]?.id ?? '')
+  const urlPalvelu = searchParams.get('palvelu')
+  const [valittuPalvelu, setValittuPalvelu] = useState(() => {
+    if (urlPalvelu && aktiivinenPalvelut.some(p => p.id === urlPalvelu)) return urlPalvelu
+    return aktiivinenPalvelut[0]?.id ?? ''
+  })
   const [lisaVastaukset, setLisaVastaukset] = useState({})
   const [kuvausAuki, setKuvausAuki] = useState(false)
   const [tietosuoja1, setTietosuoja1] = useState(false)
