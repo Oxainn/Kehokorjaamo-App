@@ -8,6 +8,16 @@ export default function Auth() {
   const [lataa, setLataa]         = useState(false)
   const [virhe, setVirhe]         = useState(null)
   const [viesti, setViesti]       = useState(null)
+  const [näytäSalasana, setNäytäSalasana] = useState(false)
+
+  const käännäVirhe = (error) => {
+    if (!error) return
+    const msg = error.message ?? ''
+    if (msg.includes('invalid'))  return setVirhe('Tarkista sähköpostiosoite')
+    if (msg.includes('already'))  return setVirhe('Sähköposti on jo käytössä')
+    if (msg.includes('weak'))     return setVirhe('Salasana on liian lyhyt (min 6 merkkiä)')
+    setVirhe('Virhe: ' + msg)
+  }
 
   const kirjaudu = async () => {
     setLataa(true)
@@ -16,7 +26,7 @@ export default function Auth() {
       email: sahkoposti,
       password: salasana,
     })
-    if (error) setVirhe(error.message)
+    käännäVirhe(error)
     setLataa(false)
   }
 
@@ -27,7 +37,7 @@ export default function Auth() {
       email: sahkoposti,
       password: salasana,
     })
-    if (error) setVirhe(error.message)
+    if (error) käännäVirhe(error)
     else setViesti('Tarkista sähköpostisi!')
     setLataa(false)
   }
@@ -71,15 +81,30 @@ export default function Auth() {
               <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">
                 Salasana
               </label>
-              <input
-                type="password"
-                value={salasana}
-                onChange={(e) => setSalasana(e.target.value)}
-                placeholder="••••••••"
-                required
-                autoComplete={tila === 'kirjaudu' ? 'current-password' : 'new-password'}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={näytäSalasana ? 'text' : 'password'}
+                  value={salasana}
+                  onChange={(e) => setSalasana(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                  autoComplete={tila === 'kirjaudu' ? 'current-password' : 'new-password'}
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+                  style={{ paddingRight: '44px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setNäytäSalasana(!näytäSalasana)}
+                  style={{
+                    position: 'absolute', right: '8px',
+                    top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none',
+                    cursor: 'pointer', fontSize: '18px', color: '#666',
+                  }}
+                >
+                  {näytäSalasana ? '🙈' : '👁️'}
+                </button>
+              </div>
             </div>
 
             {virhe && (
