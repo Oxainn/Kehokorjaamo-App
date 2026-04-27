@@ -31,6 +31,15 @@ const kayntiNav = [
   { id: 'jalkihoito',       nimi: 'Jälkihoito' },
 ]
 
+const normalisoiAsiakas = (a) => ({
+  ...a,
+  supabase_id:       a.id ?? a.supabase_id,
+  kontraindikaatiot: a.kontraindikaatiot ?? {},
+  merkinnät:         a.merkinnät         ?? {},
+  vastauksia:        a.vastauksia        ?? {},
+  havainnot:         a.havainnot         ?? {},
+})
+
 export default function App() {
   const [nakyma, setNakyma]           = useState('rekisteri')
   const [aktiivinen, setAktiivinen]   = useState('asiakastiedot')
@@ -107,7 +116,7 @@ export default function App() {
     }).select()
     if (error) console.error('Asiakas tallennus:', error)
     setEsitiedotLista(prev => prev.filter(e => e.id !== esitiedot.id))
-    setAsiakas({ ...esitiedot, supabase_id: data?.[0]?.id })
+    setAsiakas(normalisoiAsiakas({ ...esitiedot, id: data?.[0]?.id }))
     setAvattuEsitieto(null)
     setNakyma('kaynti')
     setAktiivinen('asiakastiedot')
@@ -265,14 +274,7 @@ export default function App() {
                 hoitajaId={hoitajaId}
                 esitiedotLista={esitiedotLista}
                 onValitseAsiakas={(a) => {
-                  setAsiakas({
-                    ...a,
-                    supabase_id:       a.id,
-                    kontraindikaatiot: a.kontraindikaatiot ?? {},
-                    merkinnät:         a.merkinnät         ?? {},
-                    vastauksia:        a.vastauksia        ?? {},
-                    havainnot:         a.havainnot         ?? {},
-                  })
+                  setAsiakas(normalisoiAsiakas(a))
                   setNakyma('kaynti')
                   setAktiivinen('asiakastiedot')
                 }}
