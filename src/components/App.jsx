@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase } from '../services/supabase'
 import { tallennaKaynti, tallennaAsiakas, haeAsiakkaat, haeKaynnitViikolle, haeUudetAsiakkaat, merkitseKasitellyksi } from '../lib/db'
 import Auth from './Auth'
 import ClientForm from './ClientForm'
@@ -91,6 +91,31 @@ export default function App() {
     setHavainnot(null)
     setFindings([])
     setActiveTab('clinical')
+  }
+
+  const tallennaHoitokaynti = async () => {
+    if (!asiakas?.supabase_id) return
+    try {
+      const { data, error } = await supabase
+        .from('hoitokaynit')
+        .insert({
+          asiakas_id:        asiakas.supabase_id,
+          pvm:               new Date().toISOString().split('T')[0],
+          havainnot:         havainnot,
+          findings:          findings,
+          hoitosuunnitelma:  treatmentPlan,
+          kuva_analyysit:    kuvaAnalyysiMittaukset,
+          jalkihoito:        null,
+          muistiinpanot:     null,
+        })
+        .select()
+      if (error) throw error
+      console.log('Hoitokäynti tallennettu:', data)
+      alert('Hoitokäynti tallennettu!')
+    } catch (err) {
+      console.error('Tallennus epäonnistui:', err)
+      alert('Tallennus epäonnistui — tarkista yhteys')
+    }
   }
 
   const tallennaKokoKaynti = async () => {
@@ -217,6 +242,22 @@ export default function App() {
             style={{ padding: '6px 14px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '500' }}
           >
             💾 Tallenna käynti
+          </button>
+          <button
+            onClick={tallennaHoitokaynti}
+            disabled={!asiakas?.supabase_id}
+            style={{
+              padding: '10px 20px',
+              background: asiakas?.supabase_id ? '#1D9E75' : '#e2e8f0',
+              color: asiakas?.supabase_id ? 'white' : '#999',
+              border: 'none',
+              borderRadius: '8px',
+              fontSize: '13px',
+              fontWeight: '500',
+              cursor: asiakas?.supabase_id ? 'pointer' : 'not-allowed',
+            }}
+          >
+            💾 Tallenna hoitokäynti
           </button>
         </div>
       )}
