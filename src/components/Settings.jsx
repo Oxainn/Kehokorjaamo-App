@@ -191,24 +191,30 @@ export default function Settings() {
     return tallennettu.map(p => ({ ...p, lomake: p.lomake ?? { ...TYHJÄ_PALVELU_LOMAKE } }))
   })
   const [muokkausId, setMuokkausId] = useState(null)
+  const [tallennettuPalvelut, setTallennettuPalvelut] = useState(false)
+
+  const tallennaPalvelut = (lista = palvelut) => {
+    tallennnaOsa('palvelut', lista)
+    setTallennettuPalvelut(true)
+    setTimeout(() => setTallennettuPalvelut(false), 2000)
+  }
 
   const lisääPalvelu = () => {
     const uusi = { id: 'p' + Date.now(), nimi: 'Uusi palvelu', kuvaus: '', aktiivinen: true, lomake: { ...TYHJÄ_PALVELU_LOMAKE } }
     const päivitetty = [...palvelut, uusi]
     setPalvelut(päivitetty)
-    tallennnaOsa('palvelut', päivitetty)
+    tallennaPalvelut(päivitetty)
   }
 
   const poistaPalvelu = (id) => {
     const päivitetty = palvelut.filter(p => p.id !== id)
     setPalvelut(päivitetty)
-    tallennnaOsa('palvelut', päivitetty)
+    tallennaPalvelut(päivitetty)
   }
 
   const päivitäPalvelu = (id, kenttä, arvo) => {
     const päivitetty = palvelut.map(p => p.id === id ? { ...p, [kenttä]: arvo } : p)
     setPalvelut(päivitetty)
-    tallennnaOsa('palvelut', päivitetty)
   }
 
   // ── Lomakerakentaja ───────────────────────────────────────────────────────
@@ -588,13 +594,26 @@ export default function Settings() {
               </div>
             ))}
 
-            <button onClick={lisääPalvelu}
+            <button type="button" onClick={lisääPalvelu}
               style={{padding:'8px',fontSize:'13px',
                 border:'1px dashed #CBD5E1',
                 borderRadius:'8px',cursor:'pointer',
                 background:'transparent',color:'#666'}}>
               + Lisää palvelu
             </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingTop: '4px', borderTop: '1px solid #f1f5f9', marginTop: '4px' }}>
+              <button
+                type="button"
+                onClick={() => tallennaPalvelut()}
+                style={{ padding: '8px 20px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}
+              >
+                Tallenna palvelut
+              </button>
+              {tallennettuPalvelut && (
+                <span style={{ fontSize: '13px', color: '#16a34a', fontWeight: '500' }}>Tallennettu!</span>
+              )}
+            </div>
 
           </div>
         }
