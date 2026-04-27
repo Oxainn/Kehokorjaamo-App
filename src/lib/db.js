@@ -120,3 +120,43 @@ export const haeKaynnitViikolle = async () => {
   }
   return data.length
 }
+
+export const tallennaUusiAsiakas = async (data) => {
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { error } = await supabase
+    .from('uudet_asiakkaat')
+    .insert({
+      hoitaja_id:  user.id,
+      nimi:        data.nimi,
+      sahkoposti:  data.sahkoposti,
+      puhelin:     data.puhelin,
+      palvelu:     data.palvelu ?? 'Kalevalainen jäsenkorjaus',
+      hoitoon_syy: data.hoitoon_syy,
+      kipuaste:    data.kipuaste ?? 0,
+    })
+
+  if (error) {
+    console.error('Tallennus epäonnistui:', error)
+    return false
+  }
+  return true
+}
+
+export const haeUudetAsiakkaat = async () => {
+  const { data, error } = await supabase
+    .from('uudet_asiakkaat')
+    .select('*')
+    .eq('kasitelty', false)
+    .order('luotu', { ascending: false })
+
+  if (error) return []
+  return data
+}
+
+export const merkitseKasitellyksi = async (id) => {
+  await supabase
+    .from('uudet_asiakkaat')
+    .update({ kasitelty: true })
+    .eq('id', id)
+}
