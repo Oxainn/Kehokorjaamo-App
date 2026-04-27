@@ -62,20 +62,35 @@ export default function AsiakasHistoria({ asiakas }) {
                       <p style={{ fontSize: '11px', color: '#999', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         Havainnot
                       </p>
-                      <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', margin: 0, color: '#374151' }}>
-                        {JSON.stringify(k.havainnot, null, 2)}
-                      </pre>
+                      {Object.entries(k.havainnot)
+                        .filter(([, v]) => v && v !== '')
+                        .map(([avain, arvo]) => (
+                          <div key={avain} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
+                            <span style={{ fontSize: '12px', color: '#999', minWidth: '120px', textTransform: 'capitalize' }}>
+                              {avain.replace(/_/g, ' ')}
+                            </span>
+                            <span style={{ fontSize: '12px', color: '#333', flex: 1 }}>
+                              {arvo}
+                            </span>
+                          </div>
+                        ))
+                      }
                     </div>
                   )}
 
-                  {k.loyodokset && (
+                  {k.loyodokset && Array.isArray(k.loyodokset) && (
                     <div style={{ marginBottom: '8px' }}>
                       <p style={{ fontSize: '11px', color: '#999', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         Löydökset
                       </p>
-                      <pre style={{ fontSize: '12px', whiteSpace: 'pre-wrap', margin: 0, color: '#374151' }}>
-                        {JSON.stringify(k.loyodokset, null, 2)}
-                      </pre>
+                      {k.loyodokset.map((l, i) => (
+                        <div key={i} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0', fontSize: '12px', color: '#333' }}>
+                          <span style={{ fontWeight: '500' }}>{l.alue}</span>
+                          {l.kallistus && ` — kallistus ${l.kallistus}`}
+                          {l.kierto && ` — kierto ${l.kierto}`}
+                          {l.kipu > 0 && ` — VAS ${l.kipu}`}
+                        </div>
+                      ))}
                     </div>
                   )}
 
