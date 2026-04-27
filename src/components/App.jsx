@@ -28,74 +28,6 @@ const NAV_ITEMS_BASE = [
   { id: 'settings',  label: 'Asetukset' },
 ]
 
-function lueEsitiedot() {
-  return Object.keys(localStorage)
-    .filter(k => k.startsWith('esitiedot_'))
-    .map(k => ({ ...JSON.parse(localStorage.getItem(k)), _key: k }))
-    .sort((a, b) => b._key.localeCompare(a._key))
-}
-
-function EsitiedotPane({ lista, onAvaa, onPoista, onTyhjennä, onSulje }) {
-  if (!lista.length) return null
-  return (
-    <div className="absolute right-0 top-full mt-2 w-96 bg-white rounded-xl shadow-lg border border-gray-200 z-50 overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <span className="text-sm font-semibold text-gray-800">
-          Odottavat esitiedot
-          <span className="ml-2 bg-orange-100 text-orange-700 text-xs font-bold px-2 py-0.5 rounded-full">
-            {lista.length}
-          </span>
-        </span>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onTyhjennä}
-            className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-          >
-            Tyhjennä kaikki
-          </button>
-          <button onClick={onSulje} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
-        </div>
-      </div>
-      <ul className="divide-y divide-gray-100 max-h-[28rem] overflow-y-auto">
-        {lista.map(e => (
-          <li key={e._key} className="px-4 py-4">
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-gray-800">
-                  {e.nimi}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {new Date(e.aikaleima).toLocaleString('fi-FI', {
-                    day: 'numeric', month: 'numeric', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit',
-                  })}
-                </p>
-              </div>
-              <button
-                onClick={() => onPoista(e)}
-                className="flex-shrink-0 text-xs text-gray-400 hover:text-red-500 transition-colors"
-              >
-                Poista
-              </button>
-            </div>
-            {e.hoitoon_syy && (
-              <p className="text-xs text-gray-500 leading-relaxed mb-3 line-clamp-3">
-                {e.hoitoon_syy}
-              </p>
-            )}
-            <button
-              onClick={() => onAvaa(e)}
-              className="w-full py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-semibold rounded-lg transition-colors"
-            >
-              Avaa asiakkaana →
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
-
 export default function App() {
   const [activeTab, setActiveTab]         = useState('koti')
   const [asiakas, setAsiakas]             = useState(null)
@@ -104,8 +36,6 @@ export default function App() {
   const [analysisKey, setAnalysisKey]     = useState(0)
   const [highlights, setHighlights]       = useState([])
   const [treatmentPlan, setTreatmentPlan] = useState(null)
-  const [esitiedot, setEsitiedot]         = useState([])
-  const [paneAuki, setPaneAuki]           = useState(false)
   const [kuvaAnalyysiMittaukset, setKuvaAnalyysiMittaukset] = useState([])
   const [asiakasLista, setAsiakasLista]     = useState([])
   const [kaynteja, setKaynteja]             = useState(0)
@@ -170,19 +100,6 @@ export default function App() {
     setKayttaja(null)
   }
 
-  useEffect(() => {
-    const tarkista = () => setEsitiedot(lueEsitiedot())
-    tarkista()
-    window.addEventListener('storage', tarkista)
-    window.addEventListener('focus', tarkista)
-    const interval = setInterval(tarkista, 3000)
-    return () => {
-      window.removeEventListener('storage', tarkista)
-      window.removeEventListener('focus', tarkista)
-      clearInterval(interval)
-    }
-  }, [])
-
   const handleAsiakas = (asiakasData) => {
     setAsiakas(asiakasData)
     päivitäLista()
@@ -203,55 +120,6 @@ export default function App() {
   const handleResult = (plan) => {
     setTreatmentPlan(plan)
     setHighlights(plan?.toimenpiteet?.map(t => t.rakenne).filter(Boolean) ?? [])
-  }
-
-  const tyhjennäKaikki = () => {
-    Object.keys(localStorage)
-      .filter(k => k.startsWith('esitiedot_'))
-      .forEach(k => localStorage.removeItem(k))
-    setEsitiedot([])
-    setPaneAuki(false)
-  }
-
-  const poistaEsitiedot = (esitietoEntry) => {
-    localStorage.removeItem(esitietoEntry._key)
-    setEsitiedot(lueEsitiedot())
-  }
-
-  const avaaNäkymä = (esitietoEntry) => {
-    localStorage.removeItem(esitietoEntry._key)
-    setEsitiedot(lueEsitiedot())
-    setPaneAuki(false)
-
-    const asiakasData = {
-      nimi:                esitietoEntry.nimi                ?? '',
-      syntymaaika:         esitietoEntry.syntymaaika         ?? '',
-      lahiosoite:          esitietoEntry.lahiosoite          ?? '',
-      postinumero:         esitietoEntry.postinumero         ?? '',
-      postitoimipaikka:    esitietoEntry.postitoimipaikka    ?? '',
-      sahkoposti:          esitietoEntry.sahkoposti          ?? '',
-      puhelin:             esitietoEntry.puhelin             ?? '',
-      pituus:              esitietoEntry.pituus              ?? '',
-      paino:               esitietoEntry.paino               ?? '',
-      ammatti:             esitietoEntry.ammatti             ?? '',
-      harrastukset:        esitietoEntry.harrastukset        ?? '',
-      hoitoon_syy:         esitietoEntry.hoitoon_syy         ?? '',
-      laakitys:            esitietoEntry.laakitys            ?? '',
-      miten_loysi:         esitietoEntry.miten_loysi         ?? '',
-      kipuaste:            esitietoEntry.kipuaste            ?? 0,
-      kontraindikaatiot:   esitietoEntry.kontraindikaatiot   ?? {},
-      allergia_lisatieto:  esitietoEntry.allergia_lisatieto  ?? '',
-      tekonivel_lisatieto: esitietoEntry.tekonivel_lisatieto ?? '',
-      raskaus_lisatieto:   esitietoEntry.raskaus_lisatieto   ?? '',
-      merkinnät:           esitietoEntry.merkinnät           ?? {},
-    }
-
-    // Ref takaa että ClientForm saa datan heti mountissa
-    // ennen kuin React-tila ehtii propagoitua
-    esitäytöRef.current = asiakasData
-    setEsitäytöData(asiakasData)
-    setClientFormKey(k => k + 1)
-    setActiveTab('client')
   }
 
   if (lataaAuth) return (
@@ -404,10 +272,22 @@ export default function App() {
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
                             onClick={async () => {
+                              const uusiAsiakas = {
+                                nimi: u.nimi,
+                                sahkoposti: u.sahkoposti,
+                                puhelin: u.puhelin,
+                                hoitoon_syy: u.hoitoon_syy,
+                                kipuaste: u.kipuaste,
+                                supabase_id: null,
+                              }
                               await merkitseKasitellyksi(u.id)
                               setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
-                              setAsiakas({ nimi: u.nimi, sahkoposti: u.sahkoposti, puhelin: u.puhelin, hoitoon_syy: u.hoitoon_syy, kipuaste: u.kipuaste })
-                              setActiveTab('client')
+                              setAsiakas(null)
+                              setActiveTab('koti')
+                              requestAnimationFrame(() => {
+                                setAsiakas(uusiAsiakas)
+                                setActiveTab('client')
+                              })
                             }}
                             style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer', fontWeight: '500', flex: 1 }}
                           >
