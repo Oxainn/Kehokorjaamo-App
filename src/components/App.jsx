@@ -82,6 +82,38 @@ export default function App() {
 
   const päivitäLista = () => haeAsiakkaat().then(setAsiakasLista)
 
+  const avaaAsiakkaana = async (esitiedot) => {
+    await supabase.from('esitiedot').update({ kasitelty: true }).eq('id', esitiedot.id)
+
+    const { data, error } = await supabase
+      .from('asiakkaat')
+      .insert({
+        nimi:              esitiedot.nimi,
+        syntymaaika:       esitiedot.syntymaaika || null,
+        sahkoposti:        esitiedot.sahkoposti,
+        puhelin:           esitiedot.puhelin,
+        hoitoon_syy:       esitiedot.hoitoon_syy,
+        kontraindikaatiot: esitiedot.kontraindikaatiot,
+        merkinnät:         esitiedot.merkinnät,
+        hoitaja_id:        kayttaja?.id,
+      })
+      .select()
+
+    if (error) {
+      console.error('Asiakas tallennus:', error)
+    } else {
+      console.log('Asiakas tallennettu:', data)
+    }
+
+    setAsiakas({ ...esitiedot, supabase_id: data?.[0]?.id })
+    setUudetAsiakkaat(prev => prev.filter(e => e.id !== esitiedot.id))
+    setAvattuEsitieto(null)
+    päivitäLista()
+    setActiveTab('client')
+    setVahvistusViesti(`${esitiedot.nimi} tallennettu!`)
+    setTimeout(() => setVahvistusViesti(''), 3000)
+  }
+
   const kayntejaTallaViikolla = () => {
     const viikkoAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     return asiakasLista.filter(a =>
@@ -333,21 +365,7 @@ export default function App() {
                             Avaa esitiedot
                           </button>
                           <button
-                            onClick={async () => {
-                              const uusi = await tallennaAsiakas({
-                                nimi:        u.nimi,
-                                sahkoposti:  u.sahkoposti,
-                                puhelin:     u.puhelin,
-                                hoitoon_syy: u.hoitoon_syy,
-                              })
-                              if (uusi) {
-                                await supabase.from('esitiedot').update({ kasitelty: true }).eq('id', u.id)
-                                setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
-                                await haeAsiakkaat().then(setAsiakasLista)
-                                setVahvistusViesti(`${u.nimi} tallennettu!`)
-                                setTimeout(() => setVahvistusViesti(''), 3000)
-                              }
-                            }}
+                            onClick={() => avaaAsiakkaana(u)}
                             style={{ flex: 1, padding: '8px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
                           >
                             Tallenna asiakkaaksi →
@@ -409,23 +427,7 @@ export default function App() {
             <EsitietoKatselu
               esitiedot={avattuEsitieto}
               onSulje={() => setActiveTab('koti')}
-              onTallennaAsiakkaaksi={async (e) => {
-                const uusi = await tallennaAsiakas({
-                  nimi:        e.nimi,
-                  sahkoposti:  e.sahkoposti,
-                  puhelin:     e.puhelin,
-                  hoitoon_syy: e.hoitoon_syy,
-                })
-                if (uusi) {
-                  await supabase.from('esitiedot').update({ kasitelty: true }).eq('id', e.id)
-                  setUudetAsiakkaat(prev => prev.filter(x => x.id !== e.id))
-                  await haeAsiakkaat().then(setAsiakasLista)
-                  setAvattuEsitieto(null)
-                  setActiveTab('koti')
-                  setVahvistusViesti(`${e.nimi} tallennettu!`)
-                  setTimeout(() => setVahvistusViesti(''), 3000)
-                }
-              }}
+              onTallennaAsiakkaaksi={avaaAsiakkaana}
             />
           )}
         </div>
