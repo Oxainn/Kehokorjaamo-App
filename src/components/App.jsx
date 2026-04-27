@@ -311,14 +311,8 @@ export default function App() {
             </div>
           )}
           <Asiakasrekisteri
-            onAvaaAsiakas={avaaAsiakas}
-            onAvaaKaynti={(a, k) => avaaKaynti(k, a)}
-            onUusiKaynti={(a) => {
-              setAsiakas({ ...a, supabase_id: a.id })
-              setHavainnot(null)
-              setFindings([])
-              setActiveTab('havainnot')
-            }}
+            onValitseAsiakas={avaaAsiakas}
+            hoitajaId={hoitajaId}
           />
         </div>
 
