@@ -174,10 +174,6 @@ export default function Esitiedot() {
     setLataa(true)
 
     try {
-      console.log('Lähetetään esitiedot:', {
-        nimi: data.nimi,
-        sahkoposti: data.sahkoposti,
-      })
       const { data: tallennettu, error } = await supabase
         .from('esitiedot')
         .insert({
@@ -195,9 +191,7 @@ export default function Esitiedot() {
         .select()
 
       if (error) throw error
-      console.log('Esitiedot tallennettu:', tallennettu)
     } catch (err) {
-      console.error('Virhe:', err)
       alert('Virhe: ' + err?.message)
     }
 

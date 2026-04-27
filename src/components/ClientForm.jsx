@@ -493,12 +493,6 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
   const tulostaVahvistettu = () => { setEsikatselu(false); window.print() }
 
   const tallennaAsiakas = async () => {
-    console.log('tallennaAsiakas kutsuttu', {
-      nimi: data.nimi,
-      suostumus: data.suostumus_rekisteri,
-      ehdoton: ehdotonValittu,
-      hoitajaId: hoitajaId,
-    })
     setYritettyLähettää(true)
     if (!data.nimi.trim() || !data.suostumus_rekisteri || ehdotonValittu) return
     setTallentaa(true)
@@ -521,8 +515,6 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
         .select()
 
       if (error) throw error
-
-      console.log('Asiakas tallennettu:', tallennettu)
 
       const asiakasDataOut = { ...data, supabase_id: tallennettu[0].id }
       localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(asiakasDataOut))

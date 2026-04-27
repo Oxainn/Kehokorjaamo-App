@@ -9,17 +9,14 @@ export default function Asiakasrekisteri({ onValitseAsiakas, onEsikatseluAsiakas
   useEffect(() => {
     const haeAsiakkaat = async () => {
       if (!hoitajaId) {
-        console.log('hoitajaId puuttuu — odotetaan')
         setLataa(false)
         return
       }
-      console.log('Haetaan hoitajaId:', hoitajaId)
       const { data, error } = await supabase
         .from('asiakkaat')
         .select('*')
         .eq('hoitaja_id', hoitajaId)
         .order('luotu', { ascending: false })
-      console.log('Data:', data, 'Error:', error)
       if (!error) setAsiakkaat(data ?? [])
       setLataa(false)
     }

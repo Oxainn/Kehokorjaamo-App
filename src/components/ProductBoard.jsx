@@ -182,11 +182,8 @@ export default function ProductBoard({ hoitajaId = null }) {
 
   // ── Supabase: tallenna automaattisesti muutoksilla (debounce 1.5 s) ────────
   const tallennaProductBoard = async (data) => {
-    if (!hoitajaId) {
-      console.log('Ei hoitajaId — ohitetaan tallennus')
-      return
-    }
-    const { error } = await supabase
+    if (!hoitajaId) return
+    await supabase
       .from('productboard')
       .upsert({
         hoitaja_id: hoitajaId,
@@ -195,7 +192,6 @@ export default function ProductBoard({ hoitajaId = null }) {
         todo:       data.tehtävät,
         changelog:  data.changelog,
       }, { onConflict: 'hoitaja_id', ignoreDuplicates: false })
-    if (error) console.error('ProductBoard tallennus:', error)
   }
 
   const debounceRef = useRef(null)

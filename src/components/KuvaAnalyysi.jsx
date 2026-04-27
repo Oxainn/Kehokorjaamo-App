@@ -405,7 +405,6 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
       kulma,
       pvm:   new Date().toISOString(),
     }
-    console.log('Tallennetaan mittaus:', uusi)
     setMittaukset(prev => [...prev, uusi])
     setPisteet([])
     setNykyinenKulma(null)
@@ -423,7 +422,6 @@ export default function KuvaAnalyysi({ asiakasId, onTallenna }) {
     const avain   = 'kuva_analyysi_' + (asiakasId || 'testi')
     const aiemmat = JSON.parse(localStorage.getItem(avain) || '[]')
     localStorage.setItem(avain, JSON.stringify([...aiemmat, data]))
-    console.log('Kutsutaan onTallenna:', data)
     onTallenna?.(data)
     alert('Tallennettu! ' + mittaukset.length + ' mittausta.')
   }

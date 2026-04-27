@@ -348,7 +348,7 @@ export default function App() {
             )}
             {aktiivinen === 'jalkihoito' && (
               <div>
-                <Aftercare findings={findings} treatmentPlan={treatmentPlan} asiakas={asiakas} />
+                <Aftercare findings={findings} treatmentPlan={treatmentPlan} />
                 <div style={{ marginTop: '32px', padding: '20px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div>
                     <p style={{ fontSize: '14px', fontWeight: '600', color: '#111827', margin: '0 0 2px' }}>Tallenna hoitokäynti</p>
