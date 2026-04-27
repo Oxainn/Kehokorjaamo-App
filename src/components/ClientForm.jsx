@@ -487,10 +487,8 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
     e.preventDefault()
     setYritettyLähettää(true)
     if (!data.nimi.trim() || !data.suostumus_rekisteri || ehdotonValittu) return
-    console.log('Vahvista painettu, data:', data)
     setTallentaa(true)
     const tallennettu = await tallennaAsiakas(data)
-    console.log('Tallennus tulos:', tallennettu)
     setTallentaa(false)
     if (tallennettu) {
       const asiakasData = { ...data, supabase_id: tallennettu.id }
