@@ -52,10 +52,18 @@ export default function App() {
   useEffect(() => {
     const url = new URL(window.location.href)
     const error = url.searchParams.get('error')
-    if (error) {
-      window.history.replaceState({}, '', '/')
-      setLataaAuth(false)
-      setKayttaja(null)
+    const code  = url.searchParams.get('code')
+    const state = url.searchParams.get('state')
+
+    if (error || code || state) {
+      setTimeout(() => {
+        window.history.replaceState({}, '', '/')
+      }, 100)
+
+      if (error) {
+        setLataaAuth(false)
+        setKayttaja(null)
+      }
     }
   }, [])
 
