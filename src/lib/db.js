@@ -80,3 +80,28 @@ export const haeKaynit = async (asiakasId) => {
   }
   return data
 }
+
+export const haeAsiakkaatKaynneilla = async () => {
+  const { data, error } = await supabase
+    .from('asiakkaat')
+    .select(`
+      *,
+      hoitokaynit (
+        id,
+        pvm
+      )
+    `)
+    .order('luotu', { ascending: false })
+
+  if (error) {
+    console.error('Haku epäonnistui:', error)
+    return []
+  }
+
+  return data.map(a => ({
+    ...a,
+    viimeisinKaynti: a.hoitokaynit
+      ?.sort((x, y) => new Date(y.pvm) - new Date(x.pvm))[0]?.pvm ?? null,
+    kaynteja: a.hoitokaynit?.length ?? 0,
+  }))
+}
