@@ -500,23 +500,17 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
       const { data: tallennettu, error } = await supabase
         .from('asiakkaat')
         .insert({
+          hoitaja_id:        hoitajaId,
           nimi:              data.nimi,
-          syntymaaika:       data.syntymaaika,
+          syntymaaika:       data.syntymaaika || null,
           sahkoposti:        data.sahkoposti,
           puhelin:           data.puhelin,
           lahiosoite:        data.lahiosoite,
           postinumero:       data.postinumero,
           postitoimipaikka:  data.postitoimipaikka,
           ammatti:           data.ammatti,
-          pituus:            data.pituus,
-          paino:             data.paino,
-          hoitoon_syy:       data.hoitoon_syy,
-          laakitys:          data.laakitys,
-          harrastukset:      data.harrastukset,
-          miten_loysi:       data.miten_loysi,
-          kontraindikaatiot: data.kontraindikaatiot,
-          merkinnät:         data.merkinnät,
-          hoitaja_id:        hoitajaId,
+          pituus:            data.pituus || null,
+          paino:             data.paino || null,
         })
         .select()
 

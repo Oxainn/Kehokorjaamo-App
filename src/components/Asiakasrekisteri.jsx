@@ -18,7 +18,7 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
         .from('asiakkaat')
         .select('*')
         .eq('hoitaja_id', hoitajaId)
-        .order('created_at', { ascending: false })
+        .order('luotu', { ascending: false })
       console.log('Data:', data, 'Error:', error)
       if (!error) setAsiakkaat(data ?? [])
       setLataa(false)
