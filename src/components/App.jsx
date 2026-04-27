@@ -61,9 +61,24 @@ export default function App() {
     if (kayttaja) {
       haeAsiakkaat().then(setAsiakasLista)
       haeKaynnitViikolle().then(setKaynteja)
-      haeUudetAsiakkaat().then(setUudetAsiakkaat)
     }
   }, [kayttaja])
+
+  const tarkistaEsitiedot = async () => {
+    const { data, error } = await supabase
+      .from('esitiedot')
+      .select()
+      .eq('kasitelty', false)
+      .order('created_at', { ascending: false })
+    if (error) { console.error('Esitiedot haku:', error); return }
+    setUudetAsiakkaat(data ?? [])
+  }
+
+  useEffect(() => {
+    tarkistaEsitiedot()
+    const interval = setInterval(tarkistaEsitiedot, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   const päivitäLista = () => haeAsiakkaat().then(setAsiakasLista)
 
@@ -326,7 +341,7 @@ export default function App() {
                                 hoitoon_syy: u.hoitoon_syy,
                               })
                               if (uusi) {
-                                await merkitseKasitellyksi(u.id)
+                                await supabase.from('esitiedot').update({ kasitelty: true }).eq('id', u.id)
                                 setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
                                 await haeAsiakkaat().then(setAsiakasLista)
                                 setVahvistusViesti(`${u.nimi} tallennettu!`)
@@ -402,7 +417,7 @@ export default function App() {
                   hoitoon_syy: e.hoitoon_syy,
                 })
                 if (uusi) {
-                  await merkitseKasitellyksi(e.id)
+                  await supabase.from('esitiedot').update({ kasitelty: true }).eq('id', e.id)
                   setUudetAsiakkaat(prev => prev.filter(x => x.id !== e.id))
                   await haeAsiakkaat().then(setAsiakasLista)
                   setAvattuEsitieto(null)
