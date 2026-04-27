@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react'
 import { haeKaynit } from '../lib/db'
 
+const renderArvo = (arvo) => {
+  if (typeof arvo === 'boolean')
+    return arvo ? 'Kyllä' : 'Ei'
+  if (typeof arvo === 'object' && arvo !== null)
+    return Object.entries(arvo)
+      .filter(([, v]) => v && v !== false)
+      .map(([k, v]) => `${k}: ${typeof v === 'boolean' ? (v ? 'kyllä' : 'ei') : v}`)
+      .join(', ')
+  return arvo
+}
+
 export default function AsiakasHistoria({ asiakas }) {
   const [kaynit, setKaynit]           = useState([])
   const [lataa, setLataa]             = useState(true)
@@ -67,14 +78,18 @@ export default function AsiakasHistoria({ asiakas }) {
                         Havainnot
                       </p>
                       {Object.entries(k.havainnot)
-                        .filter(([, v]) => v && v !== '')
+                        .filter(([, v]) => {
+                          if (!v) return false
+                          if (typeof v === 'object') return Object.values(v).some(x => x && x !== false)
+                          return v !== ''
+                        })
                         .map(([avain, arvo]) => (
-                          <div key={avain} style={{ display: 'flex', gap: '8px', padding: '3px 0', fontSize: '12px' }}>
-                            <span style={{ color: '#999', minWidth: '130px' }}>
+                          <div key={avain} style={{ display: 'flex', gap: '8px', padding: '4px 0', fontSize: '12px', borderBottom: '1px solid #f5f5f5' }}>
+                            <span style={{ color: '#999', minWidth: '140px', textTransform: 'capitalize' }}>
                               {avain.replace(/_/g, ' ')}
                             </span>
-                            <span style={{ color: '#333' }}>
-                              {typeof arvo === 'object' ? JSON.stringify(arvo) : arvo}
+                            <span style={{ color: '#333', flex: 1 }}>
+                              {renderArvo(arvo)}
                             </span>
                           </div>
                         ))
