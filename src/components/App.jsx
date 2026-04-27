@@ -41,7 +41,6 @@ export default function App() {
   const [highlights, setHighlights]   = useState([])
   const [treatmentPlan, setTreatmentPlan] = useState(null)
   const [kuvaAnalyysiMittaukset, setKuvaAnalyysiMittaukset] = useState([])
-  const [uudetAsiakkaat, setUudetAsiakkaat] = useState([])
   const [avattuEsitieto, setAvattuEsitieto] = useState(null)
   const [kayntiPvm, setKayntiPvm]     = useState(new Date().toISOString().split('T')[0])
   const [vahvistusViesti, setVahvistusViesti] = useState('')
@@ -59,17 +58,6 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  useEffect(() => {
-    const tarkista = async () => {
-      const { data, error } = await supabase
-        .from('esitiedot').select()
-        .eq('kasitelty', false).order('created_at', { ascending: false })
-      if (!error) setUudetAsiakkaat(data ?? [])
-    }
-    tarkista()
-    const interval = setInterval(tarkista, 10000)
-    return () => clearInterval(interval)
-  }, [])
 
   const hoitajaId = kayttaja?.id
 
@@ -220,36 +208,6 @@ export default function App() {
             </div>
           ) : (
             <div>
-              {uudetAsiakkaat.length > 0 && (
-                <div style={{ marginBottom: '24px' }}>
-                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#085041', margin: '0 0 8px' }}>
-                    Odottavat esitiedot — {uudetAsiakkaat.length}
-                  </p>
-                  {uudetAsiakkaat.map(u => (
-                    <div key={u.id} style={{ padding: '12px', border: '1px solid #9FE1CB', borderRadius: '8px', background: '#E1F5EE', marginBottom: '8px' }}>
-                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#085041', margin: '0 0 2px' }}>{u.nimi}</p>
-                      <p style={{ fontSize: '11px', color: '#0F6E56', margin: '0 0 8px' }}>{u.palvelu} · {u.sahkoposti}</p>
-                      {u.hoitoon_syy && (
-                        <p style={{ fontSize: '11px', color: '#0F6E56', margin: '0 0 8px', fontStyle: 'italic' }}>"{u.hoitoon_syy}"</p>
-                      )}
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          onClick={() => setAvattuEsitieto(u)}
-                          style={{ flex: 1, padding: '8px', background: 'transparent', color: '#085041', border: '1px solid #1D9E75', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
-                        >
-                          Avaa esitiedot
-                        </button>
-                        <button
-                          onClick={() => avaaAsiakkaana(u)}
-                          style={{ flex: 1, padding: '8px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
-                        >
-                          Tallenna asiakkaaksi →
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
               <Asiakasrekisteri
                 hoitajaId={hoitajaId}
                 onValitseAsiakas={(a) => {
