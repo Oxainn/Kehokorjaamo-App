@@ -54,7 +54,8 @@ export default function App() {
     const error = url.searchParams.get('error')
     if (error) {
       window.history.replaceState({}, '', '/')
-      supabase.auth.signOut()
+      setLataaAuth(false)
+      setKayttaja(null)
     }
   }, [])
 
