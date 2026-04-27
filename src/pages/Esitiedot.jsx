@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
+import { tallennaUusiAsiakas } from '../lib/db'
 
 const NORMAALI_KONTRA = [
   'Allergia', 'Diabetes', 'Epilepsia', 'Migreeni',
@@ -97,6 +98,7 @@ function Osio({ otsikko, lapset }) {
 export default function Esitiedot() {
   const [data, setData]               = useState(TYHJÄ)
   const [lähetetty, setLähetetty]     = useState(false)
+  const [lataa, setLataa]             = useState(false)
   const [yritettyLähettää, setYritettyLähettää] = useState(false)
   const [valittuPiirto, setValittuPiirto] = useState(1)
 
@@ -142,10 +144,20 @@ export default function Esitiedot() {
   const ehdotonValittu = EHDOTTOMAT_KONTRA.some(e => data.kontraindikaatiot[e])
   const voidaanLähettää = data.nimi.trim() && !ehdotonValittu
 
-  const lähetä = (e) => {
+  const lähetä = async (e) => {
     e.preventDefault()
     setYritettyLähettää(true)
     if (!voidaanLähettää) return
+    setLataa(true)
+
+    await tallennaUusiAsiakas({
+      nimi:        data.nimi,
+      sahkoposti:  data.sahkoposti,
+      puhelin:     data.puhelin,
+      palvelu:     valittuPalvelu,
+      hoitoon_syy: data.hoitoon_syy,
+      kipuaste:    data.kipuaste ?? 0,
+    })
 
     const avain = 'esitiedot_' + Date.now()
     const tallennettava = {
@@ -176,14 +188,15 @@ export default function Esitiedot() {
     }
     localStorage.setItem(avain, JSON.stringify(tallennettava))
 
+    setLataa(false)
+    setLähetetty(true)
+
     const asetukset = JSON.parse(localStorage.getItem('kehokorjaamo_asetukset') || '{}')
     const varausUrl = asetukset.integraatiot?.vello
       || asetukset.integraatiot?.calendly
       || asetukset.integraatiot?.omanettisivu
       || 'https://vello.fi/kalevalapaja'
     window.open(varausUrl, '_blank')
-
-    setLähetetty(true)
   }
 
   const väri = kipuVari(data.kipuaste)
