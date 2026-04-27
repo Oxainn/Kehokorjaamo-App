@@ -160,3 +160,21 @@ export const merkitseKasitellyksi = async (id) => {
     .update({ kasitelty: true })
     .eq('id', id)
 }
+
+export const poistaAsiakas = async (id) => {
+  await supabase
+    .from('hoitokaynit')
+    .delete()
+    .eq('asiakas_id', id)
+
+  const { error } = await supabase
+    .from('asiakkaat')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Poisto epäonnistui:', error)
+    return false
+  }
+  return true
+}

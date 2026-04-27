@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { haeAsiakkaatKaynneilla } from '../lib/db'
+import { haeAsiakkaatKaynneilla, poistaAsiakas } from '../lib/db'
 
 export default function Asiakasrekisteri({ onAvaaAsiakas }) {
   const [asiakkaat, setAsiakkaat] = useState([])
@@ -132,6 +132,18 @@ export default function Asiakasrekisteri({ onAvaaAsiakas }) {
                       : 'Ei käyntejä'}
                   </p>
                 </div>
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation()
+                    if (window.confirm(`Poistetaanko ${a.nimi} asiakasrekisteristä?\nTämä poistaa myös kaikki hoitokäynnit!`)) {
+                      await poistaAsiakas(a.id)
+                      setAsiakkaat(prev => prev.filter(x => x.id !== a.id))
+                    }
+                  }}
+                  style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', border: '1px solid #F09595', background: 'transparent', color: '#A32D2D', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  Poista
+                </button>
               </div>
             ))}
           </div>
