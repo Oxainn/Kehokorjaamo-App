@@ -154,7 +154,7 @@ export default function Esitiedot() {
       nimi:        data.nimi,
       sahkoposti:  data.sahkoposti,
       puhelin:     data.puhelin,
-      palvelu:     valittuPalvelu,
+      palvelu:     aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.nimi ?? 'Kalevalainen jäsenkorjaus',
       hoitoon_syy: data.hoitoon_syy,
       kipuaste:    data.kipuaste ?? 0,
     })
@@ -183,7 +183,7 @@ export default function Esitiedot() {
       raskaus_lisatieto:   data.raskaus_lisatieto,
       merkinnät:           data.merkinnät,
       lisaVastaukset:      lisaVastaukset,
-      palvelu:             valittuPalvelu,
+      palvelu:             aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.nimi ?? 'Kalevalainen jäsenkorjaus',
       aikaleima:           new Date().toISOString(),
     }
     localStorage.setItem(avain, JSON.stringify(tallennettava))

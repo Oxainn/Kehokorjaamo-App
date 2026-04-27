@@ -13,7 +13,6 @@ import ProductBoard from './ProductBoard'
 import KuvaAnalyysi from './KuvaAnalyysi'
 import AsiakasHistoria from './AsiakasHistoria'
 import Asiakasrekisteri from './Asiakasrekisteri'
-import EsitietoKatselu from './EsitietoKatselu'
 
 const NAV_ITEMS_BASE = [
   { id: 'koti',      label: 'Koti' },
@@ -41,7 +40,6 @@ export default function App() {
   const [asiakasLista, setAsiakasLista]     = useState([])
   const [kaynteja, setKaynteja]             = useState(0)
   const [uudetAsiakkaat, setUudetAsiakkaat] = useState([])
-  const [avattuEsitieto, setAvattuEsitieto] = useState(null)
   const [kayttaja, setKayttaja]           = useState(null)
   const [lataaAuth, setLataaAuth]         = useState(true)
 
@@ -270,10 +268,23 @@ export default function App() {
                         )}
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button
-                            onClick={() => setAvattuEsitieto(u)}
+                            onClick={async () => {
+                              const uusi = await tallennaAsiakas({
+                                nimi:        u.nimi,
+                                sahkoposti:  u.sahkoposti,
+                                puhelin:     u.puhelin,
+                                hoitoon_syy: u.hoitoon_syy,
+                              })
+                              if (uusi) {
+                                await merkitseKasitellyksi(u.id)
+                                setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
+                                await haeAsiakkaat().then(setAsiakasLista)
+                                alert(`${u.nimi} tallennettu asiakasrekisteriin!`)
+                              }
+                            }}
                             style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer', fontWeight: '500', flex: 1 }}
                           >
-                            Avaa esitiedot →
+                            Tallenna asiakkaaksi →
                           </button>
                           <button
                             onClick={async () => {
@@ -354,30 +365,6 @@ export default function App() {
             )
           })()}
         </div>
-
-        {avattuEsitieto && (
-          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
-            <EsitietoKatselu
-              esitiedot={avattuEsitieto}
-              onSulje={() => setAvattuEsitieto(null)}
-              onTallennaAsiakkaaksi={async (e) => {
-                const uusi = await tallennaAsiakas({
-                  nimi:        e.nimi,
-                  sahkoposti:  e.sahkoposti,
-                  puhelin:     e.puhelin,
-                  hoitoon_syy: e.hoitoon_syy,
-                })
-                if (uusi) {
-                  await merkitseKasitellyksi(e.id)
-                  setUudetAsiakkaat(prev => prev.filter(x => x.id !== e.id))
-                  await haeAsiakkaat().then(setAsiakasLista)
-                  setAvattuEsitieto(null)
-                  alert(`${e.nimi} tallennettu asiakasrekisteriin!`)
-                }
-              }}
-            />
-          </div>
-        )}
 
         <div style={{ display: activeTab === 'rekisteri' ? 'block' : 'none' }}>
           <Asiakasrekisteri
