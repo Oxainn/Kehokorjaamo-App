@@ -224,7 +224,6 @@ export default function App() {
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
         <div style={{ display: activeTab === 'koti' ? 'block' : 'none' }}>
           {(() => {
-            const viisi = [...asiakasLista].slice(0, 5)
             const viimeisinPvm = asiakasLista.reduce((acc, a) => {
               const d = a.luotu ? new Date(a.luotu) : null
               return d && (!acc || d > acc) ? d : acc
@@ -309,33 +308,6 @@ export default function App() {
                     <p className="text-sm text-gray-500 mt-1">Viimeisin asiakas</p>
                   </div>
                 </div>
-
-                {/* Viimeisimmät asiakkaat */}
-                {viisi.length > 0 && (
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                    <h3 className="font-semibold text-gray-800 text-base mb-3">Viimeisimmät asiakkaat</h3>
-                    <div className="flex flex-col divide-y divide-gray-50">
-                      {viisi.map(a => (
-                        <div
-                          key={a.id}
-                          onClick={() => { setAsiakas({ ...a, supabase_id: a.id }); setActiveTab('client') }}
-                          className="flex items-center gap-3 py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg cursor-pointer transition-colors"
-                        >
-                          <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#E1F5EE', color: '#085041', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '14px', flexShrink: 0 }}>
-                            {a.nimi?.trim()?.[0]?.toUpperCase() ?? '?'}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate">{a.nimi}</p>
-                            <p className="text-xs text-gray-400 truncate">{a.sahkoposti || a.puhelin || '—'}</p>
-                          </div>
-                          <span className="text-xs text-gray-400 whitespace-nowrap">
-                            {a.luotu ? new Date(a.luotu).toLocaleDateString('fi-FI') : '—'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 {/* Pikanapit */}
                 <div className="flex gap-3">
