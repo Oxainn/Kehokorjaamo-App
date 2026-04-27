@@ -378,7 +378,7 @@ export default function Esitiedot() {
           {!piilotettu('kontra_laaja') && (() => {
             const esteetTeksti = osioKuvaus('kontra_laaja')
             return (
-              <Osio otsikko={osioNimi('kontra_laaja', 'Kontraindikaatiot')} lapset={
+              <Osio otsikko={osioNimi('kontra_laaja', 'Esteet hoidolle')} lapset={
                 <>
                   {esteetTeksti && (
                     <div style={{

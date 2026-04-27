@@ -189,6 +189,7 @@ export default function Settings() {
   const [muokkausId, setMuokkausId] = useState(null)
   const [tallennettuPalvelut, setTallennettuPalvelut] = useState(false)
   const [kopioituId, setKopioituId] = useState(null)
+  const [esikatseluId, setEsikatseluId] = useState(null)
 
   const kopioiLinkki = (palveluId) => {
     const url = `${window.location.origin}/esitiedot?palvelu=${palveluId}`
@@ -533,6 +534,15 @@ export default function Settings() {
                   >
                     {kopioituId === p.id ? '✓ Kopioitu' : 'Kopioi'}
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setEsikatseluId(p.id)}
+                    style={{fontSize:'12px',padding:'5px 12px',borderRadius:'6px',border:'none',cursor:'pointer',flexShrink:0,
+                      background:'#E6F1FB',color:'#0C447C',fontWeight:'500',
+                    }}
+                  >
+                    Avaa
+                  </button>
                 </div>
 
                 {muokkausId === p.id && (
@@ -542,7 +552,7 @@ export default function Settings() {
                     <p style={{fontSize:'11px',fontWeight:'600',color:'#6b7280',textTransform:'uppercase',letterSpacing:'0.04em',margin:'0 0 8px'}}>Vakio-osiot</p>
                     {[
                       {id:'kontraindikaatiot', nimi:'Asiakastiedot'},
-                      {id:'kontra_laaja',      nimi:'Kontraindikaatiot (tekstikenttä)'},
+                      {id:'kontra_laaja',      nimi:'Esteet hoidolle'},
                       {id:'kiputilanne',       nimi:'Kiputilanne'},
                       {id:'keho_merkinnat',    nimi:'Kehon merkinnät'},
                       {id:'tietosuoja',        nimi:'Tietosuoja ja vahvistus'},
@@ -879,6 +889,37 @@ export default function Settings() {
           </>
         }
       />
+
+      {/* Esitietolomakkeen esikatselu */}
+      {esikatseluId && (
+        <div
+          onClick={() => setEsikatseluId(null)}
+          style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'stretch',justifyContent:'center'}}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{position:'relative',width:'100%',maxWidth:'640px',margin:'24px auto',display:'flex',flexDirection:'column',borderRadius:'16px',overflow:'hidden',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}
+          >
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:'#1D9E75',color:'white',flexShrink:0}}>
+              <span style={{fontWeight:'600',fontSize:'14px'}}>
+                Esitietolomake — {palvelut.find(p => p.id === esikatseluId)?.nimi ?? ''}
+              </span>
+              <button
+                type="button"
+                onClick={() => setEsikatseluId(null)}
+                style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',borderRadius:'8px',padding:'4px 12px',cursor:'pointer',fontSize:'13px',fontWeight:'600'}}
+              >
+                ✕ Sulje
+              </button>
+            </div>
+            <iframe
+              src={`/esitiedot?palvelu=${esikatseluId}`}
+              title="Esitietolomake"
+              style={{flex:1,border:'none',width:'100%',background:'white',minHeight:0}}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
