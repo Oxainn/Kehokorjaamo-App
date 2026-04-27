@@ -11,7 +11,6 @@ import Aftercare from './Aftercare'
 import Settings from './Settings'
 import ProductBoard from './ProductBoard'
 import KuvaAnalyysi from './KuvaAnalyysi'
-import AsiakasHistoria from './AsiakasHistoria'
 import Asiakasrekisteri from './Asiakasrekisteri'
 import EsitietoKatselu from './EsitietoKatselu'
 
@@ -77,6 +76,20 @@ export default function App() {
   const avaaAsiakas = (a) => {
     setAsiakas({ ...a, supabase_id: a.id })
     setActiveTab('client')
+  }
+
+  const avaaKaynti = (kaynti, asiakas) => {
+    setAsiakas({ ...asiakas, supabase_id: asiakas.id })
+    if (kaynti.havainnot)  setHavainnot(kaynti.havainnot)
+    if (kaynti.loyodokset) setFindings(kaynti.loyodokset)
+    setActiveTab('clinical')
+  }
+
+  const avaaUusiKaynti = (asiakas) => {
+    setAsiakas({ ...asiakas, supabase_id: asiakas.id })
+    setHavainnot(null)
+    setFindings([])
+    setActiveTab('clinical')
   }
 
   const tallennaKokoKaynti = async () => {
@@ -387,20 +400,9 @@ export default function App() {
 
         <div style={{ display: activeTab === 'rekisteri' ? 'block' : 'none' }}>
           <Asiakasrekisteri
-            onAvaaAsiakas={(a) => {
-              setAsiakas({ ...a, supabase_id: a.id })
-              setActiveTab('client')
-            }}
-            onAvaaKaynti={(a, k) => {
-              setAsiakas({ ...a, supabase_id: a.id })
-              setHavainnot(k.havainnot ?? null)
-              setFindings(k.loyodokset ?? [])
-              setActiveTab('clinical')
-            }}
-            onUusiKaynti={(a) => {
-              setAsiakas({ ...a, supabase_id: a.id })
-              setActiveTab('clinical')
-            }}
+            onAvaaAsiakas={avaaAsiakas}
+            onAvaaKaynti={(a, k) => avaaKaynti(k, a)}
+            onUusiKaynti={avaaUusiKaynti}
           />
         </div>
         <div style={{ display: activeTab === 'client' ? 'block' : 'none' }}>
