@@ -110,7 +110,7 @@ function AccordionOsio({ id, otsikko, ikoni, badge, auki, onToggle, lapset }) {
   )
 }
 
-export default function ProductBoard() {
+export default function ProductBoard({ hoitajaId = null }) {
   const [aukiOsio, setAukiOsio] = useState('visio')
   const [pb, setPb] = useState(() => {
     const s = luePB()
@@ -186,12 +186,11 @@ export default function ProductBoard() {
     clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
+        if (!hoitajaId) return
         const { error } = await supabase
           .from('productboard')
           .upsert({
-            hoitaja_id: user.id,
+            hoitaja_id: hoitajaId,
             visio:      pb.visio,
             ideat:      pb.ideat,
             todo:       pb.tehtävät,

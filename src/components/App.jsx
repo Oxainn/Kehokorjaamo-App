@@ -93,6 +93,8 @@ export default function App() {
     setActiveTab('clinical')
   }
 
+  const hoitajaId = kayttaja?.id
+
   const tallennaHoitokaynti = async () => {
     if (!asiakas?.supabase_id) return
     try {
@@ -100,6 +102,7 @@ export default function App() {
         .from('hoitokaynit')
         .insert({
           asiakas_id:        asiakas.supabase_id,
+          hoitaja_id:        hoitajaId,
           pvm:               new Date().toISOString().split('T')[0],
           havainnot:         havainnot,
           findings:          findings,
@@ -452,6 +455,7 @@ export default function App() {
           <ClientForm
             asiakasData={asiakas}
             onComplete={handleAsiakas}
+            hoitajaId={hoitajaId}
           />
         </div>
         <div style={{ display: activeTab === 'clinical'  ? 'block' : 'none' }}>
@@ -483,7 +487,7 @@ export default function App() {
           <Settings />
         </div>
         <div style={{ display: activeTab === 'board'     ? 'block' : 'none' }}>
-          <ProductBoard />
+          <ProductBoard hoitajaId={hoitajaId} />
         </div>
       </main>
 

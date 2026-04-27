@@ -423,7 +423,7 @@ function Osio({ otsikko, lapset }) {
   )
 }
 
-export default function ClientForm({ onComplete, asiakasData = null, esitäytö = null }) {
+export default function ClientForm({ onComplete, asiakasData = null, esitäytö = null, hoitajaId = null }) {
   const [data, setData] = useState(() => {
     if (asiakasData) return { ...TYHJÄ, ...asiakasData }
     if (esitäytö) return { ...TYHJÄ, ...esitäytö }
@@ -516,6 +516,7 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
           miten_loysi:       data.miten_loysi,
           kontraindikaatiot: data.kontraindikaatiot,
           merkinnät:         data.merkinnät,
+          hoitaja_id:        hoitajaId,
         })
         .select()
 
