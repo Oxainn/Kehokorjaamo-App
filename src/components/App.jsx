@@ -410,14 +410,17 @@ export default function App() {
                           onClick={async () => {
                             await merkitseKasitellyksi(u.id)
                             setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
-                            setAsiakas({
-                              nimi:        u.nimi,
-                              sahkoposti:  u.sahkoposti,
-                              puhelin:     u.puhelin,
-                              hoitoon_syy: u.hoitoon_syy,
-                              kipuaste:    u.kipuaste,
-                            })
-                            setActiveTab('client')
+                            setAsiakas(null)
+                            setTimeout(() => {
+                              setAsiakas({
+                                nimi:        u.nimi,
+                                sahkoposti:  u.sahkoposti,
+                                puhelin:     u.puhelin,
+                                hoitoon_syy: u.hoitoon_syy,
+                                kipuaste:    u.kipuaste,
+                              })
+                              setActiveTab('client')
+                            }, 50)
                           }}
                           style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer' }}
                         >
