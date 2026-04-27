@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
 import { tallennaUusiAsiakas } from '../lib/db'
+import AllekirjoitusPad from '../components/AllekirjoitusPad'
 
 const NORMAALI_KONTRA = [
   'Allergia', 'Diabetes', 'Epilepsia', 'Migreeni',
@@ -112,6 +113,7 @@ export default function Esitiedot() {
   const [kuvausAuki, setKuvausAuki] = useState(false)
   const [tietosuoja1, setTietosuoja1] = useState(false)
   const [tietosuoja2, setTietosuoja2] = useState(false)
+  const [allekirjoitusKuva, setAllekirjoitusKuva] = useState('')
 
   const valitunPalvelunLomake = aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.lomake
     ?? { piilotetutOsiot: {}, lisaKysymykset: [] }
@@ -145,7 +147,7 @@ export default function Esitiedot() {
   }
 
   const ehdotonValittu = EHDOTTOMAT_KONTRA.some(e => data.kontraindikaatiot[e])
-  const voidaanLähettää = data.nimi.trim() && !ehdotonValittu && tietosuoja1 && data.allekirjoitus.trim()
+  const voidaanLähettää = data.nimi.trim() && !ehdotonValittu && tietosuoja1 && allekirjoitusKuva
 
   const lähetä = async (e) => {
     e.preventDefault()
@@ -162,7 +164,7 @@ export default function Esitiedot() {
       kipuaste:    data.kipuaste ?? 0,
       tietosuoja_rekisteri: tietosuoja1,
       tietosuoja_luovutus:  tietosuoja2,
-      allekirjoitus:        data.allekirjoitus,
+      allekirjoitus:        allekirjoitusKuva,
       allekirjoitus_pvm:    new Date().toLocaleDateString('fi-FI'),
     })
 
@@ -193,7 +195,7 @@ export default function Esitiedot() {
       palvelu:             aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.nimi ?? 'Kalevalainen jäsenkorjaus',
       tietosuoja_rekisteri: tietosuoja1,
       tietosuoja_luovutus:  tietosuoja2,
-      allekirjoitus:        data.allekirjoitus,
+      allekirjoitus:        allekirjoitusKuva,
       allekirjoitus_pvm:    new Date().toLocaleDateString('fi-FI'),
       aikaleima:           new Date().toISOString(),
     }
@@ -630,27 +632,14 @@ export default function Esitiedot() {
               </label>
 
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
-                  Allekirjoitus (kirjoita koko nimesi) <span style={{ color: '#ef4444' }}>*</span>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                  Allekirjoitus <span style={{ color: '#ef4444' }}>*</span>
                 </label>
-                <input
-                  type="text"
-                  name="allekirjoitus"
-                  value={data.allekirjoitus}
-                  onChange={päivitä}
-                  placeholder="Etunimi Sukunimi"
-                  style={{
-                    width: '100%',
-                    borderRadius: '8px',
-                    border: yritettyLähettää && !data.allekirjoitus.trim() ? '1px solid #f87171' : '1px solid #e2e8f0',
-                    padding: '10px 12px',
-                    fontSize: '14px',
-                    color: '#374151',
-                    boxSizing: 'border-box',
-                    fontFamily: 'cursive',
-                  }}
+                <AllekirjoitusPad
+                  onChange={setAllekirjoitusKuva}
+                  error={yritettyLähettää && !allekirjoitusKuva}
                 />
-                {yritettyLähettää && !data.allekirjoitus.trim() && (
+                {yritettyLähettää && !allekirjoitusKuva && (
                   <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>Allekirjoitus on pakollinen</p>
                 )}
                 {yritettyLähettää && !tietosuoja1 && (
