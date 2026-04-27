@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
 import { tallennaUusiAsiakas } from '../lib/db'
 import AllekirjoitusPad from '../components/AllekirjoitusPad'
 
@@ -49,7 +48,7 @@ const TYHJÄ = {
   tekonivel_lisatieto: '',
   raskaus_lisatieto:   '',
   lisatiedot:       '',
-  merkinnät:        {},
+  merkinnät:        [],
   allekirjoitus:    '',
 }
 
@@ -148,15 +147,18 @@ export default function Esitiedot() {
     }))
   }
 
-  const toggleVyöhyke = (zoneId) => {
+  const lisääMerkintä = (e) => {
+    e.preventDefault()
+    const svg = e.currentTarget
+    const rect = svg.getBoundingClientRect()
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY
+    const x = ((clientX - rect.left) / rect.width) * 100
+    const y = ((clientY - rect.top) / rect.height) * 100
     setData(prev => {
-      const merkinnät = { ...prev.merkinnät }
-      if (merkinnät[zoneId] === valittuPiirto) {
-        delete merkinnät[zoneId]
-      } else {
-        merkinnät[zoneId] = valittuPiirto
-      }
-      return { ...prev, merkinnät }
+      const lähellä = prev.merkinnät.findIndex(m => Math.hypot(m.x - x, m.y - y) < 4)
+      if (lähellä >= 0) return { ...prev, merkinnät: prev.merkinnät.filter((_, i) => i !== lähellä) }
+      return { ...prev, merkinnät: [...prev.merkinnät, { x, y, tyyppi: valittuPiirto }] }
     })
   }
 
@@ -476,33 +478,30 @@ export default function Esitiedot() {
               </div>
 
               <div style={{ position: 'relative', width: '100%', marginTop: '8px', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-                <img src="/hahmokuvat.svg" style={{ width: '100%', display: 'block' }} alt="Kehon merkintäalue" />
+                <img src="/hahmokuvat.svg" style={{ width: '100%', display: 'block', userSelect: 'none' }} alt="Kehon merkintäalue" />
                 <svg
-                  viewBox="0 0 1471 1069"
-                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'pointer', touchAction: 'manipulation' }}
+                  viewBox="0 0 100 100"
+                  preserveAspectRatio="none"
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', cursor: 'crosshair', touchAction: 'manipulation' }}
+                  onMouseDown={lisääMerkintä}
+                  onTouchStart={lisääMerkintä}
                 >
-                  {KEHON_VYÖHYKKEET.map(z => {
-                    const merkitty = data.merkinnät[z.id]
-                    return (
-                      <circle
-                        key={z.id}
-                        cx={z.cx} cy={z.cy} r={42}
-                        fill={merkitty ? PIIRTOVÄRIT[merkitty] + 'cc' : 'transparent'}
-                        stroke={merkitty ? PIIRTOVÄRIT[merkitty] : '#94a3b8'}
-                        strokeWidth={merkitty ? 3 : 1.5}
-                        strokeDasharray={merkitty ? 'none' : '6 4'}
-                        onClick={() => toggleVyöhyke(z.id)}
-                        style={{ cursor: 'pointer' }}
-                      />
-                    )
-                  })}
+                  {data.merkinnät.map((m, i) => (
+                    <circle
+                      key={i}
+                      cx={m.x} cy={m.y} r={2.2}
+                      fill={PIIRTOVÄRIT[m.tyyppi]}
+                      stroke="white"
+                      strokeWidth={0.5}
+                    />
+                  ))}
                 </svg>
               </div>
 
-              {Object.keys(data.merkinnät).length > 0 && (
+              {data.merkinnät.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => setData(prev => ({ ...prev, merkinnät: {} }))}
+                  onClick={() => setData(prev => ({ ...prev, merkinnät: [] }))}
                   className="text-xs text-gray-400 hover:text-red-500 transition-colors self-start"
                 >
                   Tyhjennä kaikki merkinnät
