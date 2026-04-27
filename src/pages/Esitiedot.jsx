@@ -162,7 +162,7 @@ export default function Esitiedot() {
     })
   }
 
-  const ehdotonValittu = EHDOTTOMAT_KONTRA.some(e => data.kontraindikaatiot[e])
+  const ehdotonValittu = EHDOTTOMAT_KONTRA.some(e => data.kontraindikaatiot?.[e])
   const voidaanLähettää = data.nimi.trim() && !ehdotonValittu
     && (piilotettu('tietosuoja')    || tietosuoja1)
     && (piilotettu('allekirjoitus') || allekirjoitusKuva)
