@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
+import { tallennaAsiakas } from '../lib/db'
 
 const STORAGE_KEY   = 'kehokorjaamo_asiakasdata'
 const ASETUS_KEY    = 'kehokorjaamo_asetukset'
@@ -434,6 +435,7 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
   })
 
   const [yritettyLähettää, setYritettyLähettää] = useState(false)
+  const [tallentaa, setTallentaa]               = useState(false)
   const [valittuPiirto, setValittuPiirto]         = useState(1)
   const [esikatselu, setEsikatselu]               = useState(false)
   const [tulostusAsetukset, setTulostusAsetukset] = useState(TULOSTUS_OLETUKSET)
@@ -481,17 +483,23 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
   const tulosta = () => setEsikatselu(true)
   const tulostaVahvistettu = () => { setEsikatselu(false); window.print() }
 
-  const lähetä = (e) => {
+  const lähetä = async (e) => {
     e.preventDefault()
     setYritettyLähettää(true)
     if (!data.nimi.trim() || !data.suostumus_rekisteri || ehdotonValittu) return
-    const avain = `kehokorjaamo_asiakas_${Date.now()}`
-    localStorage.setItem(avain, JSON.stringify(data))
-    if (typeof onComplete === 'function') {
-      onComplete(data)
+    setTallentaa(true)
+    const tallennettu = await tallennaAsiakas(data)
+    if (tallennettu) {
+      console.log('Asiakas tallennettu:', tallennettu.id)
+      const asiakasData = { ...data, supabase_id: tallennettu.id }
+      localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(asiakasData))
+      onComplete?.(asiakasData)
     } else {
-      console.error('onComplete prop puuttuu!')
+      console.log('Supabase epäonnistui, käytetään localStoragea')
+      localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(data))
+      onComplete?.(data)
     }
+    setTallentaa(false)
   }
 
   const ika = laskikaIka(data.syntymaaika)
@@ -1027,9 +1035,10 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
           </button>
           <button
             type="submit"
-            className="sm:flex-1 py-3 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl transition-colors shadow-sm"
+            disabled={tallentaa}
+            className="sm:flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors shadow-sm"
           >
-            {ehdotonValittu ? 'Hoito ei ole mahdollinen' : 'Vahvista ja jatka →'}
+            {ehdotonValittu ? 'Hoito ei ole mahdollinen' : tallentaa ? 'Tallennetaan...' : 'Vahvista ja jatka →'}
           </button>
         </div>
       </form>
