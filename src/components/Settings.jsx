@@ -58,7 +58,7 @@ function lueAsetukset() {
   }
 }
 
-function tallennnaOsa(avain, data) {
+function tallennaOsa(avain, data) {
   const asetukset = { ...lueAsetukset(), [avain]: data }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(asetukset))
 }
@@ -160,7 +160,7 @@ export default function Settings({ hoitajaId }) {
   }
   const tallennaTerapeutti = (e) => {
     e.preventDefault()
-    tallennnaOsa('terapeutti', terapeutti)
+    tallennaOsa('terapeutti', terapeutti)
     setTallennettu1(true)
     setTimeout(() => setTallennettu1(false), 2000)
   }
@@ -177,7 +177,7 @@ export default function Settings({ hoitajaId }) {
   }
   const tallennaIntegr = (e) => {
     e.preventDefault()
-    tallennnaOsa('integraatiot', integraatiot)
+    tallennaOsa('integraatiot', integraatiot)
     setTallennettu2(true)
     setTimeout(() => setTallennettu2(false), 2000)
   }
@@ -204,7 +204,7 @@ export default function Settings({ hoitajaId }) {
   }
 
   const tallennaPalvelut = (lista = palvelut) => {
-    tallennnaOsa('palvelut', lista)
+    tallennaOsa('palvelut', lista)
     setTallennettuPalvelut(true)
     setTimeout(() => setTallennettuPalvelut(false), 2000)
   }
@@ -281,7 +281,7 @@ export default function Settings({ hoitajaId }) {
   }
   const tallennaBrand = (e) => {
     e.preventDefault()
-    tallennnaOsa('brandays', brandays)
+    tallennaOsa('brandays', brandays)
     setTallennettu3(true)
     setTimeout(() => setTallennettu3(false), 2000)
   }

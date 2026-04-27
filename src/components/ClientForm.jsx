@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
 import { supabase } from '../services/supabase'
+import { kipuVari } from '../utils/helpers'
 
 const STORAGE_KEY   = 'kehokorjaamo_asiakasdata'
 const ASETUS_KEY    = 'kehokorjaamo_asetukset'
@@ -75,12 +76,6 @@ function laskikaIka(syntymaaika) {
   const kk = tanaan.getMonth() - syntyma.getMonth()
   if (kk < 0 || (kk === 0 && tanaan.getDate() < syntyma.getDate())) ika--
   return ika
-}
-
-function kipuVari(arvo) {
-  if (arvo <= 3) return { kehys: '#16a34a', tausta: '#dcfce7', teksti: '#15803d' }
-  if (arvo <= 6) return { kehys: '#ea580c', tausta: '#ffedd5', teksti: '#c2410c' }
-  return { kehys: '#dc2626', tausta: '#fee2e2', teksti: '#b91c1c' }
 }
 
 const S = { // inline style helpers for print view

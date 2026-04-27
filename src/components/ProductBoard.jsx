@@ -68,8 +68,6 @@ function luePB() {
   } catch { return {} }
 }
 
-// uid imported from utils/productboard
-
 function pvm(iso) {
   return new Date(iso).toLocaleDateString('fi-FI', {
     day: 'numeric', month: 'numeric', year: 'numeric',
