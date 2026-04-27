@@ -343,7 +343,7 @@ export default function ClinicalObservations({ asiakasData, onComplete, onSiirry
       <div style={{ textAlign: 'center', margin: '8px 0 16px', display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
         <button
           type="button"
-          onClick={() => onSiirryVälilehdelle?.('kuva')}
+          onClick={() => onSiirryVälilehdelle?.('kuva-analyysi')}
           style={{
             padding: '8px 20px',
             borderRadius: '8px',
