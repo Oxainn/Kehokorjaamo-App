@@ -13,6 +13,8 @@ export default function Auth() {
   const käännäVirhe = (error) => {
     if (!error) return
     const msg = error.message ?? ''
+    if (msg.includes('rate limit') || msg.includes('over_email'))
+      return setVirhe('Liian monta yritystä — odota hetki ja yritä uudelleen')
     if (msg.includes('invalid'))  return setVirhe('Tarkista sähköpostiosoite')
     if (msg.includes('already'))  return setVirhe('Sähköposti on jo käytössä')
     if (msg.includes('weak'))     return setVirhe('Salasana on liian lyhyt (min 6 merkkiä)')
