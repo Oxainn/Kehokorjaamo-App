@@ -890,6 +890,94 @@ export default function Settings() {
         }
       />
 
+      {/* ── 6: Kehittäjätyökalut ─────────────────────────────────────────── */}
+      <AccordionOsio
+        id="devtools" otsikko="Kehittäjätyökalut" ikoni="🛠️"
+        auki={aukiOsio === 'devtools'} onToggle={toggle}
+        lapset={
+          <div className="flex flex-col gap-4">
+
+            {/* Tarkista ja siivoa koodi */}
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Claude Code -promptit</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const prompt = `TÄRKEÄÄ: Push suoraan mainiin, ei PR:ää.
+
+Tee kattava koodin tarkistus ja siivous Kehokorjaamo App -projektille:
+
+1. TARKISTA kaikki komponentit:
+   - Poistetut/turhat console.log rivit
+   - Käyttämättömät importit
+   - Duplikaattikoodi eri tiedostoissa
+   - Rikkinäiset propsit tai puuttuvat prop-validoinnit
+
+2. TARKISTA Supabase-kyselyt:
+   - Oikeat sarakkeiden nimet
+   - RLS-yhteensopivuus
+   - Virheenkäsittely kaikissa kutsuissa
+
+3. TARKISTA navigaatio ja tila:
+   - Tilamuuttujat järkeviä
+   - Ei muistivuotoja (cleanup useEffect)
+   - Komponentit unmountataan oikein
+
+4. SIIVOA:
+   - Poista debug-koodit
+   - Yhtenäistä tyylimäärittelyt
+   - Korjaa varoitukset
+
+5. RAPORTOI mitä löysit ja korjasit
+
+Tee commit: "chore: koodin siivous ja tarkistus"`
+                  navigator.clipboard.writeText(prompt)
+                  alert('Prompt kopioitu! Liitä Claude Codeen.')
+                }}
+                className="px-4 py-2.5 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                📋 Tarkista ja siivoa koodi
+              </button>
+            </div>
+
+            {/* Aja testit (tuleva) */}
+            <div>
+              <button
+                type="button"
+                disabled
+                className="px-4 py-2.5 border border-gray-200 text-gray-400 text-sm font-semibold rounded-lg cursor-not-allowed"
+              >
+                Tulossa — automaattiset testit
+              </button>
+            </div>
+
+            {/* Versiotiedot */}
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 flex flex-col gap-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Versio</span>
+                <span className="font-medium text-gray-800">V1.0</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Viimeisin deploy</span>
+                <span className="font-medium text-gray-800">{new Date().toLocaleDateString('fi-FI')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">GitHub</span>
+                <a
+                  href="https://github.com/oxainn/kehokorjaamo-app"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-brand-700 hover:underline"
+                >
+                  oxainn/kehokorjaamo-app
+                </a>
+              </div>
+            </div>
+
+          </div>
+        }
+      />
+
       {/* Esitietolomakkeen esikatselu */}
       {esikatseluId && (
         <div
