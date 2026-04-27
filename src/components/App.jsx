@@ -265,7 +265,14 @@ export default function App() {
                 hoitajaId={hoitajaId}
                 esitiedotLista={esitiedotLista}
                 onValitseAsiakas={(a) => {
-                  setAsiakas({ ...a, supabase_id: a.id })
+                  setAsiakas({
+                    ...a,
+                    supabase_id:       a.id,
+                    kontraindikaatiot: a.kontraindikaatiot ?? {},
+                    merkinnät:         a.merkinnät         ?? {},
+                    vastauksia:        a.vastauksia        ?? {},
+                    havainnot:         a.havainnot         ?? {},
+                  })
                   setNakyma('kaynti')
                   setAktiivinen('asiakastiedot')
                 }}
