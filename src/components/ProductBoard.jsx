@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../services/supabase'
 
 const STORAGE_KEY = 'kehokorjaamo_productboard'
 const VERSIO = 'V1'
@@ -157,6 +158,52 @@ export default function ProductBoard() {
       }
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Supabase: lataa käynnistyessä ─────────────────────────────────────────
+  useEffect(() => {
+    const lataaProductBoard = async () => {
+      const { data, error } = await supabase
+        .from('productboard')
+        .select()
+        .limit(1)
+        .maybeSingle()
+      if (data && !error) {
+        setPb(prev => ({
+          ...prev,
+          visio:     data.visio     ?? prev.visio,
+          ideat:     data.ideat     ?? prev.ideat,
+          tehtävät:  data.todo      ?? prev.tehtävät,
+          changelog: data.changelog ?? prev.changelog,
+        }))
+      }
+    }
+    lataaProductBoard()
+  }, [])
+
+  // ── Supabase: tallenna automaattisesti muutoksilla (debounce 1.5 s) ────────
+  const debounceRef = useRef(null)
+  useEffect(() => {
+    clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
+        const { error } = await supabase
+          .from('productboard')
+          .upsert({
+            hoitaja_id: user.id,
+            visio:      pb.visio,
+            ideat:      pb.ideat,
+            todo:       pb.tehtävät,
+            changelog:  pb.changelog,
+          }, { onConflict: 'hoitaja_id' })
+        if (error) throw error
+      } catch (err) {
+        console.error('ProductBoard tallennus:', err)
+      }
+    }, 1500)
+    return () => clearTimeout(debounceRef.current)
+  }, [pb])
 
   const toggle = (id) => setAukiOsio(prev => prev === id ? null : id)
 
