@@ -257,6 +257,7 @@ export default function App() {
                   setNakyma('kaynti')
                   setAktiivinen('asiakastiedot')
                 }}
+                onEsikatseluAsiakas={(e) => setAvattuEsitieto(e)}
               />
             </div>
           )
