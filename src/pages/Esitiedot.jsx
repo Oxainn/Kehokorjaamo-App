@@ -375,19 +375,41 @@ export default function Esitiedot() {
           } />
 
           {/* ── Osio 1b: Kontraindikaatiot (vapaa teksti) ───────────────── */}
-          {!piilotettu('kontra_laaja') && <Osio otsikko={osioNimi('kontra_laaja', 'Kontraindikaatiot')} kuvaus={osioKuvaus('kontra_laaja')} lapset={
-            <Kenttä label="Sairaudet, lääkitykset ja muut huomioitavat asiat">
-              <textarea
-                name="kontra_laaja"
-                value={data.kontra_laaja}
-                onChange={päivitä}
-                rows={5}
-                placeholder="Kerro tähän kaikki terveydentilaasi liittyvät asiat, jotka hoitajan tulisi tietää ennen hoitoa…"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                style={{ fontFamily: 'inherit', lineHeight: '1.6' }}
-              />
-            </Kenttä>
-          } />}
+          {!piilotettu('kontra_laaja') && (() => {
+            const esteetTeksti = osioKuvaus('kontra_laaja')
+            return (
+              <Osio otsikko={osioNimi('kontra_laaja', 'Kontraindikaatiot')} lapset={
+                <>
+                  {esteetTeksti && (
+                    <div style={{
+                      background:'#FFF7ED', border:'1px solid #FED7AA',
+                      borderRadius:'8px', padding:'12px 14px',
+                    }}>
+                      <p style={{fontSize:'12px',fontWeight:'600',color:'#92400E',margin:'0 0 8px',textTransform:'uppercase',letterSpacing:'0.03em'}}>
+                        Hoidon esteet — lue ennen lomakkeen lähettämistä
+                      </p>
+                      <p style={{fontSize:'13px',color:'#78350F',whiteSpace:'pre-wrap',margin:0,lineHeight:'1.8'}}>
+                        {esteetTeksti}
+                      </p>
+                    </div>
+                  )}
+                  <Kenttä label={esteetTeksti ? 'Onko sinulla jokin edellä mainituista? Kirjoita lisätiedot hoitajalle (valinnainen)' : 'Sairaudet, lääkitykset ja muut huomioitavat asiat'}>
+                    <textarea
+                      name="kontra_laaja"
+                      value={data.kontra_laaja}
+                      onChange={päivitä}
+                      rows={esteetTeksti ? 3 : 5}
+                      placeholder={esteetTeksti
+                        ? 'Kerro tarkemmin jos jokin edellä mainituista koskee sinua…'
+                        : 'Kerro tähän kaikki terveydentilaasi liittyvät asiat, jotka hoitajan tulisi tietää ennen hoitoa…'}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      style={{ fontFamily: 'inherit', lineHeight: '1.6' }}
+                    />
+                  </Kenttä>
+                </>
+              } />
+            )
+          })()}
 
           {/* ── Osio 2: Kiputilanne ──────────────────────────────────────── */}
           {!piilotettu('kiputilanne') && <Osio otsikko={osioNimi('kiputilanne', 'Kiputilanne')} kuvaus={osioKuvaus('kiputilanne')} lapset={

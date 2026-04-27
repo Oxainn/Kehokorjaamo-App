@@ -589,37 +589,49 @@ export default function Settings() {
                               )}
                             </span>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const auki = muokkausOsioKuvaus?.pid === p.id && muokkausOsioKuvaus?.osioId === osio.id
-                              setMuokkausOsioKuvaus(auki ? null : {
-                                pid: p.id, osioId: osio.id,
-                                teksti: p.lomake?.osioKuvaukset?.[osio.id] ?? '',
-                              })
-                            }}
-                            style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',border:'1px solid',cursor:'pointer',flexShrink:0,
-                              background: (muokkausOsioKuvaus?.pid===p.id && muokkausOsioKuvaus?.osioId===osio.id) ? '#E6F1FB' : p.lomake?.osioKuvaukset?.[osio.id] ? '#E1F5EE' : '#f1f5f9',
-                              borderColor: (muokkausOsioKuvaus?.pid===p.id && muokkausOsioKuvaus?.osioId===osio.id) ? '#93c5fd' : p.lomake?.osioKuvaukset?.[osio.id] ? '#9FE1CB' : '#e2e8f0',
-                              color: (muokkausOsioKuvaus?.pid===p.id && muokkausOsioKuvaus?.osioId===osio.id) ? '#0C447C' : p.lomake?.osioKuvaukset?.[osio.id] ? '#085041' : '#6b7280',
-                            }}
-                          >
-                            Kuvaus{p.lomake?.osioKuvaukset?.[osio.id] ? ' ✓' : ' +'}
-                          </button>
+                          {(() => {
+                            const onKontra = osio.id === 'kontra_laaja'
+                            const btnLabel = onKontra ? 'Esteet' : 'Kuvaus'
+                            const hasContent = !!p.lomake?.osioKuvaukset?.[osio.id]
+                            const isOpen = muokkausOsioKuvaus?.pid === p.id && muokkausOsioKuvaus?.osioId === osio.id
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => setMuokkausOsioKuvaus(isOpen ? null : {
+                                  pid: p.id, osioId: osio.id,
+                                  teksti: p.lomake?.osioKuvaukset?.[osio.id] ?? '',
+                                })}
+                                style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',border:'1px solid',cursor:'pointer',flexShrink:0,
+                                  background: isOpen ? '#E6F1FB' : hasContent ? '#E1F5EE' : '#f1f5f9',
+                                  borderColor: isOpen ? '#93c5fd' : hasContent ? '#9FE1CB' : '#e2e8f0',
+                                  color: isOpen ? '#0C447C' : hasContent ? '#085041' : '#6b7280',
+                                }}
+                              >
+                                {btnLabel}{hasContent ? ' ✓' : ' +'}
+                              </button>
+                            )
+                          })()}
                         </div>
 
-                        {/* Kuvauseditori */}
+                        {/* Kuvauseditori / Esteeteditori */}
                         {muokkausOsioKuvaus?.pid === p.id && muokkausOsioKuvaus?.osioId === osio.id && (
                           <div style={{marginBottom:'6px',padding:'10px',background:'white',borderRadius:'6px',border:'1px solid #e2e8f0'}}>
-                            <p style={{fontSize:'11px',color:'#6b7280',marginBottom:'6px'}}>
-                              Teksti näkyy asiakkaalle osion otsikon alla lomakkeella.
-                            </p>
+                            {osio.id === 'kontra_laaja' ? (
+                              <p style={{fontSize:'11px',color:'#6b7280',marginBottom:'6px'}}>
+                                Kirjoita tähän kyseisen hoidon esteet. Asiakas lukee nämä lomakkeella ennen lähettämistä.
+                              </p>
+                            ) : (
+                              <p style={{fontSize:'11px',color:'#6b7280',marginBottom:'6px'}}>
+                                Teksti näkyy asiakkaalle osion otsikon alla lomakkeella.
+                              </p>
+                            )}
                             <textarea
-                              autoFocus
                               value={muokkausOsioKuvaus.teksti}
                               onChange={e => setMuokkausOsioKuvaus(prev => ({...prev, teksti: e.target.value}))}
-                              rows={4}
-                              placeholder="Kirjoita ohjeistus tai kuvaus tälle osiolle…"
+                              rows={osio.id === 'kontra_laaja' ? 6 : 4}
+                              placeholder={osio.id === 'kontra_laaja'
+                                ? 'Esim:\n– Raskaus\n– Sydämentahdistin\n– Veren ohennuslääkitys\n– Avoimet haavat tai infektiot\n– Akuutti tulehdus'
+                                : 'Kirjoita ohjeistus tai kuvaus tälle osiolle…'}
                               style={{width:'100%',fontSize:'13px',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',
                                 resize:'vertical',fontFamily:'inherit',lineHeight:'1.6',color:'#374151',boxSizing:'border-box'}}
                             />
@@ -639,7 +651,7 @@ export default function Settings() {
                                     setMuokkausOsioKuvaus(null)
                                   }}
                                   style={{fontSize:'12px',padding:'5px 14px',background:'transparent',color:'#9ca3af',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer'}}>
-                                  Poista kuvaus
+                                  {osio.id === 'kontra_laaja' ? 'Poista esteet' : 'Poista kuvaus'}
                                 </button>
                               )}
                               <button type="button"
