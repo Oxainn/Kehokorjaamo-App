@@ -57,20 +57,24 @@ export default function AsiakasHistoria({ asiakas }) {
 
               {avattuKaynti?.id === k.id && (
                 <div style={{ marginTop: '12px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
-                  {k.havainnot && (
-                    <div style={{ marginBottom: '8px' }}>
-                      <p style={{ fontSize: '11px', color: '#999', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <p style={{ fontSize: '12px', color: '#999', margin: '0 0 8px' }}>
+                    {new Date(k.pvm).toLocaleString('fi-FI')}
+                  </p>
+
+                  {k.havainnot && typeof k.havainnot === 'object' && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <p style={{ fontSize: '11px', fontWeight: '500', color: '#666', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Havainnot
                       </p>
                       {Object.entries(k.havainnot)
                         .filter(([, v]) => v && v !== '')
                         .map(([avain, arvo]) => (
-                          <div key={avain} style={{ display: 'flex', gap: '8px', padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
-                            <span style={{ fontSize: '12px', color: '#999', minWidth: '120px', textTransform: 'capitalize' }}>
+                          <div key={avain} style={{ display: 'flex', gap: '8px', padding: '3px 0', fontSize: '12px' }}>
+                            <span style={{ color: '#999', minWidth: '130px' }}>
                               {avain.replace(/_/g, ' ')}
                             </span>
-                            <span style={{ fontSize: '12px', color: '#333', flex: 1 }}>
-                              {arvo}
+                            <span style={{ color: '#333' }}>
+                              {typeof arvo === 'object' ? JSON.stringify(arvo) : arvo}
                             </span>
                           </div>
                         ))
@@ -78,13 +82,13 @@ export default function AsiakasHistoria({ asiakas }) {
                     </div>
                   )}
 
-                  {k.loyodokset && Array.isArray(k.loyodokset) && (
-                    <div style={{ marginBottom: '8px' }}>
-                      <p style={{ fontSize: '11px', color: '#999', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {k.loyodokset && Array.isArray(k.loyodokset) && k.loyodokset.length > 0 && (
+                    <div style={{ marginBottom: '12px' }}>
+                      <p style={{ fontSize: '11px', fontWeight: '500', color: '#666', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Löydökset
                       </p>
                       {k.loyodokset.map((l, i) => (
-                        <div key={i} style={{ padding: '4px 0', borderBottom: '1px solid #f0f0f0', fontSize: '12px', color: '#333' }}>
+                        <div key={i} style={{ padding: '3px 0', fontSize: '12px', color: '#333' }}>
                           <span style={{ fontWeight: '500' }}>{l.alue}</span>
                           {l.kallistus && ` — kallistus ${l.kallistus}`}
                           {l.kierto && ` — kierto ${l.kierto}`}
@@ -96,7 +100,7 @@ export default function AsiakasHistoria({ asiakas }) {
 
                   {k.kuva_analyysit?.length > 0 && (
                     <div>
-                      <p style={{ fontSize: '11px', color: '#999', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <p style={{ fontSize: '11px', fontWeight: '500', color: '#666', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                         Kuva-analyysit ({k.kuva_analyysit.length} mittausta)
                       </p>
                       {k.kuva_analyysit.map((m, i) => (
