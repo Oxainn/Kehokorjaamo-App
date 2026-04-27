@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { tallennaKaynti } from '../lib/db'
+import { tallennaKaynti, haeAsiakkaat } from '../lib/db'
 import Auth from './Auth'
 import ClientForm from './ClientForm'
 import ClinicalObservations from './ClinicalObservations'
@@ -103,6 +103,7 @@ export default function App() {
   const [esitiedot, setEsitiedot]         = useState([])
   const [paneAuki, setPaneAuki]           = useState(false)
   const [kuvaAnalyysiMittaukset, setKuvaAnalyysiMittaukset] = useState([])
+  const [asiakasLista, setAsiakasLista] = useState([])
   const [clientFormKey, setClientFormKey] = useState(0)
   const [esitäytöData, setEsitäytöData]   = useState(null)
   const esitäytöRef                       = useRef(null)
@@ -119,6 +120,15 @@ export default function App() {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (kayttaja) haeAsiakkaat().then(setAsiakasLista)
+  }, [kayttaja])
+
+  const avaaAsiakas = (a) => {
+    setAsiakas({ ...a, supabase_id: a.id })
+    setActiveTab('client')
+  }
 
   const tallennaKokoKaynti = async () => {
     if (!asiakas?.supabase_id) {
@@ -340,7 +350,36 @@ export default function App() {
       )}
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
-        <div style={{ display: activeTab === 'client'    ? 'block' : 'none' }}>
+        <div style={{ display: activeTab === 'client' ? 'block' : 'none' }}>
+          {asiakasLista.length > 0 && (
+            <div style={{ marginBottom: '20px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '16px' }}>
+              <p style={{ fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '10px' }}>Aiemmat asiakkaat</p>
+              {asiakasLista.length === 0 ? (
+                <p style={{ fontSize: '13px', color: '#999', textAlign: 'center', padding: '20px' }}>
+                  Ei asiakkaita vielä — lisää ensimmäinen asiakas
+                </p>
+              ) : (
+                asiakasLista.map(a => (
+                  <div
+                    key={a.id}
+                    onClick={() => avaaAsiakas(a)}
+                    style={{
+                      display: 'flex', alignItems: 'center',
+                      justifyContent: 'space-between', gap: '10px',
+                      padding: '9px 12px', borderRadius: '8px',
+                      border: '1px solid #e2e8f0', cursor: 'pointer',
+                      background: '#fafafa', marginBottom: '6px',
+                    }}
+                  >
+                    <span style={{ fontSize: '14px', fontWeight: '500', color: '#1a1a1a' }}>{a.nimi}</span>
+                    <span style={{ fontSize: '11px', color: '#999' }}>
+                      {new Date(a.luotu).toLocaleDateString('fi-FI')}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
           <ClientForm
             key={clientFormKey}
             esitäytö={esitäytöRef.current ?? esitäytöData}
