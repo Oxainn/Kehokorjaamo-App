@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
-import { haeAsiakkaatKaynneilla, poistaAsiakas } from '../lib/db'
+import { haeAsiakkaatKaynneilla, haeKaynit, poistaAsiakas } from '../lib/db'
 
-export default function Asiakasrekisteri({ onAvaaAsiakas }) {
-  const [asiakkaat, setAsiakkaat] = useState([])
-  const [lataa, setLataa]         = useState(true)
-  const [haku, setHaku]           = useState('')
+export default function Asiakasrekisteri({ onAvaaAsiakas, onAvaaKaynti, onUusiKaynti }) {
+  const [asiakkaat, setAsiakkaat]       = useState([])
+  const [lataa, setLataa]               = useState(true)
+  const [haku, setHaku]                 = useState('')
+  const [avattuAsiakas, setAvattuAsiakas] = useState(null)
+  const [kaynit, setKaynit]             = useState({})
 
   useEffect(() => {
     haeAsiakkaatKaynneilla().then(data => {
@@ -12,6 +14,19 @@ export default function Asiakasrekisteri({ onAvaaAsiakas }) {
       setLataa(false)
     })
   }, [])
+
+  const avaaAsiakas = (a) => {
+    if (avattuAsiakas?.id === a.id) {
+      setAvattuAsiakas(null)
+      return
+    }
+    setAvattuAsiakas(a)
+    if (!kaynit[a.id]) {
+      haeKaynit(a.id).then(data =>
+        setKaynit(prev => ({ ...prev, [a.id]: data }))
+      )
+    }
+  }
 
   const suodatettu = asiakkaat.filter(a =>
     a.nimi?.toLowerCase().includes(haku.toLowerCase()) ||
@@ -23,28 +38,16 @@ export default function Asiakasrekisteri({ onAvaaAsiakas }) {
     .slice(0, 5)
 
   const avatarKirjain = (nimi) => nimi?.trim()?.[0]?.toUpperCase() ?? '?'
-
-  const muotoilePvm = (iso) =>
-    iso ? new Date(iso).toLocaleDateString('fi-FI') : null
+  const muotoilePvm   = (iso)  => iso ? new Date(iso).toLocaleDateString('fi-FI') : null
 
   const AvatarVihreä = ({ nimi }) => (
-    <div style={{
-      width: '38px', height: '38px', borderRadius: '50%',
-      background: '#E1F5EE', color: '#085041', flexShrink: 0,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: '600', fontSize: '15px',
-    }}>
+    <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: '#E1F5EE', color: '#085041', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '15px' }}>
       {avatarKirjain(nimi)}
     </div>
   )
 
   const AvatarSininen = ({ nimi }) => (
-    <div style={{
-      width: '38px', height: '38px', borderRadius: '50%',
-      background: '#F0F4FF', color: '#3B4FCC', flexShrink: 0,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontWeight: '600', fontSize: '15px',
-    }}>
+    <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: '#F0F4FF', color: '#3B4FCC', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', fontSize: '15px' }}>
       {avatarKirjain(nimi)}
     </div>
   )
@@ -58,7 +61,6 @@ export default function Asiakasrekisteri({ onAvaaAsiakas }) {
         </p>
       </div>
 
-      {/* Hakukenttä */}
       <input
         type="text"
         placeholder="Hae nimellä tai sähköpostilla..."
@@ -109,43 +111,100 @@ export default function Asiakasrekisteri({ onAvaaAsiakas }) {
           </p>
         ) : (
           <div className="flex flex-col divide-y divide-gray-50">
-            {suodatettu.map(a => (
-              <div
-                key={a.id}
-                onClick={() => onAvaaAsiakas?.(a)}
-                className="flex items-center gap-3 py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
-              >
-                <AvatarSininen nimi={a.nimi} />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{a.nimi}</p>
-                  <p className="text-xs text-gray-400 truncate">
-                    {a.sahkoposti || a.puhelin || '—'}
-                  </p>
+            {suodatettu.map(a => {
+              const auki = avattuAsiakas?.id === a.id
+              const asiakkaanKaynit = kaynit[a.id] ?? null
+              return (
+                <div key={a.id}>
+                  {/* Otsikkorivi */}
+                  <div
+                    onClick={() => avaaAsiakas(a)}
+                    className="flex items-center gap-3 py-3 hover:bg-gray-50 -mx-2 px-2 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <AvatarSininen nimi={a.nimi} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-800 truncate">{a.nimi}</p>
+                      <p className="text-xs text-gray-400 truncate">
+                        {a.sahkoposti || a.puhelin || '—'}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0 mr-2">
+                      <p className="text-xs text-gray-500">{a.kaynteja} käyntiä</p>
+                      <p className="text-xs text-gray-400">
+                        {a.viimeisinKaynti
+                          ? new Date(a.viimeisinKaynti).toLocaleDateString('fi-FI')
+                          : 'Ei käyntejä'}
+                      </p>
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#9ca3af', flexShrink: 0 }}>
+                      {auki ? '▲' : '▼'}
+                    </span>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        if (window.confirm(`Poistetaanko ${a.nimi} asiakasrekisteristä?\nTämä poistaa myös kaikki hoitokäynnit!`)) {
+                          await poistaAsiakas(a.id)
+                          setAsiakkaat(prev => prev.filter(x => x.id !== a.id))
+                          if (avattuAsiakas?.id === a.id) setAvattuAsiakas(null)
+                        }
+                      }}
+                      style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', border: '1px solid #F09595', background: 'transparent', color: '#A32D2D', cursor: 'pointer', flexShrink: 0 }}
+                    >
+                      Poista
+                    </button>
+                  </div>
+
+                  {/* Laajennettu näkymä */}
+                  {auki && (
+                    <div style={{ padding: '12px 8px 16px', borderTop: '1px solid #f3f4f6' }}>
+                      {/* Perustiedot */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px', marginBottom: '12px' }}>
+                        {a.puhelin && (
+                          <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
+                            <span style={{ color: '#9ca3af' }}>Puh: </span>{a.puhelin}
+                          </p>
+                        )}
+                        {a.sahkoposti && (
+                          <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
+                            <span style={{ color: '#9ca3af' }}>Email: </span>{a.sahkoposti}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Hoitokerrat */}
+                      <p style={{ fontSize: '11px', fontWeight: '600', color: '#9ca3af', textTransform: 'uppercase', margin: '0 0 6px', letterSpacing: '0.04em' }}>
+                        Hoitokerrat
+                      </p>
+                      {asiakkaanKaynit === null ? (
+                        <p style={{ fontSize: '12px', color: '#9ca3af' }}>Ladataan...</p>
+                      ) : asiakkaanKaynit.length === 0 ? (
+                        <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '8px' }}>Ei hoitokertoja</p>
+                      ) : (
+                        asiakkaanKaynit.map(k => (
+                          <div
+                            key={k.id}
+                            onClick={() => onAvaaKaynti?.(a, k)}
+                            style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #e2e8f0', marginBottom: '4px', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#fafafa' }}
+                          >
+                            <span style={{ fontSize: '13px', color: '#374151' }}>
+                              {new Date(k.pvm).toLocaleDateString('fi-FI')}
+                            </span>
+                            <span style={{ fontSize: '11px', color: '#9ca3af' }}>Avaa →</span>
+                          </div>
+                        ))
+                      )}
+
+                      <button
+                        onClick={() => onUusiKaynti?.(a)}
+                        style={{ width: '100%', padding: '8px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', marginTop: '8px', fontWeight: '500' }}
+                      >
+                        + Uusi hoitokerta
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs text-gray-500">
-                    {a.kaynteja} käyntiä
-                  </p>
-                  <p className="text-xs text-gray-400">
-                    {a.viimeisinKaynti
-                      ? new Date(a.viimeisinKaynti).toLocaleDateString('fi-FI')
-                      : 'Ei käyntejä'}
-                  </p>
-                </div>
-                <button
-                  onClick={async (e) => {
-                    e.stopPropagation()
-                    if (window.confirm(`Poistetaanko ${a.nimi} asiakasrekisteristä?\nTämä poistaa myös kaikki hoitokäynnit!`)) {
-                      await poistaAsiakas(a.id)
-                      setAsiakkaat(prev => prev.filter(x => x.id !== a.id))
-                    }
-                  }}
-                  style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', border: '1px solid #F09595', background: 'transparent', color: '#A32D2D', cursor: 'pointer', flexShrink: 0 }}
-                >
-                  Poista
-                </button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>

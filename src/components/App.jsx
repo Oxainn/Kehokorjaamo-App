@@ -177,12 +177,6 @@ export default function App() {
               {label}
             </button>
           ))}
-          {asiakas && (
-            <button onClick={() => setActiveTab('historia')}
-              className={`py-3 px-5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === 'historia' ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
-              Historia
-            </button>
-          )}
           {NAV_ITEMS_BASE.slice(3).map(({ id, label }) => (
             <button key={id} onClick={() => setActiveTab(id)}
               className={`py-3 px-5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${activeTab === id ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>
@@ -397,6 +391,16 @@ export default function App() {
               setAsiakas({ ...a, supabase_id: a.id })
               setActiveTab('client')
             }}
+            onAvaaKaynti={(a, k) => {
+              setAsiakas({ ...a, supabase_id: a.id })
+              setHavainnot(k.havainnot ?? null)
+              setFindings(k.loyodokset ?? [])
+              setActiveTab('clinical')
+            }}
+            onUusiKaynti={(a) => {
+              setAsiakas({ ...a, supabase_id: a.id })
+              setActiveTab('clinical')
+            }}
           />
         </div>
         <div style={{ display: activeTab === 'client' ? 'block' : 'none' }}>
@@ -433,9 +437,6 @@ export default function App() {
             asiakasData={asiakas}
             onComplete={handleAsiakas}
           />
-        </div>
-        <div style={{ display: activeTab === 'historia'  ? 'block' : 'none' }}>
-          {asiakas ? <AsiakasHistoria asiakas={asiakas} /> : <p>Valitse ensin asiakas</p>}
         </div>
         <div style={{ display: activeTab === 'clinical'  ? 'block' : 'none' }}>
           <ClinicalObservations asiakasData={asiakas} onComplete={handleHavainnot} onSiirryVälilehdelle={(välilehti) => setActiveTab(välilehti)} mittaukset={kuvaAnalyysiMittaukset} />
