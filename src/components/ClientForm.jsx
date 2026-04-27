@@ -98,7 +98,7 @@ const TULOSTUS_OLETUKSET = Object.fromEntries(TULOSTUS_OSIOT.map(o => [o.id, tru
 function PrintView({ data, ika, asetukset = TULOSTUS_OLETUKSET, lomakeAsetukset = null }) {
   const vis = (id) => asetukset[id] !== false
 
-  const kontraValitut = Object.entries(data.kontraindikaatiot).filter(([, v]) => v).map(([k]) => k)
+  const kontraValitut = Object.entries(data.kontraindikaatiot ?? {}).filter(([, v]) => v).map(([k]) => k)
   const normaalit  = kontraValitut.filter(n => !EHDOTTOMAT_KONTRA.includes(n))
   const ehdottomat = kontraValitut.filter(n =>  EHDOTTOMAT_KONTRA.includes(n))
   const kipuV = kipuVari(data.kipuaste)
@@ -525,7 +525,7 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
 
   const ika = laskikaIka(data.syntymaaika)
   const alleKahdeksantoista = ika !== null && ika < 18
-  const ehdotonValittu = EHDOTTOMAT_KONTRA.some((e) => data.kontraindikaatiot[e])
+  const ehdotonValittu = EHDOTTOMAT_KONTRA.some((e) => data.kontraindikaatiot?.[e])
 
   const virheet = yritettyLähettää ? {
     nimi:      !data.nimi.trim()           ? 'Nimi on pakollinen'                        : '',
