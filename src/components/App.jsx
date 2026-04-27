@@ -42,6 +42,7 @@ export default function App() {
   const [treatmentPlan, setTreatmentPlan] = useState(null)
   const [kuvaAnalyysiMittaukset, setKuvaAnalyysiMittaukset] = useState([])
   const [asiakasNappiTila, setAsiakasNappiTila] = useState('tallenna')
+  const [esitiedotLista, setEsitiedotLista] = useState([])
   const [avattuEsitieto, setAvattuEsitieto] = useState(null)
   const [kayntiPvm, setKayntiPvm]     = useState(new Date().toISOString().split('T')[0])
   const [vahvistusViesti, setVahvistusViesti] = useState('')
@@ -59,6 +60,17 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
+  useEffect(() => {
+    const haeEsitiedot = async () => {
+      const { data } = await supabase
+        .from('esitiedot').select()
+        .eq('kasitelty', false).order('created_at', { ascending: false })
+      setEsitiedotLista(data ?? [])
+    }
+    haeEsitiedot()
+    const interval = setInterval(haeEsitiedot, 10000)
+    return () => clearInterval(interval)
+  }, [])
 
   const hoitajaId = kayttaja?.id
 
@@ -75,6 +87,7 @@ export default function App() {
       hoitaja_id:        hoitajaId,
     }).select()
     if (error) console.error('Asiakas tallennus:', error)
+    setEsitiedotLista(prev => prev.filter(e => e.id !== esitiedot.id))
     setAsiakas({ ...esitiedot, supabase_id: data?.[0]?.id })
     setAvattuEsitieto(null)
     setNakyma('kaynti')
@@ -231,12 +244,14 @@ export default function App() {
             <div>
               <Asiakasrekisteri
                 hoitajaId={hoitajaId}
+                esitiedotLista={esitiedotLista}
                 onValitseAsiakas={(a) => {
                   setAsiakas({ ...a, supabase_id: a.id })
                   setNakyma('kaynti')
                   setAktiivinen('asiakastiedot')
                 }}
                 onEsikatseluAsiakas={(e) => setAvattuEsitieto(e)}
+                onAvaaAsiakkaana={avaaAsiakkaana}
               />
             </div>
           )

@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 
-export default function Asiakasrekisteri({ onValitseAsiakas, onEsikatseluAsiakas, hoitajaId }) {
+export default function Asiakasrekisteri({ onValitseAsiakas, onEsikatseluAsiakas, onAvaaAsiakkaana, hoitajaId, esitiedotLista = [] }) {
   const [asiakkaat, setAsiakkaat] = useState([])
   const [haku, setHaku]           = useState('')
   const [lataa, setLataa]         = useState(true)
-  const [esitiedot, setEsitiedot] = useState([])
 
   useEffect(() => {
     const haeAsiakkaat = async () => {
@@ -26,20 +25,6 @@ export default function Asiakasrekisteri({ onValitseAsiakas, onEsikatseluAsiakas
     }
     haeAsiakkaat()
   }, [hoitajaId])
-
-  useEffect(() => {
-    const haeEsitiedot = async () => {
-      const { data } = await supabase
-        .from('esitiedot')
-        .select()
-        .eq('kasitelty', false)
-        .order('created_at', { ascending: false })
-      setEsitiedot(data ?? [])
-    }
-    haeEsitiedot()
-    const interval = setInterval(haeEsitiedot, 10000)
-    return () => clearInterval(interval)
-  }, [])
 
   const suodatettu = asiakkaat.filter(a =>
     a.nimi?.toLowerCase().includes(haku.toLowerCase()) ||
@@ -68,12 +53,12 @@ export default function Asiakasrekisteri({ onValitseAsiakas, onEsikatseluAsiakas
       </h2>
 
       {/* Käsittelemättömät esitiedot */}
-      {esitiedot.length > 0 && (
+      {esitiedotLista.length > 0 && (
         <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#854F0B', marginBottom: '8px', margin: '0 0 8px' }}>
-            🔔 Käsittelemättömät esitiedot ({esitiedot.length})
+          <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#854F0B', margin: '0 0 8px' }}>
+            🔔 Käsittelemättömät esitiedot ({esitiedotLista.length})
           </h3>
-          {esitiedot.map(e => (
+          {esitiedotLista.map(e => (
             <div key={e.id} style={{
               padding: '12px',
               border: '1px solid #FAC775',
@@ -98,7 +83,7 @@ export default function Asiakasrekisteri({ onValitseAsiakas, onEsikatseluAsiakas
                   Esikatsele
                 </button>
                 <button
-                  onClick={() => onValitseAsiakas?.(e)}
+                  onClick={() => onAvaaAsiakkaana?.(e)}
                   style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer' }}
                 >
                   Avaa asiakkaana
