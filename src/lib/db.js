@@ -43,7 +43,8 @@ export const haeAsiakkaat = async () => {
 
 export const tallennaKaynti = async (
   asiakasId, havainnot, loyodokset,
-  hoitosuunnitelma, kuvaAnalyysit
+  hoitosuunnitelma, kuvaAnalyysit,
+  pvm
 ) => {
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -56,6 +57,7 @@ export const tallennaKaynti = async (
       loyodokset,
       hoitosuunnitelma,
       kuva_analyysit:  kuvaAnalyysit,
+      pvm:             pvm ? new Date(pvm).toISOString() : new Date().toISOString(),
     })
     .select()
     .single()

@@ -41,6 +41,7 @@ export default function App() {
   const [kaynteja, setKaynteja]             = useState(0)
   const [uudetAsiakkaat, setUudetAsiakkaat] = useState([])
   const [avattuEsitieto, setAvattuEsitieto] = useState(null)
+  const [kayntiPvm, setKayntiPvm]           = useState(new Date().toISOString().split('T')[0])
   const [vahvistusViesti, setVahvistusViesti] = useState('')
   const [kayttaja, setKayttaja]           = useState(null)
   const [lataaAuth, setLataaAuth]         = useState(true)
@@ -102,7 +103,8 @@ export default function App() {
       havainnot,
       findings,
       null,
-      kuvaAnalyysiMittaukset
+      kuvaAnalyysiMittaukset,
+      kayntiPvm
     )
     if (tulos) { päivitäLista(); alert('Käynti tallennettu!') }
     else alert('Tallennus epäonnistui')
@@ -200,28 +202,19 @@ export default function App() {
       </nav>
 
       {asiakas && (
-        <div style={{
-          padding: '8px 16px',
-          background: '#E1F5EE',
-          borderBottom: '1px solid #e2e8f0',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-          <span style={{ fontSize: '13px', color: '#085041' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', background: '#E1F5EE', borderBottom: '1px solid #e2e8f0' }}>
+          <span style={{ fontSize: '13px', color: '#085041', flex: 1 }}>
             Asiakas: {asiakas.nimi}
           </span>
+          <input
+            type="date"
+            value={kayntiPvm}
+            onChange={e => setKayntiPvm(e.target.value)}
+            style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #9FE1CB', background: 'white' }}
+          />
           <button
             onClick={tallennaKokoKaynti}
-            style={{
-              padding: '6px 14px',
-              background: '#1D9E75',
-              color: 'white',
-              border: 'none',
-              borderRadius: '20px',
-              fontSize: '12px',
-              cursor: 'pointer',
-            }}
+            style={{ padding: '6px 14px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '500' }}
           >
             💾 Tallenna käynti
           </button>
