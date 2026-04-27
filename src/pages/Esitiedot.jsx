@@ -47,6 +47,7 @@ const TYHJÄ = {
   raskaus_lisatieto:   '',
   lisatiedot:       '',
   merkinnät:        {},
+  allekirjoitus:    '',
 }
 
 function kipuVari(arvo) {
@@ -109,6 +110,8 @@ export default function Esitiedot() {
   const [valittuPalvelu, setValittuPalvelu] = useState(aktiivinenPalvelut[0]?.id ?? '')
   const [lisaVastaukset, setLisaVastaukset] = useState({})
   const [kuvausAuki, setKuvausAuki] = useState(false)
+  const [tietosuoja1, setTietosuoja1] = useState(false)
+  const [tietosuoja2, setTietosuoja2] = useState(false)
 
   const valitunPalvelunLomake = aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.lomake
     ?? { piilotetutOsiot: {}, lisaKysymykset: [] }
@@ -142,7 +145,7 @@ export default function Esitiedot() {
   }
 
   const ehdotonValittu = EHDOTTOMAT_KONTRA.some(e => data.kontraindikaatiot[e])
-  const voidaanLähettää = data.nimi.trim() && !ehdotonValittu
+  const voidaanLähettää = data.nimi.trim() && !ehdotonValittu && tietosuoja1 && data.allekirjoitus.trim()
 
   const lähetä = async (e) => {
     e.preventDefault()
@@ -157,6 +160,10 @@ export default function Esitiedot() {
       palvelu:     aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.nimi ?? 'Kalevalainen jäsenkorjaus',
       hoitoon_syy: data.hoitoon_syy,
       kipuaste:    data.kipuaste ?? 0,
+      tietosuoja_rekisteri: tietosuoja1,
+      tietosuoja_luovutus:  tietosuoja2,
+      allekirjoitus:        data.allekirjoitus,
+      allekirjoitus_pvm:    new Date().toLocaleDateString('fi-FI'),
     })
 
     const avain = 'esitiedot_' + Date.now()
@@ -184,6 +191,10 @@ export default function Esitiedot() {
       merkinnät:           data.merkinnät,
       lisaVastaukset:      lisaVastaukset,
       palvelu:             aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.nimi ?? 'Kalevalainen jäsenkorjaus',
+      tietosuoja_rekisteri: tietosuoja1,
+      tietosuoja_luovutus:  tietosuoja2,
+      allekirjoitus:        data.allekirjoitus,
+      allekirjoitus_pvm:    new Date().toLocaleDateString('fi-FI'),
       aikaleima:           new Date().toISOString(),
     }
     localStorage.setItem(avain, JSON.stringify(tallennettava))
@@ -588,14 +599,77 @@ export default function Esitiedot() {
             } />
           )}
 
+          {/* ── Tietosuoja ja vahvistus ──────────────────────────────────── */}
+          <Osio otsikko="Tietosuoja ja vahvistus" lapset={
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={tietosuoja1}
+                  onChange={e => setTietosuoja1(e.target.checked)}
+                  style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#1D9E75', flexShrink: 0 }}
+                />
+                <span style={{ fontSize: '13px', color: '#374151', lineHeight: '1.5' }}>
+                  <strong>*</strong> Hyväksyn, että henkilö- ja terveystietojani tallennetaan hoitorekisteriin EU:n
+                  tietosuoja-asetuksen (GDPR) mukaisesti hoitosuhteen ylläpitämistä varten.
+                </span>
+              </label>
+
+              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={tietosuoja2}
+                  onChange={e => setTietosuoja2(e.target.checked)}
+                  style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#1D9E75', flexShrink: 0 }}
+                />
+                <span style={{ fontSize: '13px', color: '#374151', lineHeight: '1.5' }}>
+                  Annan luvan tietojeni luovuttamiseen hoitooni osallistuville tahoille tarvittaessa.
+                  <span style={{ fontSize: '11px', color: '#9ca3af' }}> (valinnainen)</span>
+                </span>
+              </label>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+                  Allekirjoitus (kirjoita koko nimesi) <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="text"
+                  name="allekirjoitus"
+                  value={data.allekirjoitus}
+                  onChange={päivitä}
+                  placeholder="Etunimi Sukunimi"
+                  style={{
+                    width: '100%',
+                    borderRadius: '8px',
+                    border: yritettyLähettää && !data.allekirjoitus.trim() ? '1px solid #f87171' : '1px solid #e2e8f0',
+                    padding: '10px 12px',
+                    fontSize: '14px',
+                    color: '#374151',
+                    boxSizing: 'border-box',
+                    fontFamily: 'cursive',
+                  }}
+                />
+                {yritettyLähettää && !data.allekirjoitus.trim() && (
+                  <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>Allekirjoitus on pakollinen</p>
+                )}
+                {yritettyLähettää && !tietosuoja1 && (
+                  <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>Hyväksy tietosuojaehto jatkaaksesi</p>
+                )}
+              </div>
+
+            </div>
+          } />
+
           {/* ── Lähetä-nappi ─────────────────────────────────────────────── */}
           <button
             type="submit"
+            disabled={!!ehdotonValittu}
             className="w-full py-4 rounded-2xl font-semibold text-base transition-colors shadow-sm"
             style={{
-              background: '#1D9E75',
-              color:      '#fff',
-              cursor:     'pointer',
+              background: ehdotonValittu ? '#e5e7eb' : voidaanLähettää ? '#1D9E75' : '#9ca3af',
+              color:      ehdotonValittu ? '#9ca3af' : '#fff',
+              cursor:     ehdotonValittu ? 'not-allowed' : 'pointer',
             }}
           >
             {ehdotonValittu
