@@ -106,7 +106,6 @@ export default function App() {
   const [treatmentPlan, setTreatmentPlan] = useState(null)
   const [esitiedot, setEsitiedot]         = useState([])
   const [paneAuki, setPaneAuki]           = useState(false)
-  const [uudetAuki, setUudetAuki]         = useState(false)
   const [kuvaAnalyysiMittaukset, setKuvaAnalyysiMittaukset] = useState([])
   const [asiakasLista, setAsiakasLista]     = useState([])
   const [kaynteja, setKaynteja]             = useState(0)
@@ -294,60 +293,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Uudet esitiedot (Supabase) */}
-            {uudetAsiakkaat.length > 0 && (
-              <div className="relative">
-                <button
-                  onClick={() => setUudetAuki(v => !v)}
-                  style={{ background: '#1D9E75', color: 'white', border: 'none', borderRadius: '20px', padding: '6px 14px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
-                >
-                  {uudetAsiakkaat.length} uutta esitietoa
-                </button>
-                {uudetAuki && (
-                  <div style={{ position: 'absolute', top: '36px', right: 0, background: 'white', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '8px', minWidth: '300px', zIndex: 100, boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 4px 4px' }}>
-                      <button onClick={() => setUudetAuki(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', color: '#999', lineHeight: 1 }}>×</button>
-                    </div>
-                    {uudetAsiakkaat.map(u => (
-                      <div key={u.id} style={{ padding: '10px', borderBottom: '1px solid #f0f0f0' }}>
-                        <p style={{ fontSize: '13px', fontWeight: '500', margin: '0 0 2px', color: '#1a1a1a' }}>{u.nimi}</p>
-                        <p style={{ fontSize: '11px', color: '#999', margin: '0 0 6px' }}>{u.palvelu} · {u.sahkoposti}</p>
-                        {u.hoitoon_syy && (
-                          <p style={{ fontSize: '11px', color: '#666', margin: '0 0 6px', fontStyle: 'italic' }}>"{u.hoitoon_syy}"</p>
-                        )}
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <button
-                            onClick={async () => {
-                              setUudetAuki(false)
-                              await merkitseKasitellyksi(u.id)
-                              setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
-                              setAsiakas(null)
-                              setTimeout(() => {
-                                setAsiakas({ nimi: u.nimi, sahkoposti: u.sahkoposti, puhelin: u.puhelin, hoitoon_syy: u.hoitoon_syy, kipuaste: u.kipuaste })
-                                setActiveTab('client')
-                              }, 50)
-                            }}
-                            style={{ flex: 1, padding: '6px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
-                          >
-                            Avaa asiakkaana →
-                          </button>
-                          <button
-                            onClick={async () => {
-                              await merkitseKasitellyksi(u.id)
-                              setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
-                            }}
-                            style={{ padding: '6px 10px', background: '#f5f5f5', color: '#666', border: 'none', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
-                          >
-                            Käsitelty
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Asiakas / vaihda */}
             {asiakas ? (
               <div className="flex items-center gap-2">
@@ -445,6 +390,46 @@ export default function App() {
                     <p className="mt-1 text-gray-500 text-sm">Aktiivinen asiakas: <span className="font-medium text-brand-700">{asiakas.nimi}</span></p>
                   )}
                 </div>
+
+                {/* Uudet esitiedot */}
+                {uudetAsiakkaat.length > 0 && (
+                  <div style={{ marginBottom: '16px' }}>
+                    <p style={{ fontSize: '13px', fontWeight: '500', color: '#085041', margin: '0 0 8px' }}>
+                      Uusia esitietoja — {uudetAsiakkaat.length} odottaa
+                    </p>
+                    {uudetAsiakkaat.map(u => (
+                      <div key={u.id} style={{ padding: '12px', border: '1px solid #9FE1CB', borderRadius: '8px', background: '#E1F5EE', marginBottom: '8px' }}>
+                        <p style={{ fontSize: '13px', fontWeight: '500', color: '#085041', margin: '0 0 2px' }}>{u.nimi}</p>
+                        <p style={{ fontSize: '11px', color: '#0F6E56', margin: '0 0 4px' }}>{u.palvelu} · {u.sahkoposti}</p>
+                        {u.hoitoon_syy && (
+                          <p style={{ fontSize: '11px', color: '#0F6E56', margin: '0 0 8px', fontStyle: 'italic' }}>"{u.hoitoon_syy}"</p>
+                        )}
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={async () => {
+                              await merkitseKasitellyksi(u.id)
+                              setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
+                              setAsiakas({ nimi: u.nimi, sahkoposti: u.sahkoposti, puhelin: u.puhelin, hoitoon_syy: u.hoitoon_syy, kipuaste: u.kipuaste })
+                              setActiveTab('client')
+                            }}
+                            style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer', fontWeight: '500' }}
+                          >
+                            Avaa asiakkaana
+                          </button>
+                          <button
+                            onClick={async () => {
+                              await merkitseKasitellyksi(u.id)
+                              setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
+                            }}
+                            style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: '1px solid #0F6E56', background: 'transparent', color: '#0F6E56', cursor: 'pointer' }}
+                          >
+                            Käsitelty ✓
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Tilastokortit */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
