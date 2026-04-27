@@ -226,6 +226,16 @@ export default function Settings() {
   const [uusiKys, setUusiKys] = useState({})
   const [muokkausKysId, setMuokkausKysId]       = useState(null)
   const [muokkausKysTeksti, setMuokkausKysTeksti] = useState('')
+  const [muokkausOsio, setMuokkausOsio]         = useState(null)
+  // muokkausOsio: { pid, osioId, nimi } | null
+
+  const tallennaMuokkausOsio = (palveluId, osioId) => {
+    if (!muokkausOsio?.nimi.trim()) { setMuokkausOsio(null); return }
+    const p = palvelut.find(x => x.id === palveluId)
+    const osioNimet = { ...p.lomake?.osioNimet, [osioId]: muokkausOsio.nimi.trim() }
+    päivitäPalvelu(palveluId, 'lomake', { ...p.lomake, osioNimet })
+    setMuokkausOsio(null)
+  }
 
   const tallennaMuokkausKys = (palveluId, kysymysId) => {
     if (!muokkausKysTeksti.trim()) return
@@ -528,23 +538,50 @@ export default function Settings() {
                       {id:'keho_merkinnat',    nimi:'Kehon merkinnät'},
                       {id:'tietosuoja',        nimi:'Tietosuoja ja vahvistus'},
                       {id:'allekirjoitus',     nimi:'Allekirjoitus'},
-                    ].map(osio => (
-                      <label key={osio.id} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px',cursor:'pointer',
-                        padding:'7px 10px',borderRadius:'6px',border:'1px solid',
-                        background: !p.lomake?.piilotetutOsiot?.[osio.id] ? '#E1F5EE' : '#f9fafb',
-                        borderColor: !p.lomake?.piilotetutOsiot?.[osio.id] ? '#9FE1CB' : '#e2e8f0',
-                      }}>
-                        <input type="checkbox"
-                          checked={!p.lomake?.piilotetutOsiot?.[osio.id]}
-                          onChange={() => {
-                            const piilotetut = { ...p.lomake?.piilotetutOsiot, [osio.id]: !p.lomake?.piilotetutOsiot?.[osio.id] }
-                            päivitäPalvelu(p.id, 'lomake', { ...p.lomake, piilotetutOsiot: piilotetut })
-                          }}
-                          style={{width:'14px',height:'14px',accentColor:'#1D9E75',flexShrink:0}}
-                        />
-                        <span style={{fontSize:'13px',color:'#374151'}}>{osio.nimi}</span>
-                      </label>
-                    ))}
+                    ].map(osio => {
+                      const muokataan = muokkausOsio?.pid === p.id && muokkausOsio?.osioId === osio.id
+                      const näytettäväNimi = p.lomake?.osioNimet?.[osio.id] ?? osio.nimi
+                      return (
+                        <div key={osio.id} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px',
+                          padding:'7px 10px',borderRadius:'6px',border:'1px solid',
+                          background: !p.lomake?.piilotetutOsiot?.[osio.id] ? '#E1F5EE' : '#f9fafb',
+                          borderColor: muokataan ? '#9FE1CB' : !p.lomake?.piilotetutOsiot?.[osio.id] ? '#9FE1CB' : '#e2e8f0',
+                        }}>
+                          <input type="checkbox"
+                            checked={!p.lomake?.piilotetutOsiot?.[osio.id]}
+                            onChange={() => {
+                              const piilotetut = { ...p.lomake?.piilotetutOsiot, [osio.id]: !p.lomake?.piilotetutOsiot?.[osio.id] }
+                              päivitäPalvelu(p.id, 'lomake', { ...p.lomake, piilotetutOsiot: piilotetut })
+                            }}
+                            style={{width:'14px',height:'14px',accentColor:'#1D9E75',flexShrink:0,cursor:'pointer'}}
+                          />
+                          {muokataan ? (
+                            <input
+                              autoFocus
+                              value={muokkausOsio.nimi}
+                              onChange={e => setMuokkausOsio(prev => ({...prev, nimi: e.target.value}))}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter')  tallennaMuokkausOsio(p.id, osio.id)
+                                if (e.key === 'Escape') setMuokkausOsio(null)
+                              }}
+                              onBlur={() => tallennaMuokkausOsio(p.id, osio.id)}
+                              style={{flex:1,fontSize:'13px',padding:'1px 4px',border:'none',outline:'none',background:'transparent',color:'#374151'}}
+                            />
+                          ) : (
+                            <span
+                              onClick={() => setMuokkausOsio({ pid: p.id, osioId: osio.id, nimi: näytettäväNimi })}
+                              style={{flex:1,fontSize:'13px',color:'#374151',cursor:'text'}}
+                              title="Klikkaa muokataksesi nimeä"
+                            >
+                              {näytettäväNimi}
+                              {p.lomake?.osioNimet?.[osio.id] && (
+                                <span style={{fontSize:'10px',color:'#9ca3af',marginLeft:'6px'}}>(muokattu)</span>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      )
+                    })}
                     <p style={{fontSize:'11px',color:'#9ca3af',margin:'2px 0 14px'}}>Perustiedot näkyy aina.</p>
 
                     {/* Lisäkysymykset */}

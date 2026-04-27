@@ -124,7 +124,8 @@ export default function Esitiedot() {
 
   const valitunPalvelunLomake = aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.lomake
     ?? { piilotetutOsiot: {}, lisaKysymykset: [] }
-  const piilotettu = (osioId) => valitunPalvelunLomake.piilotetutOsiot?.[osioId] ?? false
+  const piilotettu  = (osioId)          => valitunPalvelunLomake.piilotetutOsiot?.[osioId] ?? false
+  const osioNimi    = (osioId, oletus)  => valitunPalvelunLomake.osioNimet?.[osioId] ?? oletus
 
   const päivitä = (e) => {
     const { name, value } = e.target
@@ -309,7 +310,7 @@ export default function Esitiedot() {
           )}
 
           {/* ── Osio 1: Asiakastiedot ─────────────────────────────────────── */}
-          <Osio otsikko="Asiakastiedot" lapset={
+          <Osio otsikko={osioNimi('kontraindikaatiot', 'Asiakastiedot')} lapset={
             <>
               <TextInput
                 label="Nimi" name="nimi"
@@ -368,7 +369,7 @@ export default function Esitiedot() {
           } />
 
           {/* ── Osio 1b: Kontraindikaatiot (vapaa teksti) ───────────────── */}
-          {!piilotettu('kontra_laaja') && <Osio otsikko="Kontraindikaatiot" lapset={
+          {!piilotettu('kontra_laaja') && <Osio otsikko={osioNimi('kontra_laaja', 'Kontraindikaatiot')} lapset={
             <Kenttä label="Sairaudet, lääkitykset ja muut huomioitavat asiat">
               <textarea
                 name="kontra_laaja"
@@ -383,7 +384,7 @@ export default function Esitiedot() {
           } />}
 
           {/* ── Osio 2: Kiputilanne ──────────────────────────────────────── */}
-          {!piilotettu('kiputilanne') && <Osio otsikko="Kiputilanne" lapset={
+          {!piilotettu('kiputilanne') && <Osio otsikko={osioNimi('kiputilanne', 'Kiputilanne')} lapset={
             <Kenttä label={`Kipuasteikko (VAS) — tällä hetkellä ${data.kipuaste}/10`}>
               <div className="flex items-center gap-4 mt-1">
                 <div
@@ -419,7 +420,7 @@ export default function Esitiedot() {
           } />}
 
           {/* ── Osio 3: Kehon merkinnät ──────────────────────────────────── */}
-          {!piilotettu('keho_merkinnat') && <Osio otsikko="Kehon merkinnät" lapset={
+          {!piilotettu('keho_merkinnat') && <Osio otsikko={osioNimi('keho_merkinnat', 'Kehon merkinnät')} lapset={
             <>
               <p className="text-xs text-gray-500">
                 Valitse oiretyyppi ja napauta kehokuvasta haluamasi kohta. Napauta uudelleen poistaaksesi merkinnän.
@@ -483,7 +484,7 @@ export default function Esitiedot() {
           } />}
 
           {/* ── Osio 4: Kontraindikaatiot ────────────────────────────────── */}
-          {!piilotettu('kontraindikaatiot') && <Osio otsikko="Terveystiedot" lapset={
+          {!piilotettu('kontraindikaatiot') && <Osio otsikko={osioNimi('kontraindikaatiot', 'Terveystiedot')} lapset={
             <>
               <div>
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
@@ -626,7 +627,7 @@ export default function Esitiedot() {
 
           {/* ── Tietosuoja ja vahvistus ──────────────────────────────────── */}
           {(!piilotettu('tietosuoja') || !piilotettu('allekirjoitus')) && (
-            <Osio otsikko="Tietosuoja ja vahvistus" lapset={
+            <Osio otsikko={osioNimi('tietosuoja', 'Tietosuoja ja vahvistus')} lapset={
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
                 {!piilotettu('tietosuoja') && (
