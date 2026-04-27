@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { tallennaKaynti, haeAsiakkaat } from '../lib/db'
+import { tallennaKaynti, haeAsiakkaat, haeKaynnitViikolle } from '../lib/db'
 import Auth from './Auth'
 import ClientForm from './ClientForm'
 import ClinicalObservations from './ClinicalObservations'
@@ -108,6 +108,7 @@ export default function App() {
   const [paneAuki, setPaneAuki]           = useState(false)
   const [kuvaAnalyysiMittaukset, setKuvaAnalyysiMittaukset] = useState([])
   const [asiakasLista, setAsiakasLista] = useState([])
+  const [kaynteja, setKaynteja]         = useState(0)
   const [clientFormKey, setClientFormKey] = useState(0)
   const [esitäytöData, setEsitäytöData]   = useState(null)
   const esitäytöRef                       = useRef(null)
@@ -126,7 +127,10 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (kayttaja) haeAsiakkaat().then(setAsiakasLista)
+    if (kayttaja) {
+      haeAsiakkaat().then(setAsiakasLista)
+      haeKaynnitViikolle().then(setKaynteja)
+    }
   }, [kayttaja])
 
   const päivitäLista = () => haeAsiakkaat().then(setAsiakasLista)
@@ -392,7 +396,7 @@ export default function App() {
                     <p className="text-sm text-gray-500 mt-1">Asiakkaita yhteensä</p>
                   </div>
                   <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-center">
-                    <p className="text-3xl font-bold text-brand-700">{kayntejaTallaViikolla()}</p>
+                    <p className="text-3xl font-bold text-brand-700">{kaynteja}</p>
                     <p className="text-sm text-gray-500 mt-1">Käyntejä tällä viikolla</p>
                   </div>
                   <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 text-center">

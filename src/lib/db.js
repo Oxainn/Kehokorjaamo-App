@@ -105,3 +105,18 @@ export const haeAsiakkaatKaynneilla = async () => {
     kaynteja: a.hoitokaynit?.length ?? 0,
   }))
 }
+
+export const haeKaynnitViikolle = async () => {
+  const viikkoAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  const { data, error } = await supabase
+    .from('hoitokaynit')
+    .select('id, pvm')
+    .gte('pvm', viikkoAgo)
+
+  if (error) {
+    console.error('Virhe:', error)
+    return 0
+  }
+  return data.length
+}
