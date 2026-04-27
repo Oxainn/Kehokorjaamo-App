@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 import { tallennaKaynti, tallennaAsiakas, haeAsiakkaat, haeKaynnitViikolle, haeUudetAsiakkaat, merkitseKasitellyksi } from '../lib/db'
-import Auth from './Auth'
+import Login from './Login'
 import ClientForm from './ClientForm'
 import ClinicalObservations from './ClinicalObservations'
 import BodyMap from './BodyMap'
@@ -168,7 +168,7 @@ export default function App() {
     </div>
   )
 
-  if (!kayttaja) return <Auth />
+  if (!kayttaja) return <Login />
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -200,8 +200,16 @@ export default function App() {
               </button>
             )}
             <button
-              onClick={kirjauduUlos}
-              className="text-brand-200 hover:text-white text-xs transition-colors border border-brand-500 hover:border-white rounded-lg px-3 py-1.5"
+              onClick={() => supabase.auth.signOut()}
+              style={{
+                fontSize: '12px',
+                padding: '4px 10px',
+                borderRadius: '20px',
+                border: '1px solid #e2e8f0',
+                background: 'transparent',
+                cursor: 'pointer',
+                color: 'var(--color-text-secondary, white)',
+              }}
             >
               Kirjaudu ulos
             </button>
