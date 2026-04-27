@@ -366,42 +366,40 @@ export default function Esitiedot() {
           } />
 
           {/* ── Osio 2: Kiputilanne ──────────────────────────────────────── */}
-          <Osio otsikko="Kiputilanne" lapset={
-            <>
-              {!piilotettu('kiputilanne') && <Kenttä label={`Kipuasteikko (VAS) — tällä hetkellä ${data.kipuaste}/10`}>
-                <div className="flex items-center gap-4 mt-1">
-                  <div
-                    className="flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold border-4 transition-colors"
+          {!piilotettu('kiputilanne') && <Osio otsikko="Kiputilanne" lapset={
+            <Kenttä label={`Kipuasteikko (VAS) — tällä hetkellä ${data.kipuaste}/10`}>
+              <div className="flex items-center gap-4 mt-1">
+                <div
+                  className="flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold border-4 transition-colors"
+                  style={{
+                    backgroundColor: väri.tausta,
+                    borderColor:     väri.kehys,
+                    color:           väri.teksti,
+                  }}
+                >
+                  {data.kipuaste}
+                </div>
+                <div className="flex-1">
+                  <input
+                    type="range"
+                    min={0} max={10}
+                    value={data.kipuaste}
+                    onChange={e => setData(prev => ({ ...prev, kipuaste: Number(e.target.value) }))}
+                    className="w-full h-2 rounded-lg appearance-none cursor-pointer"
                     style={{
-                      backgroundColor: väri.tausta,
-                      borderColor:     väri.kehys,
-                      color:           väri.teksti,
+                      background: data.kipuaste === 0
+                        ? '#e5e7eb'
+                        : `linear-gradient(to right, ${väri.kehys} 0%, ${väri.kehys} ${data.kipuaste * 10}%, #e5e7eb ${data.kipuaste * 10}%, #e5e7eb 100%)`,
                     }}
-                  >
-                    {data.kipuaste}
-                  </div>
-                  <div className="flex-1">
-                    <input
-                      type="range"
-                      min={0} max={10}
-                      value={data.kipuaste}
-                      onChange={e => setData(prev => ({ ...prev, kipuaste: Number(e.target.value) }))}
-                      className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-                      style={{
-                        background: data.kipuaste === 0
-                          ? '#e5e7eb'
-                          : `linear-gradient(to right, ${väri.kehys} 0%, ${väri.kehys} ${data.kipuaste * 10}%, #e5e7eb ${data.kipuaste * 10}%, #e5e7eb 100%)`,
-                      }}
-                    />
-                    <div className="flex justify-between text-xs text-gray-400 mt-1">
-                      <span>Ei kipua</span>
-                      <span>Pahin mahdollinen</span>
-                    </div>
+                  />
+                  <div className="flex justify-between text-xs text-gray-400 mt-1">
+                    <span>Ei kipua</span>
+                    <span>Pahin mahdollinen</span>
                   </div>
                 </div>
-              </Kenttä>}
-            </>
-          } />
+              </div>
+            </Kenttä>
+          } />}
 
           {/* ── Osio 3: Kehon merkinnät ──────────────────────────────────── */}
           {!piilotettu('keho_merkinnat') && <Osio otsikko="Kehon merkinnät" lapset={
