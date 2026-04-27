@@ -499,7 +499,7 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
     try {
       const { data: tallennettu, error } = await supabase
         .from('asiakkaat')
-        .upsert({
+        .insert({
           nimi:              data.nimi,
           syntymaaika:       data.syntymaaika,
           sahkoposti:        data.sahkoposti,

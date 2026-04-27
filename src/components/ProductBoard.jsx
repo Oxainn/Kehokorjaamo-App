@@ -195,7 +195,7 @@ export default function ProductBoard({ hoitajaId = null }) {
             ideat:      pb.ideat,
             todo:       pb.tehtävät,
             changelog:  pb.changelog,
-          }, { onConflict: 'hoitaja_id' })
+          }, { onConflict: 'hoitaja_id', ignoreDuplicates: false })
         if (error) throw error
       } catch (err) {
         console.error('ProductBoard tallennus:', err)
