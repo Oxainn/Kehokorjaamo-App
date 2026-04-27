@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { tallennaUusiAsiakas } from '../lib/db'
+import { supabase } from '../services/supabase'
 import AllekirjoitusPad from '../components/AllekirjoitusPad'
 
 const NORMAALI_KONTRA = [
@@ -173,52 +173,31 @@ export default function Esitiedot() {
     if (!voidaanLähettää) return
     setLataa(true)
 
-    await tallennaUusiAsiakas({
-      nimi:        data.nimi,
-      sahkoposti:  data.sahkoposti,
-      puhelin:     data.puhelin,
-      palvelu:     aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.nimi ?? 'Kalevalainen jäsenkorjaus',
-      hoitoon_syy: data.hoitoon_syy,
-      kipuaste:    data.kipuaste ?? 0,
-      tietosuoja_rekisteri: tietosuoja1,
-      tietosuoja_luovutus:  tietosuoja2,
-      allekirjoitus:        allekirjoitusKuva,
-      allekirjoitus_pvm:    new Date().toLocaleDateString('fi-FI'),
-    })
+    try {
+      const { data: tallennettu, error } = await supabase
+        .from('esitiedot')
+        .insert({
+          nimi:              data.nimi,
+          syntymaaika:       data.syntymaaika || null,
+          sahkoposti:        data.sahkoposti,
+          puhelin:           data.puhelin,
+          hoitoon_syy:       data.hoitoon_syy,
+          kipu:              data.kipuaste || 0,
+          kontraindikaatiot: data.kontraindikaatiot,
+          merkinnät:         data.merkinnät,
+          palvelu:           valittuPalvelu,
+          lisatiedot:        data.lisatiedot,
+        })
+        .select()
+
+      if (error) throw error
+      console.log('Esitiedot tallennettu:', tallennettu)
+    } catch (err) {
+      console.error('Esitiedot tallennus epäonnistui:', err)
+    }
 
     const avain = 'esitiedot_' + Date.now()
-    const tallennettava = {
-      _key:                avain,
-      nimi:                data.nimi,
-      syntymaaika:         data.syntymaaika,
-      lahiosoite:          data.lahiosoite,
-      postinumero:         data.postinumero,
-      postitoimipaikka:    data.postitoimipaikka,
-      sahkoposti:          data.sahkoposti,
-      puhelin:             data.puhelin,
-      pituus:              data.pituus,
-      paino:               data.paino,
-      ammatti:             data.ammatti,
-      harrastukset:        data.harrastukset,
-      hoitoon_syy:         data.hoitoon_syy,
-      laakitys:            data.laakitys,
-      miten_loysi:         data.miten_loysi,
-      kipuaste:            data.kipuaste,
-      kontraindikaatiot:   data.kontraindikaatiot,
-      kontra_laaja:        data.kontra_laaja,
-      allergia_lisatieto:  data.allergia_lisatieto,
-      tekonivel_lisatieto: data.tekonivel_lisatieto,
-      raskaus_lisatieto:   data.raskaus_lisatieto,
-      merkinnät:           data.merkinnät,
-      lisaVastaukset:      lisaVastaukset,
-      palvelu:             aktiivinenPalvelut.find(p => p.id === valittuPalvelu)?.nimi ?? 'Kalevalainen jäsenkorjaus',
-      tietosuoja_rekisteri: tietosuoja1,
-      tietosuoja_luovutus:  tietosuoja2,
-      allekirjoitus:        allekirjoitusKuva,
-      allekirjoitus_pvm:    new Date().toLocaleDateString('fi-FI'),
-      aikaleima:           new Date().toISOString(),
-    }
-    localStorage.setItem(avain, JSON.stringify(tallennettava))
+    localStorage.setItem(avain, JSON.stringify({ ...data, _key: avain }))
 
     setLataa(false)
     setLähetetty(true)
