@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../lib/supabase'
+import Auth from './Auth'
 import ClientForm from './ClientForm'
 import ClinicalObservations from './ClinicalObservations'
 import BodyMap from './BodyMap'
@@ -103,6 +105,24 @@ export default function App() {
   const [clientFormKey, setClientFormKey] = useState(0)
   const [esitäytöData, setEsitäytöData]   = useState(null)
   const esitäytöRef                       = useRef(null)
+  const [kayttaja, setKayttaja]           = useState(null)
+  const [lataaAuth, setLataaAuth]         = useState(true)
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setKayttaja(data.session?.user ?? null)
+      setLataaAuth(false)
+    })
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setKayttaja(session?.user ?? null)
+    })
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const kirjauduUlos = async () => {
+    await supabase.auth.signOut()
+    setKayttaja(null)
+  }
 
   useEffect(() => {
     const tarkista = () => setEsitiedot(lueEsitiedot())
@@ -187,6 +207,14 @@ export default function App() {
     setActiveTab('client')
   }
 
+  if (lataaAuth) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: '14px', color: '#666' }}>
+      Ladataan...
+    </div>
+  )
+
+  if (!kayttaja) return <Auth />
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-brand-700 text-white shadow-md">
@@ -237,6 +265,12 @@ export default function App() {
                 + Uusi asiakas
               </button>
             )}
+            <button
+              onClick={kirjauduUlos}
+              className="text-brand-200 hover:text-white text-xs transition-colors border border-brand-500 hover:border-white rounded-lg px-3 py-1.5"
+            >
+              Kirjaudu ulos
+            </button>
           </div>
         </div>
       </header>
