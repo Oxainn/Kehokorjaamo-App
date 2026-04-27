@@ -40,6 +40,7 @@ export default function App() {
   const [asiakasLista, setAsiakasLista]     = useState([])
   const [kaynteja, setKaynteja]             = useState(0)
   const [uudetAsiakkaat, setUudetAsiakkaat] = useState([])
+  const [vahvistusViesti, setVahvistusViesti] = useState('')
   const [kayttaja, setKayttaja]           = useState(null)
   const [lataaAuth, setLataaAuth]         = useState(true)
 
@@ -228,6 +229,11 @@ export default function App() {
             }, null)
             return (
               <section className="flex flex-col gap-6">
+                {vahvistusViesti && (
+                  <div style={{ padding: '10px 16px', background: '#E1F5EE', borderRadius: '8px', color: '#085041', fontSize: '13px', fontWeight: '500', marginBottom: '12px', textAlign: 'center' }}>
+                    ✓ {vahvistusViesti}
+                  </div>
+                )}
                 <div>
                   <h2 className="text-2xl font-semibold text-gray-800">Tervetuloa</h2>
                   {asiakas && (
@@ -279,7 +285,8 @@ export default function App() {
                                 await merkitseKasitellyksi(u.id)
                                 setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
                                 await haeAsiakkaat().then(setAsiakasLista)
-                                alert(`${u.nimi} tallennettu asiakasrekisteriin!`)
+                                setVahvistusViesti(`${u.nimi} tallennettu asiakasrekisteriin!`)
+                                setTimeout(() => setVahvistusViesti(''), 3000)
                               }
                             }}
                             style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer', fontWeight: '500', flex: 1 }}
