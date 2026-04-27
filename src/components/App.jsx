@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 import { tallennaKaynti } from '../lib/db'
+import { normalisoiAsiakas } from '../utils/asiakas'
 import Login from './Login'
 import ClientForm from './ClientForm'
 import ClinicalObservations from './ClinicalObservations'
@@ -30,15 +31,6 @@ const kayntiNav = [
   { id: 'lihakset',         nimi: 'Lihakset' },
   { id: 'jalkihoito',       nimi: 'Jälkihoito' },
 ]
-
-const normalisoiAsiakas = (a) => ({
-  ...a,
-  supabase_id:       a.id ?? a.supabase_id,
-  kontraindikaatiot: a.kontraindikaatiot ?? {},
-  merkinnät:         a.merkinnät         ?? {},
-  vastauksia:        a.vastauksia        ?? {},
-  havainnot:         a.havainnot         ?? {},
-})
 
 export default function App() {
   const [nakyma, setNakyma]           = useState('rekisteri')
