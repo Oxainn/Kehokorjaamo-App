@@ -215,7 +215,18 @@ export default function Settings() {
 
   // ── Per-palvelu lomakerakentaja ───────────────────────────────────────────
   const [uusiKys, setUusiKys] = useState({})
-  // uusiKys: { [palveluId]: { teksti: '', tyyppi: 'teksti' } }
+  const [muokkausKysId, setMuokkausKysId]       = useState(null)
+  const [muokkausKysTeksti, setMuokkausKysTeksti] = useState('')
+
+  const tallennaMuokkausKys = (palveluId, kysymysId) => {
+    if (!muokkausKysTeksti.trim()) return
+    const p = palvelut.find(p => p.id === palveluId)
+    const qs = (p?.lomake?.lisaKysymykset ?? []).map(k =>
+      k.id === kysymysId ? { ...k, otsikko: muokkausKysTeksti.trim() } : k
+    )
+    päivitäPalvelu(palveluId, 'lomake', { ...p.lomake, lisaKysymykset: qs })
+    setMuokkausKysId(null)
+  }
 
   // ── Osio 3 ────────────────────────────────────────────────────────────────
   const [brandays, setBrandays] = useState(() => ({
@@ -515,7 +526,7 @@ export default function Settings() {
                     ) : (
                       <div style={{display:'flex',flexDirection:'column',gap:'4px',marginBottom:'10px'}}>
                         {(p.lomake?.lisaKysymykset ?? []).map((k, i, arr) => (
-                          <div key={k.id} style={{display:'flex',gap:'6px',alignItems:'center',background:'white',padding:'7px 10px',borderRadius:'6px',border:'1px solid #e2e8f0'}}>
+                          <div key={k.id} style={{display:'flex',gap:'6px',alignItems:'center',background:'white',padding:'7px 10px',borderRadius:'6px',border: muokkausKysId === k.id ? '1px solid #9FE1CB' : '1px solid #e2e8f0'}}>
                             <div style={{display:'flex',flexDirection:'column',flexShrink:0}}>
                               <button type="button" disabled={i === 0}
                                 onClick={() => {
@@ -532,10 +543,31 @@ export default function Settings() {
                                 }}
                                 style={{fontSize:'9px',background:'none',border:'none',cursor:'pointer',lineHeight:1,padding:'1px',color: i===arr.length-1 ? '#d1d5db' : '#6b7280'}}>▼</button>
                             </div>
+
                             <div style={{flex:1,minWidth:0}}>
-                              <p style={{fontSize:'13px',color:'#374151',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{k.otsikko}</p>
+                              {muokkausKysId === k.id ? (
+                                <input
+                                  autoFocus
+                                  value={muokkausKysTeksti}
+                                  onChange={e => setMuokkausKysTeksti(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter') tallennaMuokkausKys(p.id, k.id)
+                                    if (e.key === 'Escape') setMuokkausKysId(null)
+                                  }}
+                                  onBlur={() => tallennaMuokkausKys(p.id, k.id)}
+                                  maxLength={120}
+                                  style={{width:'100%',fontSize:'13px',padding:'2px 6px',border:'none',outline:'none',background:'transparent',color:'#374151'}}
+                                />
+                              ) : (
+                                <p
+                                  onClick={() => { setMuokkausKysId(k.id); setMuokkausKysTeksti(k.otsikko) }}
+                                  style={{fontSize:'13px',color:'#374151',margin:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',cursor:'text'}}
+                                  title="Klikkaa muokataksesi"
+                                >{k.otsikko}</p>
+                              )}
                               <p style={{fontSize:'11px',color:'#9ca3af',margin:0}}>{KYSYMYS_TYYPIT.find(t=>t.id===k.tyyppi)?.label ?? k.tyyppi}</p>
                             </div>
+
                             <button type="button"
                               onClick={() => {
                                 const qs = p.lomake.lisaKysymykset.filter(q => q.id !== k.id)
