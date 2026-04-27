@@ -393,7 +393,7 @@ export default function App() {
 
         {/* ASETUKSET */}
         {nakyma === 'asetukset' && (
-          <Settings />
+          <Settings hoitajaId={hoitajaId} />
         )}
 
       </main>

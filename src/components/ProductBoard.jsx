@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../services/supabase'
+import { uid, parsiiIdeatTekstistä } from '../utils/productboard'
 
 const STORAGE_KEY = 'kehokorjaamo_productboard'
 const VERSIO = 'V1'
@@ -67,9 +68,7 @@ function luePB() {
   } catch { return {} }
 }
 
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
-}
+// uid imported from utils/productboard
 
 function pvm(iso) {
   return new Date(iso).toLocaleDateString('fi-FI', {
@@ -327,63 +326,17 @@ Projektin konteksti:
   const lisääIdeatTekstistä = () => {
     const teksti = ideaInput.trim()
     if (!teksti) return
-
-    // Etsi IDEAT_ALKAA...IDEAT_LOPPUU tai pelkät - rivit
-    const alku  = teksti.indexOf('IDEAT_ALKAA')
-    const loppu = teksti.indexOf('IDEAT_LOPPUU')
-    let rivit = []
-    if (alku !== -1 && loppu !== -1 && loppu > alku) {
-      rivit = teksti
-        .slice(alku + 'IDEAT_ALKAA'.length, loppu)
-        .split('\n')
-        .map(r => r.trim())
-        .filter(r => r.startsWith('- '))
-        .map(r => r.slice(2).trim())
-        .filter(Boolean)
-    } else {
-      rivit = teksti
-        .split('\n')
-        .map(r => r.trim())
-        .filter(r => r.startsWith('- '))
-        .map(r => r.slice(2).trim())
-        .filter(Boolean)
-    }
-
-    // Etsi VALMIS:-rivit ja vertaa To Do -listan tehtäviin
-    const valmisTekstit = teksti
-      .split('\n')
-      .map(r => r.trim())
-      .filter(r => r.startsWith('VALMIS:'))
-      .map(r => r.slice('VALMIS:'.length).trim())
-      .filter(Boolean)
-
-    if (rivit.length === 0 && valmisTekstit.length === 0) return
-
-    const uudet = rivit.map(r => ({
-      id: uid(), teksti: r,
-      lisätty: new Date().toISOString(), tila: 'idea',
-    }))
-
-    // Täsmäytä VALMIS-tekstit tehtävälistan tehtäviin (ei case-sensitive)
-    const valmistuvat = pb.tehtävät.filter(t =>
-      valmisTekstit.some(v => v.toLowerCase() === t.teksti.toLowerCase())
-    )
-    const valmistuvienIdt = new Set(valmistuvat.map(t => t.id))
-    const uudetCL = valmistuvat.map(t => ({
-      id: uid(), teksti: t.teksti,
-      valmistunut: new Date().toISOString(), versio: VERSIO,
-    }))
-
+    const { uudet, valmistuvat, valmistuvienIdt, uudetCL } = parsiiIdeatTekstistä(teksti, pb.tehtävät)
+    if (uudet.length === 0 && valmistuvat.length === 0) return
     setPb(prev => ({
       ...prev,
-      ideat:     uudet.length     > 0 ? [...prev.ideat, ...uudet]                               : prev.ideat,
+      ideat:     uudet.length        > 0 ? [...prev.ideat, ...uudet]                               : prev.ideat,
       tehtävät:  valmistuvienIdt.size > 0 ? prev.tehtävät.filter(t => !valmistuvienIdt.has(t.id)) : prev.tehtävät,
-      changelog: uudetCL.length   > 0 ? [...prev.changelog, ...uudetCL]                         : prev.changelog,
+      changelog: uudetCL.length      > 0 ? [...prev.changelog, ...uudetCL]                        : prev.changelog,
     }))
-
     setIdeaInput('')
     const osat = []
-    if (uudet.length     > 0) osat.push(`Lisätty ${uudet.length} ideaa`)
+    if (uudet.length      > 0) osat.push(`Lisätty ${uudet.length} ideaa`)
     if (valmistuvat.length > 0) osat.push(`${valmistuvat.length} tehtävä merkitty valmiiksi`)
     setLisättyVahvistus(osat.join(' · ') + '!')
     setTimeout(() => setLisättyVahvistus(''), 3000)

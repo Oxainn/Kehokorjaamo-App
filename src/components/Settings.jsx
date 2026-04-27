@@ -1,4 +1,6 @@
 import { useState, useRef, Fragment } from 'react'
+import { parsiiIdeatTekstistä } from '../utils/productboard'
+import { supabase } from '../services/supabase'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
 
@@ -140,9 +142,11 @@ function VarausKortti({ label, name, value, onChange, placeholder, ohje }) {
   )
 }
 
-export default function Settings() {
+export default function Settings({ hoitajaId }) {
   const [aukiOsio, setAukiOsio] = useState('terapeutti')
   const toggle = (id) => setAukiOsio(prev => prev === id ? null : id)
+  const [devInput, setDevInput]   = useState('')
+  const [devTila, setDevTila]     = useState(null)
 
   // ── Osio 1 ────────────────────────────────────────────────────────────────
   const [terapeutti, setTerapeutti] = useState(() => ({
@@ -930,13 +934,69 @@ Tee kattava koodin tarkistus ja siivous Kehokorjaamo App -projektille:
 
 5. RAPORTOI mitä löysit ja korjasit
 
-Tee commit: "chore: koodin siivous ja tarkistus"`
+6. EHDOTA parannuksia selkokielellä käyttäen tätä muotoa:
+
+IDEAT_ALKAA
+- Idea 1 lyhyesti
+- Idea 2 lyhyesti
+IDEAT_LOPPUU
+
+Jos jokin tehtävä on valmis, ilmoita:
+VALMIS: Tehtävän teksti tässä
+
+7. Tee commit ja push mainiin`
                   navigator.clipboard.writeText(prompt)
                   alert('Prompt kopioitu! Liitä Claude Codeen.')
                 }}
                 className="px-4 py-2.5 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-lg transition-colors"
               >
                 📋 Tarkista ja siivoa koodi
+              </button>
+            </div>
+
+            {/* Liitä Coden ehdotukset */}
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Liitä Coden ehdotukset</p>
+              <textarea
+                value={devInput}
+                onChange={e => setDevInput(e.target.value)}
+                placeholder="Liitä tähän Claude Coden vastaus..."
+                rows={5}
+                className="w-full text-sm border border-gray-200 rounded-lg p-3 resize-y font-mono focus:outline-none focus:border-brand-400"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  const teksti = devInput.trim()
+                  if (!teksti) return
+                  if (!hoitajaId) { alert('Kirjaudu sisään ensin.'); return }
+                  const { data: rows } = await supabase
+                    .from('productboard')
+                    .select('data')
+                    .eq('hoitaja_id', hoitajaId)
+                    .maybeSingle()
+                  const pb = rows?.data ?? { ideat: [], tehtävät: [], changelog: [] }
+                  const { uudet, valmistuvat, valmistuvienIdt, uudetCL } = parsiiIdeatTekstistä(teksti, pb.tehtävät)
+                  if (uudet.length === 0 && valmistuvat.length === 0) {
+                    alert('Ei ideoita tai VALMIS-merkintöjä löydetty.')
+                    return
+                  }
+                  const uusiPb = {
+                    ...pb,
+                    ideat:     uudet.length        > 0 ? [...pb.ideat, ...uudet]                                 : pb.ideat,
+                    tehtävät:  valmistuvienIdt.size > 0 ? pb.tehtävät.filter(t => !valmistuvienIdt.has(t.id))   : pb.tehtävät,
+                    changelog: uudetCL.length      > 0 ? [...pb.changelog, ...uudetCL]                          : pb.changelog,
+                  }
+                  await supabase
+                    .from('productboard')
+                    .upsert({ hoitaja_id: hoitajaId, data: uusiPb }, { onConflict: 'hoitaja_id' })
+                  setDevInput('')
+                  setDevTila('ok')
+                  setTimeout(() => setDevTila(null), 2500)
+                }}
+                className="mt-2 px-4 py-2.5 bg-brand-700 hover:bg-brand-800 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                {devTila === 'ok' ? '✅ Lisätty!' : '⬇️ Lisää tuotehallintaan'}
               </button>
             </div>
 
