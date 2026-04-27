@@ -7,15 +7,19 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
   const [lataa, setLataa]         = useState(true)
 
   useEffect(() => {
-    if (!hoitajaId) { setLataa(false); return }
     const haeAsiakkaat = async () => {
-      console.log('Haetaan asiakkaita, hoitajaId:', hoitajaId)
+      if (!hoitajaId) {
+        console.log('hoitajaId puuttuu — odotetaan')
+        setLataa(false)
+        return
+      }
+      console.log('Haetaan hoitajaId:', hoitajaId)
       const { data, error } = await supabase
         .from('asiakkaat')
-        .select('*, hoitokaynit(pvm)')
+        .select('*')
         .eq('hoitaja_id', hoitajaId)
         .order('created_at', { ascending: false })
-      console.log('Tulos:', data, 'Virhe:', error)
+      console.log('Data:', data, 'Error:', error)
       if (!error) setAsiakkaat(data ?? [])
       setLataa(false)
     }
