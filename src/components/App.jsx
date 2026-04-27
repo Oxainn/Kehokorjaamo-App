@@ -272,27 +272,6 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Esitiedot-badge */}
-            {esitiedot.length > 0 && (
-              <div className="relative">
-                <button
-                  onClick={() => setPaneAuki(v => !v)}
-                  className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-400 text-white text-xs font-semibold px-3 py-1.5 rounded-full transition-colors"
-                >
-                  {esitiedot.length} uutta
-                </button>
-                {paneAuki && (
-                  <EsitiedotPane
-                    lista={esitiedot}
-                    onAvaa={avaaNäkymä}
-                    onPoista={poistaEsitiedot}
-                    onTyhjennä={tyhjennäKaikki}
-                    onSulje={() => setPaneAuki(false)}
-                  />
-                )}
-              </div>
-            )}
-
             {/* Asiakas / vaihda */}
             {asiakas ? (
               <div className="flex items-center gap-2">
@@ -393,14 +372,32 @@ export default function App() {
 
                 {/* Uudet esitiedot */}
                 {uudetAsiakkaat.length > 0 && (
-                  <div style={{ marginBottom: '16px' }}>
-                    <p style={{ fontSize: '13px', fontWeight: '500', color: '#085041', margin: '0 0 8px' }}>
-                      Uusia esitietoja — {uudetAsiakkaat.length} odottaa
-                    </p>
+                  <div style={{ marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <p style={{ fontSize: '14px', fontWeight: '500', color: '#085041', margin: 0 }}>
+                        Odottavat esitiedot — {uudetAsiakkaat.length}
+                      </p>
+                      <button
+                        onClick={async () => {
+                          for (const u of uudetAsiakkaat) {
+                            await merkitseKasitellyksi(u.id)
+                          }
+                          setUudetAsiakkaat([])
+                        }}
+                        style={{ fontSize: '11px', color: '#999', background: 'none', border: 'none', cursor: 'pointer' }}
+                      >
+                        Tyhjennä kaikki
+                      </button>
+                    </div>
                     {uudetAsiakkaat.map(u => (
                       <div key={u.id} style={{ padding: '12px', border: '1px solid #9FE1CB', borderRadius: '8px', background: '#E1F5EE', marginBottom: '8px' }}>
-                        <p style={{ fontSize: '13px', fontWeight: '500', color: '#085041', margin: '0 0 2px' }}>{u.nimi}</p>
-                        <p style={{ fontSize: '11px', color: '#0F6E56', margin: '0 0 4px' }}>{u.palvelu} · {u.sahkoposti}</p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <p style={{ fontSize: '13px', fontWeight: '500', color: '#085041', margin: 0 }}>{u.nimi}</p>
+                          <span style={{ fontSize: '11px', color: '#0F6E56' }}>
+                            {new Date(u.luotu).toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p style={{ fontSize: '11px', color: '#0F6E56', margin: '0 0 8px' }}>{u.palvelu} · {u.sahkoposti}</p>
                         {u.hoitoon_syy && (
                           <p style={{ fontSize: '11px', color: '#0F6E56', margin: '0 0 8px', fontStyle: 'italic' }}>"{u.hoitoon_syy}"</p>
                         )}
@@ -412,9 +409,9 @@ export default function App() {
                               setAsiakas({ nimi: u.nimi, sahkoposti: u.sahkoposti, puhelin: u.puhelin, hoitoon_syy: u.hoitoon_syy, kipuaste: u.kipuaste })
                               setActiveTab('client')
                             }}
-                            style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer', fontWeight: '500' }}
+                            style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer', fontWeight: '500', flex: 1 }}
                           >
-                            Avaa asiakkaana
+                            Avaa asiakkaana →
                           </button>
                           <button
                             onClick={async () => {
@@ -423,7 +420,7 @@ export default function App() {
                             }}
                             style={{ fontSize: '12px', padding: '6px 14px', borderRadius: '20px', border: '1px solid #0F6E56', background: 'transparent', color: '#0F6E56', cursor: 'pointer' }}
                           >
-                            Käsitelty ✓
+                            Poista
                           </button>
                         </div>
                       </div>
