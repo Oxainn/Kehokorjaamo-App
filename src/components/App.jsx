@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { tallennaKaynti, haeAsiakkaat, haeKaynnitViikolle } from '../lib/db'
+import { tallennaKaynti, haeAsiakkaat, haeKaynnitViikolle, haeUudetAsiakkaat, merkitseKasitellyksi } from '../lib/db'
 import Auth from './Auth'
 import ClientForm from './ClientForm'
 import ClinicalObservations from './ClinicalObservations'
@@ -107,8 +107,9 @@ export default function App() {
   const [esitiedot, setEsitiedot]         = useState([])
   const [paneAuki, setPaneAuki]           = useState(false)
   const [kuvaAnalyysiMittaukset, setKuvaAnalyysiMittaukset] = useState([])
-  const [asiakasLista, setAsiakasLista] = useState([])
-  const [kaynteja, setKaynteja]         = useState(0)
+  const [asiakasLista, setAsiakasLista]     = useState([])
+  const [kaynteja, setKaynteja]             = useState(0)
+  const [uudetAsiakkaat, setUudetAsiakkaat] = useState([])
   const [clientFormKey, setClientFormKey] = useState(0)
   const [esitäytöData, setEsitäytöData]   = useState(null)
   const esitäytöRef                       = useRef(null)
@@ -130,6 +131,7 @@ export default function App() {
     if (kayttaja) {
       haeAsiakkaat().then(setAsiakasLista)
       haeKaynnitViikolle().then(setKaynteja)
+      haeUudetAsiakkaat().then(setUudetAsiakkaat)
     }
   }, [kayttaja])
 
@@ -388,6 +390,35 @@ export default function App() {
                     <p className="mt-1 text-gray-500 text-sm">Aktiivinen asiakas: <span className="font-medium text-brand-700">{asiakas.nimi}</span></p>
                   )}
                 </div>
+
+                {/* Uudet esitiedot */}
+                {uudetAsiakkaat.length > 0 && (
+                  <div style={{ marginBottom: '16px', border: '2px solid #1D9E75', borderRadius: '12px', padding: '12px 16px', background: '#E1F5EE' }}>
+                    <p style={{ fontSize: '13px', fontWeight: '500', color: '#085041', margin: '0 0 8px' }}>
+                      Uusia esitietoja — {uudetAsiakkaat.length} odottaa
+                    </p>
+                    {uudetAsiakkaat.map(u => (
+                      <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 0', borderBottom: '1px solid #9FE1CB' }}>
+                        <div style={{ flex: 1 }}>
+                          <p style={{ fontSize: '13px', fontWeight: '500', margin: 0, color: '#085041' }}>{u.nimi}</p>
+                          <p style={{ fontSize: '11px', color: '#0F6E56', margin: 0 }}>{u.palvelu} · {u.sahkoposti}</p>
+                          {u.hoitoon_syy && (
+                            <p style={{ fontSize: '11px', color: '#0F6E56', margin: '2px 0 0', fontStyle: 'italic' }}>"{u.hoitoon_syy}"</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={async () => {
+                            await merkitseKasitellyksi(u.id)
+                            setUudetAsiakkaat(prev => prev.filter(x => x.id !== u.id))
+                          }}
+                          style={{ fontSize: '11px', padding: '4px 10px', borderRadius: '20px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer' }}
+                        >
+                          Käsitelty ✓
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
                 {/* Tilastokortit */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
