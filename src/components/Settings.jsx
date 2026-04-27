@@ -970,26 +970,46 @@ VALMIS: Tehtävän teksti tässä
                   const teksti = devInput.trim()
                   if (!teksti) return
                   if (!hoitajaId) { alert('Kirjaudu sisään ensin.'); return }
-                  const { data: rows } = await supabase
+
+                  const { data: rows, error: lukuErr } = await supabase
                     .from('productboard')
-                    .select('data')
+                    .select('visio, ideat, todo, changelog')
                     .eq('hoitaja_id', hoitajaId)
                     .maybeSingle()
-                  const pb = rows?.data ?? { ideat: [], tehtävät: [], changelog: [] }
-                  const { uudet, valmistuvat, valmistuvienIdt, uudetCL } = rakennaPbPäivitys(teksti, pb.tehtävät)
+
+                  if (lukuErr) {
+                    console.error('ProductBoard lukuvirhe:', lukuErr)
+                    alert('Tietojen lataus epäonnistui.')
+                    return
+                  }
+
+                  const pb = rows ?? { visio: '', ideat: [], todo: [], changelog: [] }
+                  const { uudet, valmistuvat, valmistuvienIdt, uudetCL } =
+                    rakennaPbPäivitys(teksti, pb.todo ?? [])
+
                   if (uudet.length === 0 && valmistuvat.length === 0) {
                     alert('Ei ideoita tai VALMIS-merkintöjä löydetty.')
                     return
                   }
+
                   const uusiPb = {
-                    ...pb,
-                    ideat:     uudet.length        > 0 ? [...pb.ideat, ...uudet]                                 : pb.ideat,
-                    tehtävät:  valmistuvienIdt.size > 0 ? pb.tehtävät.filter(t => !valmistuvienIdt.has(t.id))   : pb.tehtävät,
-                    changelog: uudetCL.length      > 0 ? [...pb.changelog, ...uudetCL]                          : pb.changelog,
+                    hoitaja_id: hoitajaId,
+                    visio:     pb.visio ?? '',
+                    ideat:     uudet.length        > 0 ? [...(pb.ideat ?? []), ...uudet]                              : (pb.ideat ?? []),
+                    todo:      valmistuvienIdt.size > 0 ? (pb.todo ?? []).filter(t => !valmistuvienIdt.has(t.id))     : (pb.todo ?? []),
+                    changelog: uudetCL.length      > 0 ? [...(pb.changelog ?? []), ...uudetCL]                       : (pb.changelog ?? []),
                   }
-                  await supabase
+
+                  const { error: tallErr } = await supabase
                     .from('productboard')
-                    .upsert({ hoitaja_id: hoitajaId, data: uusiPb }, { onConflict: 'hoitaja_id' })
+                    .upsert(uusiPb, { onConflict: 'hoitaja_id' })
+
+                  if (tallErr) {
+                    console.error('ProductBoard tallennus epäonnistui:', tallErr)
+                    alert('Tallennus epäonnistui.')
+                    return
+                  }
+
                   setDevInput('')
                   setDevTila('ok')
                   setTimeout(() => setDevTila(null), 2500)
