@@ -265,7 +265,7 @@ export default function App() {
         {/* KÄYNTI */}
         {nakyma === 'kaynti' && asiakas && (
           <div>
-            {/* Asiakkaan nimi + takaisin + tallenna */}
+            {/* Asiakkaan nimi + takaisin */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 0 8px', borderBottom: '1px solid #e2e8f0', marginBottom: '8px' }}>
               <button
                 onClick={() => setNakyma('rekisteri')}
@@ -276,20 +276,6 @@ export default function App() {
               <span style={{ fontSize: '14px', fontWeight: '600', color: '#085041' }}>
                 {asiakas.nimi}
               </span>
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="date"
-                  value={kayntiPvm}
-                  onChange={e => setKayntiPvm(e.target.value)}
-                  style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #d1d5db' }}
-                />
-                <button
-                  onClick={tallennaKokoKaynti}
-                  style={{ padding: '5px 14px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '500' }}
-                >
-                  💾 Tallenna käynti
-                </button>
-              </div>
             </div>
 
             {/* Hoitokäynnin välilehdet */}
@@ -348,7 +334,29 @@ export default function App() {
               <MuscleLibrary highlights={highlights} />
             )}
             {aktiivinen === 'jalkihoito' && (
-              <Aftercare findings={findings} treatmentPlan={treatmentPlan} asiakas={asiakas} />
+              <div>
+                <Aftercare findings={findings} treatmentPlan={treatmentPlan} asiakas={asiakas} />
+                <div style={{ marginTop: '32px', padding: '20px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div>
+                    <p style={{ fontSize: '14px', fontWeight: '600', color: '#111827', margin: '0 0 2px' }}>Tallenna hoitokäynti</p>
+                    <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>Tallentaa havainnot, hoitosuunnitelman ja jälkihoidon</p>
+                  </div>
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="date"
+                      value={kayntiPvm}
+                      onChange={e => setKayntiPvm(e.target.value)}
+                      style={{ fontSize: '12px', padding: '5px 10px', borderRadius: '8px', border: '1px solid #d1d5db' }}
+                    />
+                    <button
+                      onClick={tallennaKokoKaynti}
+                      style={{ padding: '8px 20px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '20px', fontSize: '13px', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      💾 Tallenna käynti
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
