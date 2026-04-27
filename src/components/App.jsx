@@ -50,6 +50,15 @@ export default function App() {
   const [lataaAuth, setLataaAuth]     = useState(true)
 
   useEffect(() => {
+    const url = new URL(window.location.href)
+    const error = url.searchParams.get('error')
+    if (error) {
+      window.history.replaceState({}, '', '/')
+      supabase.auth.signOut()
+    }
+  }, [])
+
+  useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       setKayttaja(data.session?.user ?? null)
       setLataaAuth(false)
