@@ -44,6 +44,7 @@ const TYHJÄ = {
   miten_loysi:      '',
   kipuaste:         0,
   kontraindikaatiot:   {},
+  kontra_laaja:        '',
   allergia_lisatieto:  '',
   tekonivel_lisatieto: '',
   raskaus_lisatieto:   '',
@@ -195,6 +196,7 @@ export default function Esitiedot() {
       miten_loysi:         data.miten_loysi,
       kipuaste:            data.kipuaste,
       kontraindikaatiot:   data.kontraindikaatiot,
+      kontra_laaja:        data.kontra_laaja,
       allergia_lisatieto:  data.allergia_lisatieto,
       tekonivel_lisatieto: data.tekonivel_lisatieto,
       raskaus_lisatieto:   data.raskaus_lisatieto,
@@ -364,6 +366,21 @@ export default function Esitiedot() {
               <TextInput label="Miten löysit meidät" name="miten_loysi" value={data.miten_loysi} onChange={päivitä} />
             </>
           } />
+
+          {/* ── Osio 1b: Kontraindikaatiot (vapaa teksti) ───────────────── */}
+          {!piilotettu('kontra_laaja') && <Osio otsikko="Kontraindikaatiot" lapset={
+            <Kenttä label="Sairaudet, lääkitykset ja muut huomioitavat asiat">
+              <textarea
+                name="kontra_laaja"
+                value={data.kontra_laaja}
+                onChange={päivitä}
+                rows={5}
+                placeholder="Kerro tähän kaikki terveydentilaasi liittyvät asiat, jotka hoitajan tulisi tietää ennen hoitoa…"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 resize-y focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                style={{ fontFamily: 'inherit', lineHeight: '1.6' }}
+              />
+            </Kenttä>
+          } />}
 
           {/* ── Osio 2: Kiputilanne ──────────────────────────────────────── */}
           {!piilotettu('kiputilanne') && <Osio otsikko="Kiputilanne" lapset={

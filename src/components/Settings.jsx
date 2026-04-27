@@ -523,6 +523,7 @@ export default function Settings() {
                     <p style={{fontSize:'11px',fontWeight:'600',color:'#6b7280',textTransform:'uppercase',letterSpacing:'0.04em',margin:'0 0 8px'}}>Vakio-osiot</p>
                     {[
                       {id:'kontraindikaatiot', nimi:'Asiakastiedot'},
+                      {id:'kontra_laaja',      nimi:'Kontraindikaatiot (tekstikenttä)'},
                       {id:'kiputilanne',       nimi:'Kiputilanne'},
                       {id:'keho_merkinnat',    nimi:'Kehon merkinnät'},
                       {id:'tietosuoja',        nimi:'Tietosuoja ja vahvistus'},
