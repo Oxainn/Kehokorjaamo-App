@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { tallennaKaynti, haeAsiakkaat, haeKaynnitViikolle, haeUudetAsiakkaat, merkitseKasitellyksi } from '../lib/db'
 import Auth from './Auth'
@@ -40,9 +40,6 @@ export default function App() {
   const [asiakasLista, setAsiakasLista]     = useState([])
   const [kaynteja, setKaynteja]             = useState(0)
   const [uudetAsiakkaat, setUudetAsiakkaat] = useState([])
-  const [clientFormKey, setClientFormKey] = useState(0)
-  const [esitäytöData, setEsitäytöData]   = useState(null)
-  const esitäytöRef                       = useRef(null)
   const [kayttaja, setKayttaja]           = useState(null)
   const [lataaAuth, setLataaAuth]         = useState(true)
 
@@ -411,8 +408,7 @@ export default function App() {
             </div>
           )}
           <ClientForm
-            key={clientFormKey}
-            esitäytö={esitäytöRef.current ?? esitäytöData}
+            asiakasData={asiakas}
             onComplete={handleAsiakas}
           />
         </div>

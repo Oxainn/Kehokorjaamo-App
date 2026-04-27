@@ -423,8 +423,9 @@ function Osio({ otsikko, lapset }) {
   )
 }
 
-export default function ClientForm({ onComplete, esitäytö = null }) {
+export default function ClientForm({ onComplete, asiakasData = null, esitäytö = null }) {
   const [data, setData] = useState(() => {
+    if (asiakasData) return { ...TYHJÄ, ...asiakasData }
     if (esitäytö) return { ...TYHJÄ, ...esitäytö }
     try {
       const tallennettu = localStorage.getItem(STORAGE_KEY)
@@ -433,6 +434,14 @@ export default function ClientForm({ onComplete, esitäytö = null }) {
       return TYHJÄ
     }
   })
+
+  useEffect(() => {
+    if (asiakasData) {
+      setData({ ...TYHJÄ, ...asiakasData })
+    } else {
+      setData(TYHJÄ)
+    }
+  }, [asiakasData])
 
   const [yritettyLähettää, setYritettyLähettää] = useState(false)
   const [tallentaa, setTallentaa]               = useState(false)
