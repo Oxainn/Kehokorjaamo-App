@@ -161,13 +161,14 @@ export default function ProductBoard({ hoitajaId = null }) {
 
   // ── Supabase: lataa käynnistyessä ─────────────────────────────────────────
   useEffect(() => {
-    const lataaProductBoard = async () => {
-      const { data, error } = await supabase
+    if (!hoitajaId) return
+    const lataa = async () => {
+      const { data } = await supabase
         .from('productboard')
         .select()
-        .limit(1)
-        .maybeSingle()
-      if (data && !error) {
+        .eq('hoitaja_id', hoitajaId)
+        .single()
+      if (data) {
         setPb(prev => ({
           ...prev,
           visio:     data.visio     ?? prev.visio,
@@ -177,32 +178,33 @@ export default function ProductBoard({ hoitajaId = null }) {
         }))
       }
     }
-    lataaProductBoard()
-  }, [])
+    lataa()
+  }, [hoitajaId])
 
   // ── Supabase: tallenna automaattisesti muutoksilla (debounce 1.5 s) ────────
+  const tallennaProductBoard = async (data) => {
+    if (!hoitajaId) {
+      console.log('Ei hoitajaId — ohitetaan tallennus')
+      return
+    }
+    const { error } = await supabase
+      .from('productboard')
+      .upsert({
+        hoitaja_id: hoitajaId,
+        visio:      data.visio,
+        ideat:      data.ideat,
+        todo:       data.tehtävät,
+        changelog:  data.changelog,
+      }, { onConflict: 'hoitaja_id', ignoreDuplicates: false })
+    if (error) console.error('ProductBoard tallennus:', error)
+  }
+
   const debounceRef = useRef(null)
   useEffect(() => {
     clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(async () => {
-      try {
-        if (!hoitajaId) return
-        const { error } = await supabase
-          .from('productboard')
-          .upsert({
-            hoitaja_id: hoitajaId,
-            visio:      pb.visio,
-            ideat:      pb.ideat,
-            todo:       pb.tehtävät,
-            changelog:  pb.changelog,
-          }, { onConflict: 'hoitaja_id', ignoreDuplicates: false })
-        if (error) throw error
-      } catch (err) {
-        console.error('ProductBoard tallennus:', err)
-      }
-    }, 1500)
+    debounceRef.current = setTimeout(() => tallennaProductBoard(pb), 1500)
     return () => clearTimeout(debounceRef.current)
-  }, [pb])
+  }, [pb]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = (id) => setAukiOsio(prev => prev === id ? null : id)
 
