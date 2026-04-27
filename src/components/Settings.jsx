@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, Fragment } from 'react'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
 
@@ -226,8 +226,17 @@ export default function Settings() {
   const [uusiKys, setUusiKys] = useState({})
   const [muokkausKysId, setMuokkausKysId]       = useState(null)
   const [muokkausKysTeksti, setMuokkausKysTeksti] = useState('')
-  const [muokkausOsio, setMuokkausOsio]         = useState(null)
+  const [muokkausOsio, setMuokkausOsio]               = useState(null)
+  const [muokkausOsioKuvaus, setMuokkausOsioKuvaus]   = useState(null)
   // muokkausOsio: { pid, osioId, nimi } | null
+  // muokkausOsioKuvaus: { pid, osioId, teksti } | null
+
+  const tallennaMuokkausOsioKuvaus = (palveluId, osioId) => {
+    const p = palvelut.find(x => x.id === palveluId)
+    const osioKuvaukset = { ...p.lomake?.osioKuvaukset, [osioId]: muokkausOsioKuvaus.teksti }
+    päivitäPalvelu(palveluId, 'lomake', { ...p.lomake, osioKuvaukset })
+    setMuokkausOsioKuvaus(null)
+  }
 
   const tallennaMuokkausOsio = (palveluId, osioId) => {
     if (!muokkausOsio?.nimi.trim()) { setMuokkausOsio(null); return }
@@ -542,7 +551,8 @@ export default function Settings() {
                       const muokataan = muokkausOsio?.pid === p.id && muokkausOsio?.osioId === osio.id
                       const näytettäväNimi = p.lomake?.osioNimet?.[osio.id] ?? osio.nimi
                       return (
-                        <div key={osio.id} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px',
+                        <Fragment key={osio.id}>
+                        <div style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px',
                           padding:'7px 10px',borderRadius:'6px',border:'1px solid',
                           background: !p.lomake?.piilotetutOsiot?.[osio.id] ? '#E1F5EE' : '#f9fafb',
                           borderColor: muokataan ? '#9FE1CB' : !p.lomake?.piilotetutOsiot?.[osio.id] ? '#9FE1CB' : '#e2e8f0',
@@ -579,7 +589,68 @@ export default function Settings() {
                               )}
                             </span>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const auki = muokkausOsioKuvaus?.pid === p.id && muokkausOsioKuvaus?.osioId === osio.id
+                              setMuokkausOsioKuvaus(auki ? null : {
+                                pid: p.id, osioId: osio.id,
+                                teksti: p.lomake?.osioKuvaukset?.[osio.id] ?? '',
+                              })
+                            }}
+                            style={{fontSize:'11px',padding:'2px 8px',borderRadius:'20px',border:'1px solid',cursor:'pointer',flexShrink:0,
+                              background: (muokkausOsioKuvaus?.pid===p.id && muokkausOsioKuvaus?.osioId===osio.id) ? '#E6F1FB' : p.lomake?.osioKuvaukset?.[osio.id] ? '#E1F5EE' : '#f1f5f9',
+                              borderColor: (muokkausOsioKuvaus?.pid===p.id && muokkausOsioKuvaus?.osioId===osio.id) ? '#93c5fd' : p.lomake?.osioKuvaukset?.[osio.id] ? '#9FE1CB' : '#e2e8f0',
+                              color: (muokkausOsioKuvaus?.pid===p.id && muokkausOsioKuvaus?.osioId===osio.id) ? '#0C447C' : p.lomake?.osioKuvaukset?.[osio.id] ? '#085041' : '#6b7280',
+                            }}
+                          >
+                            Kuvaus{p.lomake?.osioKuvaukset?.[osio.id] ? ' ✓' : ' +'}
+                          </button>
                         </div>
+
+                        {/* Kuvauseditori */}
+                        {muokkausOsioKuvaus?.pid === p.id && muokkausOsioKuvaus?.osioId === osio.id && (
+                          <div style={{marginBottom:'6px',padding:'10px',background:'white',borderRadius:'6px',border:'1px solid #e2e8f0'}}>
+                            <p style={{fontSize:'11px',color:'#6b7280',marginBottom:'6px'}}>
+                              Teksti näkyy asiakkaalle osion otsikon alla lomakkeella.
+                            </p>
+                            <textarea
+                              autoFocus
+                              value={muokkausOsioKuvaus.teksti}
+                              onChange={e => setMuokkausOsioKuvaus(prev => ({...prev, teksti: e.target.value}))}
+                              rows={4}
+                              placeholder="Kirjoita ohjeistus tai kuvaus tälle osiolle…"
+                              style={{width:'100%',fontSize:'13px',padding:'8px',borderRadius:'6px',border:'1px solid #e2e8f0',
+                                resize:'vertical',fontFamily:'inherit',lineHeight:'1.6',color:'#374151',boxSizing:'border-box'}}
+                            />
+                            <div style={{display:'flex',gap:'8px',marginTop:'8px'}}>
+                              <button type="button"
+                                onClick={() => tallennaMuokkausOsioKuvaus(p.id, osio.id)}
+                                style={{fontSize:'12px',padding:'5px 14px',background:'#1D9E75',color:'white',border:'none',borderRadius:'6px',cursor:'pointer',fontWeight:'500'}}>
+                                Tallenna
+                              </button>
+                              {p.lomake?.osioKuvaukset?.[osio.id] && (
+                                <button type="button"
+                                  onClick={() => {
+                                    const pk = palvelut.find(x => x.id === p.id)
+                                    const osioKuvaukset = { ...pk.lomake?.osioKuvaukset }
+                                    delete osioKuvaukset[osio.id]
+                                    päivitäPalvelu(p.id, 'lomake', { ...pk.lomake, osioKuvaukset })
+                                    setMuokkausOsioKuvaus(null)
+                                  }}
+                                  style={{fontSize:'12px',padding:'5px 14px',background:'transparent',color:'#9ca3af',border:'1px solid #e2e8f0',borderRadius:'6px',cursor:'pointer'}}>
+                                  Poista kuvaus
+                                </button>
+                              )}
+                              <button type="button"
+                                onClick={() => setMuokkausOsioKuvaus(null)}
+                                style={{fontSize:'12px',padding:'5px 10px',background:'transparent',color:'#9ca3af',border:'none',cursor:'pointer'}}>
+                                Peru
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        </Fragment>
                       )
                     })}
                     <p style={{fontSize:'11px',color:'#9ca3af',margin:'2px 0 14px'}}>Perustiedot näkyy aina.</p>
