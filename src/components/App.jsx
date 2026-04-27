@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
+import { tallennaKaynti } from '../lib/db'
 import Auth from './Auth'
 import ClientForm from './ClientForm'
 import ClinicalObservations from './ClinicalObservations'
@@ -118,6 +119,22 @@ export default function App() {
     })
     return () => subscription.unsubscribe()
   }, [])
+
+  const tallennaKokoKaynti = async () => {
+    if (!asiakas?.supabase_id) {
+      alert('Tallenna asiakastiedot ensin')
+      return
+    }
+    const tulos = await tallennaKaynti(
+      asiakas.supabase_id,
+      havainnot,
+      findings,
+      null,
+      kuvaAnalyysiMittaukset
+    )
+    if (tulos) alert('Käynti tallennettu!')
+    else alert('Tallennus epäonnistui')
+  }
 
   const kirjauduUlos = async () => {
     await supabase.auth.signOut()
@@ -292,6 +309,35 @@ export default function App() {
           ))}
         </div>
       </nav>
+
+      {asiakas && (
+        <div style={{
+          padding: '8px 16px',
+          background: '#E1F5EE',
+          borderBottom: '1px solid #e2e8f0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}>
+          <span style={{ fontSize: '13px', color: '#085041' }}>
+            Asiakas: {asiakas.nimi}
+          </span>
+          <button
+            onClick={tallennaKokoKaynti}
+            style={{
+              padding: '6px 14px',
+              background: '#1D9E75',
+              color: 'white',
+              border: 'none',
+              borderRadius: '20px',
+              fontSize: '12px',
+              cursor: 'pointer',
+            }}
+          >
+            💾 Tallenna käynti
+          </button>
+        </div>
+      )}
 
       <main className="flex-1 max-w-5xl mx-auto w-full px-4 py-8">
         <div style={{ display: activeTab === 'client'    ? 'block' : 'none' }}>
