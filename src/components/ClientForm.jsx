@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
-import { tallennaAsiakas } from '../lib/db'
+import { supabase } from '../services/supabase'
 
 const STORAGE_KEY   = 'kehokorjaamo_asiakasdata'
 const ASETUS_KEY    = 'kehokorjaamo_asetukset'
@@ -492,20 +492,46 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
   const tulosta = () => setEsikatselu(true)
   const tulostaVahvistettu = () => { setEsikatselu(false); window.print() }
 
-  const lähetä = async (e) => {
-    e.preventDefault()
+  const tallennaAsiakas = async () => {
     setYritettyLähettää(true)
     if (!data.nimi.trim() || !data.suostumus_rekisteri || ehdotonValittu) return
     setTallentaa(true)
-    const tallennettu = await tallennaAsiakas(data)
-    setTallentaa(false)
-    if (tallennettu) {
-      const asiakasData = { ...data, supabase_id: tallennettu.id }
-      localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(asiakasData))
-      onComplete?.(asiakasData)
-    } else {
+    try {
+      const { data: tallennettu, error } = await supabase
+        .from('asiakkaat')
+        .upsert({
+          nimi:              data.nimi,
+          syntymaaika:       data.syntymaaika,
+          sahkoposti:        data.sahkoposti,
+          puhelin:           data.puhelin,
+          lahiosoite:        data.lahiosoite,
+          postinumero:       data.postinumero,
+          postitoimipaikka:  data.postitoimipaikka,
+          ammatti:           data.ammatti,
+          pituus:            data.pituus,
+          paino:             data.paino,
+          hoitoon_syy:       data.hoitoon_syy,
+          laakitys:          data.laakitys,
+          harrastukset:      data.harrastukset,
+          miten_loysi:       data.miten_loysi,
+          kontraindikaatiot: data.kontraindikaatiot,
+          merkinnät:         data.merkinnät,
+        })
+        .select()
+
+      if (error) throw error
+
+      console.log('Asiakas tallennettu:', tallennettu)
+
+      const asiakasDataOut = { ...data, supabase_id: tallennettu[0].id }
+      localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(asiakasDataOut))
+      onComplete?.(asiakasDataOut)
+    } catch (err) {
+      console.error('Tallennus epäonnistui:', err)
       localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(data))
       onComplete?.(data)
+    } finally {
+      setTallentaa(false)
     }
   }
 
@@ -537,7 +563,7 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
         </p>
       </div>
 
-      <form onSubmit={lähetä} className="flex flex-col gap-5">
+      <form onSubmit={e => { e.preventDefault(); tallennaAsiakas() }} className="flex flex-col gap-5">
 
         {/* ── Osio 1: Asiakastiedot ───────────────────────────────────────── */}
         <Osio otsikko="Asiakastiedot" lapset={
@@ -1041,7 +1067,8 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
             Tulosta / Tallenna PDF
           </button>
           <button
-            type="submit"
+            type="button"
+            onClick={tallennaAsiakas}
             disabled={tallentaa}
             className="sm:flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors shadow-sm"
           >
