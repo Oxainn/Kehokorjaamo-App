@@ -147,7 +147,9 @@ export default function Esitiedot() {
   }
 
   const ehdotonValittu = EHDOTTOMAT_KONTRA.some(e => data.kontraindikaatiot[e])
-  const voidaanLähettää = data.nimi.trim() && !ehdotonValittu && tietosuoja1 && allekirjoitusKuva
+  const voidaanLähettää = data.nimi.trim() && !ehdotonValittu
+    && (piilotettu('tietosuoja')    || tietosuoja1)
+    && (piilotettu('allekirjoitus') || allekirjoitusKuva)
 
   const lähetä = async (e) => {
     e.preventDefault()
@@ -602,53 +604,61 @@ export default function Esitiedot() {
           )}
 
           {/* ── Tietosuoja ja vahvistus ──────────────────────────────────── */}
-          <Osio otsikko="Tietosuoja ja vahvistus" lapset={
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          {(!piilotettu('tietosuoja') || !piilotettu('allekirjoitus')) && (
+            <Osio otsikko="Tietosuoja ja vahvistus" lapset={
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
 
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={tietosuoja1}
-                  onChange={e => setTietosuoja1(e.target.checked)}
-                  style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#1D9E75', flexShrink: 0 }}
-                />
-                <span style={{ fontSize: '13px', color: '#374151', lineHeight: '1.5' }}>
-                  <strong>*</strong> Hyväksyn, että henkilö- ja terveystietojani tallennetaan hoitorekisteriin EU:n
-                  tietosuoja-asetuksen (GDPR) mukaisesti hoitosuhteen ylläpitämistä varten.
-                </span>
-              </label>
+                {!piilotettu('tietosuoja') && (
+                  <>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={tietosuoja1}
+                        onChange={e => setTietosuoja1(e.target.checked)}
+                        style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#1D9E75', flexShrink: 0 }}
+                      />
+                      <span style={{ fontSize: '13px', color: '#374151', lineHeight: '1.5' }}>
+                        <strong>*</strong> Hyväksyn, että henkilö- ja terveystietojani tallennetaan hoitorekisteriin EU:n
+                        tietosuoja-asetuksen (GDPR) mukaisesti hoitosuhteen ylläpitämistä varten.
+                      </span>
+                    </label>
 
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={tietosuoja2}
-                  onChange={e => setTietosuoja2(e.target.checked)}
-                  style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#1D9E75', flexShrink: 0 }}
-                />
-                <span style={{ fontSize: '13px', color: '#374151', lineHeight: '1.5' }}>
-                  Annan luvan tietojeni luovuttamiseen hoitooni osallistuville tahoille tarvittaessa.
-                  <span style={{ fontSize: '11px', color: '#9ca3af' }}> (valinnainen)</span>
-                </span>
-              </label>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
-                  Allekirjoitus <span style={{ color: '#ef4444' }}>*</span>
-                </label>
-                <AllekirjoitusPad
-                  onChange={setAllekirjoitusKuva}
-                  error={yritettyLähettää && !allekirjoitusKuva}
-                />
-                {yritettyLähettää && !allekirjoitusKuva && (
-                  <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>Allekirjoitus on pakollinen</p>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={tietosuoja2}
+                        onChange={e => setTietosuoja2(e.target.checked)}
+                        style={{ marginTop: '2px', width: '16px', height: '16px', accentColor: '#1D9E75', flexShrink: 0 }}
+                      />
+                      <span style={{ fontSize: '13px', color: '#374151', lineHeight: '1.5' }}>
+                        Annan luvan tietojeni luovuttamiseen hoitooni osallistuville tahoille tarvittaessa.
+                        <span style={{ fontSize: '11px', color: '#9ca3af' }}> (valinnainen)</span>
+                      </span>
+                    </label>
+                    {yritettyLähettää && !tietosuoja1 && (
+                      <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '-6px' }}>Hyväksy tietosuojaehto jatkaaksesi</p>
+                    )}
+                  </>
                 )}
-                {yritettyLähettää && !tietosuoja1 && (
-                  <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>Hyväksy tietosuojaehto jatkaaksesi</p>
+
+                {!piilotettu('allekirjoitus') && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: '500', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '6px' }}>
+                      Allekirjoitus <span style={{ color: '#ef4444' }}>*</span>
+                    </label>
+                    <AllekirjoitusPad
+                      onChange={setAllekirjoitusKuva}
+                      error={yritettyLähettää && !allekirjoitusKuva}
+                    />
+                    {yritettyLähettää && !allekirjoitusKuva && (
+                      <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '4px' }}>Allekirjoitus on pakollinen</p>
+                    )}
+                  </div>
                 )}
+
               </div>
-
-            </div>
-          } />
+            } />
+          )}
 
           {/* ── Lähetä-nappi ─────────────────────────────────────────────── */}
           <button

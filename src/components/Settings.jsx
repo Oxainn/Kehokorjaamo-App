@@ -484,6 +484,8 @@ export default function Settings() {
                       {id:'kontraindikaatiot', nimi:'Terveystiedot ja kontraindikaatiot'},
                       {id:'kiputilanne',       nimi:'Kiputilanne'},
                       {id:'keho_merkinnat',    nimi:'Kehon merkinnät'},
+                      {id:'tietosuoja',        nimi:'Tietosuoja ja vahvistus'},
+                      {id:'allekirjoitus',     nimi:'Allekirjoitus'},
                     ].map(osio => (
                       <label key={osio.id} style={{display:'flex',alignItems:'center',gap:'8px',marginBottom:'6px',cursor:'pointer',
                         padding:'7px 10px',borderRadius:'6px',border:'1px solid',
@@ -501,7 +503,7 @@ export default function Settings() {
                         <span style={{fontSize:'13px',color:'#374151'}}>{osio.nimi}</span>
                       </label>
                     ))}
-                    <p style={{fontSize:'11px',color:'#9ca3af',margin:'2px 0 14px'}}>Perustiedot ja tietosuoja näkyvät aina.</p>
+                    <p style={{fontSize:'11px',color:'#9ca3af',margin:'2px 0 14px'}}>Perustiedot näkyy aina.</p>
 
                     {/* Lisäkysymykset */}
                     <p style={{fontSize:'11px',fontWeight:'600',color:'#6b7280',textTransform:'uppercase',letterSpacing:'0.04em',margin:'0 0 8px'}}>
