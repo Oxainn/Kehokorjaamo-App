@@ -420,7 +420,6 @@ function Osio({ otsikko, lapset }) {
 }
 
 export default function ClientForm({ onComplete, onPeruuta = null, asiakasData = null, esitäytö = null, hoitajaId = null }) {
-  console.log('ClientForm asiakasData:', asiakasData)
   const [data, setData] = useState(() => {
     if (asiakasData) return { ...TYHJÄ, ...asiakasData }
     if (esitäytö) return { ...TYHJÄ, ...esitäytö }
@@ -442,6 +441,7 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
 
   const [yritettyLähettää, setYritettyLähettää] = useState(false)
   const [tallentaa, setTallentaa]               = useState(false)
+  const [tallennusTila, setTallennusTila]       = useState(null)
   const [valittuPiirto, setValittuPiirto]         = useState(1)
   const [esikatselu, setEsikatselu]               = useState(false)
   const [tulostusAsetukset, setTulostusAsetukset] = useState(TULOSTUS_OLETUKSET)
@@ -449,6 +449,13 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
   const [sairausTyypit, setSairausTyypit]         = useState([])
 
   useEffect(() => { haeSairausTyypit().then(setSairausTyypit) }, [])
+
+  useEffect(() => {
+    if (tallennusTila === 'onnistui') {
+      const t = setTimeout(() => setTallennusTila(null), 2000)
+      return () => clearTimeout(t)
+    }
+  }, [tallennusTila])
 
   const toggleTulostusOsio = (id) =>
     setTulostusAsetukset(prev => ({ ...prev, [id]: !prev[id] }))
@@ -493,17 +500,13 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
   const tulostaVahvistettu = () => { setEsikatselu(false); window.print() }
 
   const tallennaAsiakas = async () => {
-    console.log('1. tallennaAsiakas käynnistyi')
     setYritettyLähettää(true)
     const tunnistettuId = data.supabase_id || data.id || asiakasData?.id || asiakasData?.supabase_id
     const muokkaus = !!tunnistettuId
-    if (!data.nimi.trim() || (!muokkaus && !data.suostumus_rekisteri) || ehdotonValittu) {
-      console.log('2. early return:', { nimi: data.nimi.trim(), suostumus: data.suostumus_rekisteri, muokkaus, ehdotonValittu })
-      return
-    }
+    if (!data.nimi.trim() || (!muokkaus && !data.suostumus_rekisteri) || ehdotonValittu) return
     setTallentaa(true)
+    setTallennusTila('tallentaa')
     try {
-      // 1. Tallenna henkilötiedot asiakkaat-tauluun
       const perustiedot = {
         hoitaja_id:        hoitajaId,
         nimi:              data.nimi,
@@ -518,13 +521,8 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
         paino:             data.paino || null,
       }
 
-      console.log('3. tunnistus:', { tunnistettuId, muokkaus })
-      console.log('tallennaAsiakas: tunnistettuId=', tunnistettuId,
-        '| data.supabase_id=', data.supabase_id, '| data.id=', data.id)
-
       let asiakasId
       if (tunnistettuId) {
-        console.log('3a. UPDATE asiakas')
         const { error } = await supabase
           .from('asiakkaat')
           .update(perustiedot)
@@ -532,7 +530,6 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
         if (error) throw error
         asiakasId = tunnistettuId
       } else {
-        console.log('3b. INSERT asiakas')
         const { data: rivi, error } = await supabase
           .from('asiakkaat')
           .insert(perustiedot)
@@ -541,7 +538,6 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
         asiakasId = rivi[0].id
       }
 
-      // 2. Muodosta sairauslista rastittujen checkboxien perusteella
       const lomakeSairaudet = Object.entries(data.kontraindikaatiot)
         .filter(([, val]) => val)
         .map(([nimi]) => {
@@ -555,8 +551,6 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
         })
         .filter(Boolean)
 
-      // 3. Tallenna uusi lomakeversio + sairaudet
-      console.log('4. ennen lomakeversion tallennusta, asiakasId=', asiakasId)
       const { error: lomakeError } = await tallennaAsiakastietolomake(
         asiakasId,
         {
@@ -571,23 +565,19 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
         },
         lomakeSairaudet
       )
-      console.log('5. lomakeversion tallennus tulos:', { lomakeError })
       if (lomakeError) {
         console.error('Lomakeversion tallennus epäonnistui:', lomakeError)
-        alert('Lomakeversion tallennus epäonnistui:\n' + lomakeError.message)
         throw lomakeError
       }
 
-      console.log('6. tallennus valmis')
-      alert('Tallennettu!')
+      setTallennusTila('onnistui')
       const asiakasDataOut = { ...data, supabase_id: asiakasId }
       localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(asiakasDataOut))
       onComplete?.(asiakasDataOut)
     } catch (err) {
       console.error('Tallennus epäonnistui:', err)
-      if (!err.message?.includes('Lomakeversion')) {
-        alert('Tallennus epäonnistui:\n' + (err.message ?? String(err)))
-      }
+      setTallennusTila('epaonnistui')
+      alert('Tallennus epäonnistui:\n' + (err.message ?? String(err)))
     } finally {
       setTallentaa(false)
     }
@@ -605,6 +595,11 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
 
   return (
     <>
+    {tallennusTila === 'onnistui' && (
+      <div className="fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50 text-sm font-medium">
+        ✓ Tallennettu
+      </div>
+    )}
     <PrintView data={data} ika={ika} asetukset={tulostusAsetukset} lomakeAsetukset={lomakeAsetukset} />
     {esikatselu && (
       <EsikatseluModal
@@ -1136,10 +1131,7 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
           </button>
           <button
             type="button"
-            onClick={() => {
-              console.log('NAPPIA KLIKATTU')
-              tallennaAsiakas()
-            }}
+            onClick={tallennaAsiakas}
             disabled={tallentaa}
             className="sm:flex-1 py-3 bg-brand-600 hover:bg-brand-700 active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors shadow-sm"
           >
