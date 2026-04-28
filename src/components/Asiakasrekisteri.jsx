@@ -13,7 +13,7 @@ export default function Asiakasrekisteri({ onValitseAsiakas, onEsikatseluAsiakas
         return
       }
       const { data, error } = await supabase
-        .from('asiakkaat')
+        .from('asiakkaan_nykyinen_lomake')
         .select('*')
         .eq('hoitaja_id', hoitajaId)
         .order('luotu', { ascending: false })
