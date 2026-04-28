@@ -145,6 +145,7 @@ export default function Osio2Sairaudet({ asiakas }) {
 
   // ─── ryhmittely ────────────────────────────────────────────────────────────
 
+  console.log('[Osio2] sairausTyypit:', sairausTyypit)
   const ryhmaMap = {}
   for (const s of sairausTyypit) {
     const r = s.ryhma ?? 'MUUT'
@@ -154,6 +155,7 @@ export default function Osio2Sairaudet({ asiakas }) {
   const ryhmat = RYHMAT_JARJESTYS
     .filter(r => ryhmaMap[r]?.length > 0)
     .map(r => ({ nimi: r, sairaudet: ryhmaMap[r] }))
+  console.log('[Osio2] ryhmat:', ryhmat)
 
   // ─── autosave checkboxille ─────────────────────────────────────────────────
 
