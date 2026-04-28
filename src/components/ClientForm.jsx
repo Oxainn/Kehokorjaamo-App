@@ -586,6 +586,7 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
   const ika = laskikaIka(data.syntymaaika)
   const alleKahdeksantoista = ika !== null && ika < 18
   const ehdotonValittu = EHDOTTOMAT_KONTRA.some((e) => data.kontraindikaatiot?.[e])
+  const onMuokkaus = !!(data.supabase_id || data.id || asiakasData?.id || asiakasData?.supabase_id)
 
   const virheet = yritettyLähettää ? {
     nimi:      !data.nimi.trim()           ? 'Nimi on pakollinen'                        : '',
@@ -1115,13 +1116,13 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
         } />
 
         {/* ── Toiminnot ────────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="sticky bottom-0 flex flex-col sm:flex-row gap-3 bg-white/95 backdrop-blur py-3 px-4 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] -mx-4 sm:-mx-6">
           <button
             type="button"
             onClick={tulosta}
             className="sm:flex-1 py-3 border-2 border-brand-600 text-brand-700 hover:bg-brand-50 font-semibold rounded-xl transition-colors"
           >
-            Tulosta / Tallenna PDF
+            Tulosta
           </button>
           <button
             type="button"
@@ -1129,7 +1130,7 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
             disabled={tallentaa}
             className="sm:flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors shadow-sm"
           >
-            {ehdotonValittu ? 'Hoito ei ole mahdollinen' : tallentaa ? 'Tallennetaan...' : 'Vahvista ja jatka →'}
+            {ehdotonValittu ? 'Hoito ei ole mahdollinen' : tallentaa ? 'Tallennetaan...' : onMuokkaus ? 'Tallenna muutokset' : 'Tallenna ja jatka →'}
           </button>
         </div>
       </form>
