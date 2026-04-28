@@ -194,6 +194,7 @@ export const haeSairausTyypit = async () => {
 }
 
 export const tallennaAsiakastietolomake = async (asiakasId, lomakeData, sairaudet = []) => {
+  console.log('tallennaAsiakastietolomake kutsuttu:', { asiakasId, lomakeData, sairaudet })
   const { data: versio, error: versioError } = await supabase
     .from('asiakastietolomake_versiot')
     .insert({

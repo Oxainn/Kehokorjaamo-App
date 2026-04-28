@@ -420,6 +420,7 @@ function Osio({ otsikko, lapset }) {
 }
 
 export default function ClientForm({ onComplete, onPeruuta = null, asiakasData = null, esitäytö = null, hoitajaId = null }) {
+  console.log('ClientForm asiakasData:', asiakasData)
   const [data, setData] = useState(() => {
     if (asiakasData) return { ...TYHJÄ, ...asiakasData }
     if (esitäytö) return { ...TYHJÄ, ...esitäytö }
@@ -511,6 +512,7 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
         paino:             data.paino || null,
       }
 
+      console.log('tallennaAsiakas: data.supabase_id=', data.supabase_id, '| data.id=', data.id)
       let asiakasId
       if (data.supabase_id) {
         // Olemassa oleva asiakas — päivitä
