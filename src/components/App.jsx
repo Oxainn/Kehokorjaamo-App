@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 import { normalisoiAsiakas } from '../utils/asiakas'
 import Login from './Login'
-import ClientForm from './ClientForm'
 import Settings from './Settings'
 import ProductBoard from './ProductBoard'
 import Asiakasrekisteri from './Asiakasrekisteri'
@@ -149,13 +148,7 @@ export default function App() {
 
         {/* UUSI KÄYNTI */}
         {nakyma === 'uusi-kaynti' && (
-          <ClientForm
-            hoitajaId={hoitajaId}
-            onComplete={(data) => {
-              setAsiakas(normalisoiAsiakas(data))
-              setNakyma('kaynti')
-            }}
-          />
+          <Asiakastietolomake asiakas={null} hoitajaId={hoitajaId} />
         )}
 
         {/* TUOTEHALLINTA */}
