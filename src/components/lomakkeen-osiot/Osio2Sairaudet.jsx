@@ -81,12 +81,26 @@ export default function Osio2Sairaudet({ asiakas }) {
   const alkuperainenTeksti = useRef({ laakitys: '', diagnosoidut_sairaudet: '', vammat_huomiot: '' })
   const [tallentaa,     setTallentaa]     = useState(false)
   const [tekstiTulos,   setTekstiTulos]   = useState(null)
+  const [lataaRyhmat,   setLataaRyhmat]   = useState(true)
+  const [ryhmaVirhe,    setRyhmaVirhe]    = useState(null)
 
   const { sairaudet: sairaudetDB, lataa: lataaSairaudet } = useAsiakkaanSairaudet(asiakas?.id)
 
   // Hae kaikki sairaustyipit
   useEffect(() => {
-    haeSairausTyypit().then(data => setSairausTyypit(data ?? []))
+    setLataaRyhmat(true)
+    setRyhmaVirhe(null)
+    haeSairausTyypit().then(data => {
+      const lista = data ?? []
+      setSairausTyypit(lista)
+      if (lista.length === 0) {
+        setRyhmaVirhe('Sairauslistaa ei löydy — tarkista selaimen konsoli (F12)')
+      }
+    }).catch(err => {
+      setRyhmaVirhe(`Virhe: ${err?.message ?? 'tuntematon'}`)
+    }).finally(() => {
+      setLataaRyhmat(false)
+    })
   }, [])
 
   // Alusta valitut sairaudet DB:stä
@@ -252,6 +266,25 @@ export default function Osio2Sairaudet({ asiakas }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+      {/* ── Lataus / virhe ─────────────────────────────────────────────── */}
+      {lataaRyhmat && (
+        <p style={{ fontSize: '13px', color: '#9ca3af', margin: '4px 0' }}>
+          Ladataan sairauslistaa…
+        </p>
+      )}
+      {!lataaRyhmat && ryhmaVirhe && (
+        <div style={{
+          padding: '12px 14px',
+          borderRadius: '10px',
+          background: '#fef2f2',
+          border: '1px solid #fecaca',
+          fontSize: '13px',
+          color: '#dc2626',
+        }}>
+          ⚠ {ryhmaVirhe}
+        </div>
+      )}
 
       {/* ── Sairausryhmät ──────────────────────────────────────────────── */}
       {ryhmat.map(ryhma => {
