@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useSwipeable } from 'react-swipeable'
 import Osio1Asiakastiedot from './lomakkeen-osiot/Osio1Asiakastiedot'
+import Osio2Sairaudet from './lomakkeen-osiot/Osio2Sairaudet'
 
 const OSIOT = [
   { numero: 1, otsikko: 'ASIAKASTIEDOT' },
@@ -102,6 +103,13 @@ export default function Asiakastietolomake({ asiakas, hoitajaId }) {
               asiakas={nykyinenAsiakas}
               hoitajaId={hoitajaId}
               onTallennettu={setNykyinenAsiakas}
+            />
+          </div>
+        ) : nykyinenOsio === 2 ? (
+          <div style={{ width: '100%', alignSelf: 'flex-start' }}>
+            <Osio2Sairaudet
+              asiakas={nykyinenAsiakas}
+              hoitajaId={hoitajaId}
             />
           </div>
         ) : (

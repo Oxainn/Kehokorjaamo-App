@@ -147,13 +147,111 @@ export const poistaAsiakas = async (id) => {
 export const haeSairausTyypit = async () => {
   const { data, error } = await supabase
     .from('sairaus_tyypit')
-    .select('id, koodi, nimi, kontraindikaatio')
+    .select('id, koodi, nimi, kontraindikaatio, ryhma, tarkenne_label, tarkenne_tyyppi')
     .order('nimi')
   if (error) {
     console.error('Sairaustyyppienhaku:', error)
     return []
   }
   return data ?? []
+}
+
+export const varmistaTaiLuoVersio = async (asiakasId) => {
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: olemassa } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('id')
+    .eq('asiakas_id', asiakasId)
+    .is('voimassa_asti', null)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (olemassa) return olemassa.id
+
+  const { data: uusi, error } = await supabase
+    .from('asiakastietolomake_versiot')
+    .insert({ asiakas_id: asiakasId, muokkaaja_id: user.id, muokkaaja_rooli: 'hoitaja' })
+    .select('id')
+    .single()
+
+  if (error) { console.error('Version luonti:', error); return null }
+  return uusi.id
+}
+
+export const paivitaSairausValinta = async (versioId, sairausTyyppiId, onPaalla, tarkenne) => {
+  await supabase
+    .from('lomake_sairaudet')
+    .delete()
+    .eq('lomake_versio_id', versioId)
+    .eq('sairaus_tyyppi_id', sairausTyyppiId)
+
+  if (!onPaalla) return true
+
+  const { error } = await supabase
+    .from('lomake_sairaudet')
+    .insert({
+      lomake_versio_id:  versioId,
+      sairaus_tyyppi_id: sairausTyyppiId,
+      on_voimassa:       true,
+      tarkenne:          tarkenne || null,
+    })
+
+  if (error) { console.error('Sairauden tallennus:', error); return false }
+  return true
+}
+
+export const haeLomakeTekstikentat = async (asiakasId) => {
+  const { data } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('laakitys, diagnosoidut_sairaudet, vammat_huomiot')
+    .eq('asiakas_id', asiakasId)
+    .is('voimassa_asti', null)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  return data ?? null
+}
+
+export const paivitaLomakeTekstikentat = async (asiakasId, data) => {
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { data: versio } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('id')
+    .eq('asiakas_id', asiakasId)
+    .is('voimassa_asti', null)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (versio) {
+    const { error } = await supabase
+      .from('asiakastietolomake_versiot')
+      .update({
+        laakitys:               data.laakitys               || null,
+        diagnosoidut_sairaudet: data.diagnosoidut_sairaudet || null,
+        vammat_huomiot:         data.vammat_huomiot         || null,
+        muokkaaja_id:           user.id,
+      })
+      .eq('id', versio.id)
+    if (error) { console.error('Tekstikenttien tallennus:', error); return false }
+    return true
+  }
+
+  const { error } = await supabase
+    .from('asiakastietolomake_versiot')
+    .insert({
+      asiakas_id:             asiakasId,
+      laakitys:               data.laakitys               || null,
+      diagnosoidut_sairaudet: data.diagnosoidut_sairaudet || null,
+      vammat_huomiot:         data.vammat_huomiot         || null,
+      muokkaaja_id:           user.id,
+      muokkaaja_rooli:        'hoitaja',
+    })
+  if (error) { console.error('Tekstikenttien tallennus:', error); return false }
+  return true
 }
 
 export const tallennaAsiakastietolomake = async (asiakasId, lomakeData, sairaudet = []) => {
