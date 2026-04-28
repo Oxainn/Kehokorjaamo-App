@@ -145,7 +145,11 @@ export default function Osio2Sairaudet({ asiakas }) {
 
   // ─── ryhmittely ────────────────────────────────────────────────────────────
 
-  console.log('[Osio2] sairausTyypit:', sairausTyypit)
+  console.log('[Osio2 DEBUG] sairausTyypit:', sairausTyypit)
+  console.log('[Osio2 DEBUG] sairausTyypit.length:', sairausTyypit?.length)
+  if (sairausTyypit?.length > 0) {
+    console.log('[Osio2 DEBUG] ensimmäinen sairaus:', sairausTyypit[0])
+  }
   const ryhmaMap = {}
   for (const s of sairausTyypit) {
     const r = s.ryhma ?? 'MUUT'
@@ -155,7 +159,8 @@ export default function Osio2Sairaudet({ asiakas }) {
   const ryhmat = RYHMAT_JARJESTYS
     .filter(r => ryhmaMap[r]?.length > 0)
     .map(r => ({ nimi: r, sairaudet: ryhmaMap[r] }))
-  console.log('[Osio2] ryhmat:', ryhmat)
+  console.log('[Osio2 DEBUG] ryhmat:', ryhmat)
+  console.log('[Osio2 DEBUG] ryhmat.length:', ryhmat?.length)
 
   // ─── autosave checkboxille ─────────────────────────────────────────────────
 
@@ -265,6 +270,8 @@ export default function Osio2Sairaudet({ asiakas }) {
   }
 
   // ─── render ───────────────────────────────────────────────────────────────
+
+  console.log('[Osio2 DEBUG] renderöidään, lataaRyhmat:', lataaRyhmat)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
