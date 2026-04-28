@@ -70,6 +70,14 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 
 ## Tehdyt päätökset
 
+### 2026-04-28 — Muokkaustila nollautuu asiakkaan vaihdossa
+
+**Päätös:** `muokkausTila` on aina tarkoituksellinen tila. AsiakasKortti on katselun oletustila. Muokkaustilaan siirrytään aina tarkoituksellisesti Muokkaa-napilla, ja se nollautuu kun asiakas vaihtuu tai katselusivu suljetaan.
+
+**Toteutus:** `setMuokkausTila(false)` kutsutaan `onValitseAsiakas`- ja `avaaAsiakkaana`-kohdissa sekä `onComplete`- ja `onPeruuta`-callbackeissa.
+
+---
+
 ### 2026-04-28 — Tietokanta uusittiin puhtaalta pöydältä
 
 **Päätös:** Vanhat taulut (`hoitokaynit`, `esitiedot`, `uudet_asiakkaat`) tiputettiin, testidata pyyhittiin.

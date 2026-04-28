@@ -269,6 +269,7 @@ export default function App() {
                 esitiedotLista={esitiedotLista}
                 onValitseAsiakas={(a) => {
                   setAsiakas(normalisoiAsiakas(a))
+                  setMuokkausTila(false)
                   setNakyma('kaynti')
                   setAktiivinen('asiakastiedot')
                 }}
