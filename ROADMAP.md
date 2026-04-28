@@ -4,7 +4,7 @@
 > Päivitä aina kun vaihe valmistuu tai suunnitelma muuttuu.
 > Kun aloitat uuden Claude-chatin, voit sanoa: *"Lue ROADMAP.md ja jatka vaiheesta X"*.
 
-**Viimeisin päivitys:** 2026-04-28
+**Viimeisin päivitys:** 2026-04-28 (suunnitelma uudistettu — yksi lomake, ei erillisiä komponentteja)
 
 ---
 
@@ -12,14 +12,14 @@
 
 | # | Vaihe | Status | Huom |
 |---|-------|--------|------|
-| 1 | Asiakaskortti — uusi rakenne | 🟡 Käynnissä | Tietokanta valmis, hookki valmis, AsiakasKortti rakennetaan |
-| 2 | Hoitokäynnin teko ja tallennus | ⚪ Odottaa | Lopettaa paperilla kirjaamisen |
+| 1 | Asiakastietolomake — osiot 1–5 (asiakkaan osa) | 🟡 Suunnittelu valmis, koodaus alkaa | C-tyyli: osio kerrallaan, pyyhkäisy + nuolet |
+| 2 | Asiakastietolomake — osiot 6–8 (hoitajan osa) | ⚪ Odottaa | Lisätään kun osiot 1–5 toimivat |
 | 3 | Palvelut + hoitajaprofiili Asetuksiin | ⚪ Odottaa | Pohja sivustolle ja lomakkeelle |
-| 4 | Sähköinen asiakastietolomake | ⚪ Odottaa | Asiakas täyttää sähköisesti |
+| 4 | Sähköinen lomake asiakkaalle (osiot 1–5) | ⚪ Odottaa | Asiakas täyttää itse ennen ajanvarausta |
 | 5 | Asiakasportaali (oma kirjautuminen) | ⚪ Odottaa | Tietokanta jo valmis tähän (RLS) |
 | 6 | Julkinen sivusto | ⚪ Odottaa | Korvaa kalevalapaja.fi WordPress |
 | 7 | Ajanvaraus | ⚪ Odottaa | Korvaa Vellon |
-| 8 | Itsehoito-ohjeet portaaliin | ⚪ Odottaa | Videot ja kuvat |
+| 8 | Itsehoito-ohjeet portaaliin | ⚪ Odottaa | Synkronoituu lomakkeen havainnoista |
 | 9 | AI-tuki hoidon aikana | ⚪ Odottaa | Ehdotukset hoitosuunnitelmaan |
 | 10 | Tilastot, raportit, multi-hoitaja | ⚪ Odottaa | Skaalaus muille hoitajille |
 
@@ -27,69 +27,106 @@
 
 ---
 
-## Vaihe 1 — Asiakaskortti (käynnissä)
+## Lomakkeen 8 osiota — koko rakenne
 
-**Tavoite:** Kun klikkaat asiakasta listalta, näet kompaktin yhteenvedon — ei muokkauslomaketta.
+Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Käyttöliittymässä se näytetään **osio kerrallaan** (C-tyyli), navigointi pyyhkäisyllä tai nuolinapeilla.
 
-**Tehty:**
-- ✅ Tietokanta uusittu (lomakeversiot, sairaudet referenssitauluna jne.)
-- ✅ `normalisoiAsiakas` päivitetty
-- ✅ Asiakaslista hakee `asiakkaan_nykyinen_lomake`-näkymästä
-- ✅ Custom hook `useAsiakkaanSairaudet` luotu
-- ✅ Hookki siivottu pois App.jsx:stä
+### Asiakkaan osa (osiot 1–5) — vaihe 1
 
-**Tehtävänä:**
-- ⏳ AsiakasKortti-komponentti (uusi)
-- ⏳ Avautuu kun klikkaa asiakasta listalta
-- ⏳ ClientForm säilyy muokkausta varten ("Muokkaa"-nappi)
+| # | Osio | Sisältö | Pakolliset |
+|---|------|---------|------------|
+| 1 | **Asiakastiedot** | Nimi, syntymäaika, yhteystiedot, osoite, ammatti, pituus/paino | Nimi, ikä, sähköposti, puhelin |
+| 2 | **Sairaudet ja terveys** | Sairauslista (24 kpl checkboxia), lääkitys, allergiat, vammat | — |
+| 3 | **Hoitoon tulon syy** | Vapaa tekstikenttä, kipuaste 0–10, toiveet hoidolta | Hoitoon tulon syy |
+| 4 | **Asiakkaan kehonkartta** | Kuvat (etu/sivu/taka) joihin asiakas merkitsee oireet sormella | — |
+| 5 | **Suostumukset** | Tietosuojaseloste, GDPR, allekirjoitus | Allekirjoitus, tietosuoja |
 
-**Suunnittelu päätetty:**
-- Logo + nimi ylös
-- Selkeä scrollattava kokonaisuus
-- Mobiilikäyttö ensin
-- Ei isoa kontraindikaatio-bannereita (käy ilmi muutenkin)
+### Hoitajan osa (osiot 6–8) — vaihe 2
+
+| # | Osio | Sisältö |
+|---|------|---------|
+| 6 | **Havainnot ja löydökset** | Asentohavainnot (kallistus, kierto jne.) + 10 anatomista aluetta |
+| 7 | **Kuvantamiset** | Puhelimella otetut kuvat + niihin merkityt pisteet ja lasketut kulmat |
+| 8 | **Hoitoraportti** | Lähtötilanne, hoidon kulku, muista ensi kerralla — kasvaa käynti kerralta |
 
 ---
 
-## Vaihe 2 — Hoitokäynnin teko (seuraava)
+## Käyttöliittymän periaatteet
 
-**Tavoite:** Pystyt kirjaamaan hoitokäynnin tiedot suoraan järjestelmään.
+**Navigointi osioiden välillä:**
+- Pyyhkäisy vasemmalle / oikealle (mobiili, tabletti)
+- Nuolinapit ◄ EDELLINEN | SEURAAVA ► (kaikki laitteet)
+- Pisteet/numerot ylhäällä — klikkaa hyppää suoraan osioon
 
-**Sisältö:**
-- Päivän esitiedot (kunto, uni, stressi, kipu)
-- Havainnot (asentomuutokset + rakenteelliset alueittain)
-- Hoitoraportti (lähtötilanne, kulku, muista ensi kerralla)
-- Käyntien linkitys lomakeversioon (snapshot)
+**Visuaaliset ilmaisimet:**
+- ● = osio täytetty (vihreä)
+- ◉ = nykyinen osio
+- ○ = tyhjä, ei vielä täytetty (harmaa)
+- ⭐ = pakollinen kenttä merkittynä punaisella tähdellä
 
-**Hyödyt:** Voit lopettaa paperilla kirjaamisen.
+**Tilannekohtaiset elementit:**
+- Tallenna-nappi aina näkyvissä (voi tallentaa missä tahansa osiossa)
+- Esikatselu mahdollinen (näyttää koko lomakkeen kerralla)
+- Tulostus (sama paperilomake kuin nyt)
+
+---
+
+## Vaihe 1 — Asiakastietolomake osiot 1–5 (käynnissä)
+
+**Tavoite:** Hoitaja voi syöttää uuden asiakkaan tiedot lomakkeen kautta. Sama lomake näyttää tallennetut tiedot myös myöhemmin.
+
+**Tehty (tietokanta):**
+- ✅ Tietokanta uusittu (lomakeversiot, sairaudet referenssitauluna)
+- ✅ `normalisoiAsiakas` päivitetty
+- ✅ `useAsiakkaanSairaudet` -hook luotu
+
+**Tehtävänä (käyttöliittymä):**
+- ⏳ Asiakastietolomake-komponentti (uusi, korvaa AsiakasKortti + ClientForm)
+- ⏳ 5 osion C-tyylinen näkymä
+- ⏳ Pyyhkäisy + nuolet -navigointi
+- ⏳ Osio-pisteet ylhäällä, klikkaus hyppää osioon
+- ⏳ Pakolliset kentät merkittynä
+- ⏳ Tallennus oikein (lomakeversio + sairaudet)
+- ⏳ Esikatselu + tulostus säilyy
+
+**Hylättynä (ei rakenneta):**
+- ❌ AsiakasKortti — yhdistettiin lomakkeeseen
+- ❌ Erilliset välilehdet (Havainnot, Kehokartta jne.) — kaikki yhden lomakkeen osioita
+
+---
+
+## Vaihe 2 — Asiakastietolomake osiot 6–8 (seuraava)
+
+**Tavoite:** Hoitaja täydentää havainnot, kuvantamiset ja hoitoraportin **samalle lomakkeelle** — ei erillistä näkymää.
+
+**Sisältö:** ks. yllä Lomakkeen 8 osiota -taulukko.
+
+**Hyödyt:** Voit lopettaa paperilla kirjaamisen kokonaan.
 
 ---
 
 ## Vaihe 3 — Palvelut Asetuksiin
 
-**Tavoite:** Hoitaja voi lisätä omat palvelunsa, niiden kuvaukset ja kestot.
+**Tavoite:** Hoitaja voi lisätä omat palvelunsa, kuvaukset ja kestot.
 
 **Sisältö:**
 - `palvelut`-taulu (hoitaja_id, nimi, kuvaus, kesto, hinta, järjestys, aktiivinen)
 - Asetukset-sivun palvelut-välilehti
 - Hoitajaprofiili (nimi, esittely, kuva, koulutukset)
 
-**Hyödyt:**
-- Pohja vaiheille 4 (lomake) ja 6 (sivusto)
-- Sovellus toimii muillekin hoitajille kuin Oxa
+**Hyödyt:** Pohja vaiheille 4 (sähköinen lomake) ja 6 (sivusto).
 
 ---
 
-## Vaihe 4 — Sähköinen asiakastietolomake
+## Vaihe 4 — Sähköinen lomake asiakkaalle
 
-**Tavoite:** Uusi asiakas täyttää lomakkeen sähköisesti — ei paperia.
+**Tavoite:** Asiakas täyttää lomakkeen osiot 1–5 itse ennen ajanvarausta.
 
 **Sisältö:**
-- Lomake-URL: `/varaa` (yksi lomake, palveluvalinta päällä)
+- Sama lomake kuin vaiheessa 1, mutta **asiakkaan käyttöön**
+- URL: `/varaa` (yksi lomake, palveluvalinta osiossa 3 alussa)
 - Tukee suoria linkkejä `?palvelu=X` markkinointia varten
-- Sairaudet checkboxeina (tulee `sairaus_tyypit`-taulusta)
-- Asiakkaan kehonkartta-piirto (sormella/hiirellä)
-- Tallentaa `asiakastietolomake_versiot`-tauluun versiona
+- Tallentaa `asiakastietolomake_versiot`-tauluun
 
 **Hyödyt:** Asiakas tulee hoitoon valmiiksi täytetty lomake taustalla.
 
@@ -101,13 +138,13 @@
 
 **Sisältö:**
 - Asiakkaan oma Auth-rekisteri (Supabase Auth)
-- "Omat tiedot" -näkymä
-- "Päivitä tiedot" -nappi → uusi lomakeversio
+- "Omat tiedot" -näkymä (osiot 1–5 lomakkeesta)
+- "Päivitä tiedot" → uusi lomakeversio
 - Hoitohistorian katselu
 - Itsehoito-ohjeet
 - Ajanvarauslinkki (Vello tai vaihe 7)
 
-**Tietokanta on jo valmis tähän:** RLS-säännöt sallivat asiakkaan lukea omat tietonsa.
+**Tietokanta on jo valmis tähän:** RLS sallii asiakkaan lukea omat tietonsa.
 
 ---
 
@@ -147,8 +184,9 @@
 **Tavoite:** Asiakas saa harjoitukset videoineen ja kuvineen portaaliin.
 
 **Sisältö:**
-- Harjoituskirjasto (yhteinen kaikille hoitajille tai oma)
+- Harjoituskirjasto
 - Hoitaja valitsee asiakkaan ohjelmaan harjoituksia
+- **Synkronoituu lomakkeen havainnoista** automaattisesti
 - Asiakas näkee oman ohjelman portaalissa
 - Videot ja kuvat Supabase Storagessa
 
@@ -174,9 +212,9 @@
 **Tavoite:** Sovellus toimii muille hoitajille — Oxa myy palvelua.
 
 **Sisältö:**
-- Multi-tenant kunnolla (oma domain per hoitaja?)
+- Multi-tenant kunnolla
 - Tilausjärjestelmä (kuukausimaksu Stripe)
-- Tilastot ja raportit (asiakasmäärät, hoitokerrat, tulot)
+- Tilastot ja raportit
 - Verotusraportit
 - Asiakaspalvelu
 
@@ -214,13 +252,17 @@ Ratkaisu päätetään vaiheessa 6 (julkinen sivusto):
 
 Nämä ovat sovittu projektin alussa, kannattaa pitää mielessä:
 
-1. **AI ehdottaa, hoitaja päättää** — kaikki AI-tuotettu sisältö on ehdotuksia
-2. **Vertailukelpoisuus** — hoitokäyntien data tallennetaan rakenteellisesti
-3. **Yksi totuuden lähde** — Supabase, ei duplikoitua dataa
-4. **Suomenkieliset muuttujanimet** — `asiakas`, `hoitokaynti`, `havainnot`
-5. **Null-suoja** — kaikkialla missä luetaan tietokannasta
-6. **Yhden vastuun periaate** — yksi funktio = yksi tehtävä
-7. **RLS aina päällä** — hoitaja näkee vain omat asiakkaansa
-8. **Versiointi** — kun lomake päivittyy, vanha versio säilyy historiana
-9. **Mobiilikäyttö ensin** — toimii puhelimella ennen kuin desktopilla
-10. **Joustavuus** — referenssitaulut hoitajan muokattavissa, `lisakentat`-jsonb tulevaisuutta varten
+1. **Yksi lomake koko ketjun ajan** — ei erillisiä komponentteja eri vaiheille
+2. **Osio kerrallaan -navigointi** (pyyhkäisy + nuolet)
+3. **MVP-lähestymistapa** — toimiva paketti ensin, kehitys käytön myötä
+4. **AI ehdottaa, hoitaja päättää** — kaikki AI-tuotettu sisältö on ehdotuksia
+5. **Vertailukelpoisuus** — hoitokäyntien data tallennetaan rakenteellisesti
+6. **Yksi totuuden lähde** — Supabase, ei duplikoitua dataa
+7. **Suomenkieliset muuttujanimet** — `asiakas`, `hoitokaynti`, `havainnot`
+8. **Null-suoja** — kaikkialla missä luetaan tietokannasta
+9. **Yhden vastuun periaate** — yksi funktio = yksi tehtävä
+10. **RLS aina päällä** — hoitaja näkee vain omat asiakkaansa
+11. **Versiointi** — kun lomake päivittyy, vanha versio säilyy historiana
+12. **Mobiilikäyttö ensin** — toimii puhelimella ennen kuin desktopilla
+13. **Joustavuus** — referenssitaulut hoitajan muokattavissa, `lisakentat`-jsonb tulevaisuutta varten
+14. **Helppokäyttöisyys ennen kaikkea** — *"Onko tämä helppo Oxalle kiireisenä päivänä?"* on jokaisen päätöksen testi
