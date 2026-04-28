@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 import { tallennaKaynti } from '../lib/db'
-import { useAsiakkaanSairaudet } from '../hooks/useAsiakkaanSairaudet'
 import { normalisoiAsiakas } from '../utils/asiakas'
 import Login from './Login'
 import ClientForm from './ClientForm'
@@ -50,9 +49,6 @@ export default function App() {
   const [vahvistusViesti, setVahvistusViesti] = useState('')
   const [kayttaja, setKayttaja]       = useState(null)
   const [lataaAuth, setLataaAuth]     = useState(true)
-  const { sairaudet, kontraindikaatiot: sairausKontra, lataa: sairaudetLataa } =
-    useAsiakkaanSairaudet(asiakas?.id ?? null)
-
   useEffect(() => {
     const url = new URL(window.location.href)
     const error = url.searchParams.get('error')
