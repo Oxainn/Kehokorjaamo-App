@@ -4,7 +4,7 @@
 > Roadmap kertoo mitä tehdään, projektimuisti kertoo miksi.
 > Päivitä kun teet ison päätöksen.
 
-**Viimeisin päivitys:** 2026-04-28
+**Viimeisin päivitys:** 2026-04-28 (suunnitelma uudistettu)
 
 ---
 
@@ -70,13 +70,43 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 
 ## Tehdyt päätökset
 
-### 2026-04-28 — Muokkaustila nollautuu asiakkaan vaihdossa
+### 2026-04-28 — Suunnitelma uudistettu: yksi lomake, ei erillisiä komponentteja
 
-**Päätös:** `muokkausTila` on aina tarkoituksellinen tila. AsiakasKortti on katselun oletustila. Muokkaustilaan siirrytään aina tarkoituksellisesti Muokkaa-napilla, ja se nollautuu kun asiakas vaihtuu tai katselusivu suljetaan.
+**Päätös:** Asiakastietolomake on **yksi** lomake joka kasvaa hoitoketjun aikana. Ei AsiakasKortti-komponenttia, ei välilehtiä (Havainnot, Kehokartta jne.).
 
-**Toteutus:** `setMuokkausTila(false)` kutsutaan `onValitseAsiakas`- ja `avaaAsiakkaana`-kohdissa sekä `onComplete`- ja `onPeruuta`-callbackeissa.
+**Miksi:** Käyttäjä ilmaisi vision selkeästi: *"Mielellään yksi muunneltava lomake koko ketjun ajan."* Erilliset välilehdet rikkovat kokonaisuuden. Sama lomake palvelee sekä asiakasta että hoitajaa, vain osiot erillään.
 
----
+**Vaikutus:**
+- AsiakasKortti.jsx **poistetaan**
+- Vanhat välilehdet (Havainnot, Kehokartta, Kuva-analyysi, Hoitosuunnitelma, Lihakset, Jälkihoito) **poistetaan**
+- Tilalle: yksi `Asiakastietolomake.jsx` jossa 8 osiota
+- Käyttöliittymä: C-tyyli (osio kerrallaan, navigointi pyyhkäisyllä + nuolinapeilla)
+
+### 2026-04-28 — Käyttöliittymän tyyli: C-malli
+
+**Päätös:** Yksi osio kerrallaan näkyvissä, navigointi:
+- Pyyhkäisy vasemmalle/oikealle (mobiili, tabletti)
+- Nuolinapit ◄ EDELLINEN | SEURAAVA ► (kaikki laitteet)
+- Pisteet/numerot ylhäällä — klikkaa hyppää suoraan osioon
+
+**Miksi:** Käyttäjä piirsi luonnoksen jossa tämä rakenne. Selkeä, ei sekoita, toimii sekä tabletilla että puhelimella samalla tavalla.
+
+**Visuaaliset ilmaisimet:**
+- ● = osio täytetty
+- ◉ = nykyinen osio
+- ○ = tyhjä, ei vielä täytetty
+
+### 2026-04-28 — MVP-lähestymistapa
+
+**Päätös:** Toimiva paketti ensin, kehitys käytön myötä. Ei yritetä rakentaa täydellistä versiota kerralla.
+
+**Miksi:** Käyttäjä sanoi: *"Saadaan paketti toimimaan, sitten kehitetään käyttökokemuksen myötä."* Tämä on viisaus jota Anthropic ja kaikki tuotekehityksen ammattilaiset suosittelevat.
+
+**Vaikutus:**
+- Vaihe 1: vain osiot 1–5 (asiakkaan osa)
+- Vaihe 2: osiot 6–8 (hoitajan osa) lisätään myöhemmin
+- Pakolliset kentät minimoidaan: nimi, ikä, sähköposti, puhelin, hoitoon syy, allekirjoitus, tietosuoja
+- Muut osiot voi jättää tyhjiksi alkuun
 
 ### 2026-04-28 — Tietokanta uusittiin puhtaalta pöydältä
 
@@ -96,7 +126,7 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 
 ### 2026-04-28 — Kontraindikaatio ei punaista bannereita
 
-**Päätös:** Kontraindikaatio-varoitusta ei korosteta isolla bannerilla AsiakasKortissa.
+**Päätös:** Kontraindikaatio-varoitusta ei korosteta isolla bannerilla.
 
 **Miksi:** Käytännössä kontraindikaatio käy ilmi hoidon kuvauksessa muutenkin. Liika varoittelu turruttaa.
 
@@ -112,9 +142,9 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 
 **Tulevaisuudessa:** Hoitajan oma kehonkartta voi olla strukturoitu (`kehonkartta_pisteet`-taulu), suunnitelma kesken.
 
-### 2026-04-28 — Yksi lomake, palveluvalinta ylhäällä
+### 2026-04-28 — Yksi lomake, palveluvalinta osana lomaketta
 
-**Päätös:** Asiakastietolomake on yksi sähköinen lomake, jossa palveluvalinta on ensimmäinen kenttä.
+**Päätös:** Asiakastietolomake on yksi sähköinen lomake, jossa palveluvalinta on osio 3:n alussa (hoitoon tulon syy).
 
 **Miksi:** Helppo ylläpitää. Asiakas valitsee palvelun (Kalevalainen jäsenkorjaus, Tantrahieronta jne.), näkee kuvauksen avattavana osiona.
 
@@ -131,6 +161,22 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 ---
 
 ## Hylätyt vaihtoehdot
+
+### Hylätty: AsiakasKortti-komponentti (omana näkymänä)
+
+**Ehdotus:** Erillinen "kortti"-komponentti read-only katseluun, ClientForm muokkaukseen.
+
+**Hylätty koska:** Käyttäjä halusi yhtä lomaketta, ei kahta erillistä komponenttia. Lisäsi monimutkaisuutta ilman lisäarvoa.
+
+**Korvaava ratkaisu:** Yksi `Asiakastietolomake`-komponentti joka näyttää kaikki tiedot. Lomake voi olla luku- tai muokkaustilassa tarvittaessa, mutta osiojako on sama.
+
+### Hylätty: Erilliset välilehdet (Havainnot, Kehokartta jne.)
+
+**Ehdotus:** Käyntinäkymässä monta välilehteä eri toiminnoille.
+
+**Hylätty koska:** Käyttäjä ilmaisi: *"Erilliset välilehdet mielestäni rikkoo kokonaisuuden."* Lomakkeen pitää olla yhtenäinen.
+
+**Korvaava ratkaisu:** Kaikki entiset "välilehdet" ovat osioita yhdessä lomakkeessa (osiot 6–8).
 
 ### Hylätty: Sairaudet jsonb-kenttänä
 
@@ -160,7 +206,7 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 
 **Ehdotus:** Käytetään samaa lomaketta sekä katseluun että muokkaukseen.
 
-**Hylätty koska:** Katselu ja muokkaus ovat eri tarpeita — visuaalisesti pitää erottua. Tehdään `AsiakasKortti` katseluun, `ClientForm` muokkaukseen.
+**Hylätty koska:** Korvautui paremmalla ratkaisulla (yksi Asiakastietolomake, jossa selkeä osio-rakenne).
 
 ---
 
@@ -169,7 +215,7 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 Nämä on tunnistettu mutta ei vielä päätetty:
 
 - **Domain:** vaiheessa 6 (kalevalapaja.fi vs app.kalevalapaja.fi vs muu)
-- **Hoitajan kehonkartta:** strukturoitu vai pelkkä kuva — päätetään vaiheessa 2 (hoitokäynnin teko)
+- **Hoitajan kehonkartta:** strukturoitu vai pelkkä kuva — päätetään vaiheessa 2 (osio 6 — havainnot)
 - **Multi-tenant arkkitehtuuri:** miten skaalataan kun muutkin hoitajat alkavat käyttää (vaihe 10)
 - **Maksaminen:** Stripe-integraatio osana ajanvarausta vai erillinen vaihe
 - **Sähköposti-ilmoitukset:** Edge functions Supabasessa vai ulkopuolinen palvelu
@@ -186,6 +232,7 @@ Nämä on tunnistettu mutta ei vielä päätetty:
 - Avopuoliso: Soile Nieminen
 - Tasoltaan aloittelija AI:n ja koodauksen kanssa
 - Suomenkieliset vastaukset, rento sävy
+- **Tärkein periaate:** *"Onko tämä helppo Oxalle kiireisenä päivänä?"*
 
 ---
 
@@ -198,6 +245,7 @@ Nämä on tunnistettu mutta ei vielä päätetty:
 5. Suomenkieliset muuttujanimet kaikkialla
 6. Null-suoja kaikkialla missä luetaan tietokantaa
 7. Tarkista että nykyiset toiminnot eivät rikkoudu
+8. **Suunnitellaan ensin koko visio loppuun, vasta sitten koodataan** (oppi 28.4.2026)
 
 ---
 
