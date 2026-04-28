@@ -512,16 +512,19 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
         paino:             data.paino || null,
       }
 
-      console.log('tallennaAsiakas: data.supabase_id=', data.supabase_id, '| data.id=', data.id)
+      const tunnistettuId = data.supabase_id || data.id || asiakasData?.id || asiakasData?.supabase_id
+      console.log('tallennaAsiakas: tunnistettuId=', tunnistettuId,
+        '| data.supabase_id=', data.supabase_id, '| data.id=', data.id)
+
       let asiakasId
-      if (data.supabase_id) {
+      if (tunnistettuId) {
         // Olemassa oleva asiakas — päivitä
         const { error } = await supabase
           .from('asiakkaat')
           .update(perustiedot)
-          .eq('id', data.supabase_id)
+          .eq('id', tunnistettuId)
         if (error) throw error
-        asiakasId = data.supabase_id
+        asiakasId = tunnistettuId
       } else {
         // Uusi asiakas — lisää
         const { data: rivi, error } = await supabase
@@ -561,13 +564,20 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
         },
         lomakeSairaudet
       )
-      if (lomakeError) throw lomakeError
+      if (lomakeError) {
+        console.error('Lomakeversion tallennus epäonnistui:', lomakeError)
+        alert('Lomakeversion tallennus epäonnistui:\n' + lomakeError.message)
+        throw lomakeError
+      }
 
       const asiakasDataOut = { ...data, supabase_id: asiakasId }
       localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(asiakasDataOut))
       onComplete?.(asiakasDataOut)
     } catch (err) {
       console.error('Tallennus epäonnistui:', err)
+      if (!err.message?.includes('Lomakeversion')) {
+        alert('Tallennus epäonnistui:\n' + (err.message ?? String(err)))
+      }
     } finally {
       setTallentaa(false)
     }
