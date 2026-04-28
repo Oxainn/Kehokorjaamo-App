@@ -56,9 +56,9 @@ const TYHJÄ = {
   allergia_lisatieto:  '',
   tekonivel_lisatieto: '',
   raskaus_lisatieto:   '',
-  sairaudet:        '',
-  vammat:           '',
-  kipuaste:         0,
+  diagnosoidut_sairaudet: '',
+  vammat_huomiot:         '',
+  kipu_taso:              0,
   merkinnät:        {},
   lisavastaukset:   {},
   suostumus_rekisteri: false,
@@ -102,7 +102,7 @@ function PrintView({ data, ika, asetukset = TULOSTUS_OLETUKSET, lomakeAsetukset 
   const kontraValitut = Object.entries(data.kontraindikaatiot ?? {}).filter(([, v]) => v).map(([k]) => k)
   const normaalit  = kontraValitut.filter(n => !EHDOTTOMAT_KONTRA.includes(n))
   const ehdottomat = kontraValitut.filter(n =>  EHDOTTOMAT_KONTRA.includes(n))
-  const kipuV = kipuVari(data.kipuaste)
+  const kipuV = kipuVari(data.kipu_taso)
 
   const Rivi = ({ label, arvo }) => arvo ? (
     <div style={S.rivi}>
@@ -153,7 +153,7 @@ function PrintView({ data, ika, asetukset = TULOSTUS_OLETUKSET, lomakeAsetukset 
               <div style={S.osasto}>Kiputilanne</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                 <div style={{ width: '44px', height: '44px', borderRadius: '50%', border: `3px solid ${kipuV.kehys}`, background: kipuV.tausta, color: kipuV.teksti, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', fontWeight: '700' }}>
-                  {data.kipuaste}
+                  {data.kipu_taso}
                 </div>
                 <span style={{ color: '#555' }}>/ 10 (VAS)</span>
               </div>
@@ -182,7 +182,7 @@ function PrintView({ data, ika, asetukset = TULOSTUS_OLETUKSET, lomakeAsetukset 
       )}
 
       {/* Terveystiedot */}
-      {showTerveystiedot && (normaalit.length > 0 || ehdottomat.length > 0 || data.sairaudet || data.vammat || data.laakitys) && (
+      {showTerveystiedot && (normaalit.length > 0 || ehdottomat.length > 0 || data.diagnosoidut_sairaudet || data.vammat_huomiot || data.laakitys) && (
         <div>
           <div style={S.osasto}>Terveystiedot</div>
           {normaalit.length > 0 && (
@@ -201,8 +201,8 @@ function PrintView({ data, ika, asetukset = TULOSTUS_OLETUKSET, lomakeAsetukset 
               ⚠ Ehdottomat kontraindikaatiot: {ehdottomat.join(', ')}
             </div>
           )}
-          <Rivi label="Sairaudet" arvo={data.sairaudet} />
-          <Rivi label="Vammat" arvo={data.vammat} />
+          <Rivi label="Sairaudet" arvo={data.diagnosoidut_sairaudet} />
+          <Rivi label="Vammat" arvo={data.vammat_huomiot} />
           <Rivi label="Lääkitys" arvo={data.laakitys} />
         </div>
       )}
@@ -557,10 +557,10 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
           hoitoon_syy:            data.hoitoon_syy,
           laakitys:               data.laakitys,
           harrastukset:           data.harrastukset,
-          vammat_huomiot:         data.vammat,
-          kipu_taso:              data.kipuaste,
+          vammat_huomiot:         data.vammat_huomiot,
+          kipu_taso:              data.kipu_taso,
           miten_loysi:            data.miten_loysi,
-          diagnosoidut_sairaudet: data.sairaudet,
+          diagnosoidut_sairaudet: data.diagnosoidut_sairaudet,
           muokkaaja_id:           hoitajaId,
         },
         lomakeSairaudet
@@ -777,15 +777,15 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
 
             <TextArea
               label="Diagnosoidut sairaudet"
-              name="sairaudet"
-              value={data.sairaudet}
+              name="diagnosoidut_sairaudet"
+              value={data.diagnosoidut_sairaudet}
               onChange={päivitä}
               rows={3}
             />
             <TextArea
               label="Vammat ja muut hoidossa huomioitavat seikat"
-              name="vammat"
-              value={data.vammat}
+              name="vammat_huomiot"
+              value={data.vammat_huomiot}
               onChange={päivitä}
               rows={3}
             />
@@ -800,12 +800,12 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
               <div
                 className="flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold border-4 transition-colors"
                 style={{
-                  backgroundColor: kipuVari(data.kipuaste).tausta,
-                  borderColor:     kipuVari(data.kipuaste).kehys,
-                  color:           kipuVari(data.kipuaste).teksti,
+                  backgroundColor: kipuVari(data.kipu_taso).tausta,
+                  borderColor:     kipuVari(data.kipu_taso).kehys,
+                  color:           kipuVari(data.kipu_taso).teksti,
                 }}
               >
-                {data.kipuaste}
+                {data.kipu_taso}
               </div>
 
               {/* Slider */}
@@ -814,11 +814,11 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
                   type="range"
                   min={0}
                   max={10}
-                  value={data.kipuaste}
-                  onChange={(e) => setData((prev) => ({ ...prev, kipuaste: Number(e.target.value) }))}
+                  value={data.kipu_taso}
+                  onChange={(e) => setData((prev) => ({ ...prev, kipu_taso: Number(e.target.value) }))}
                   className="w-full h-2 rounded-lg appearance-none cursor-pointer"
                   style={{
-                    background: `linear-gradient(to right, ${kipuVari(data.kipuaste).kehys} 0%, ${kipuVari(data.kipuaste).kehys} ${data.kipuaste * 10}%, #e5e7eb ${data.kipuaste * 10}%, #e5e7eb 100%)`,
+                    background: `linear-gradient(to right, ${kipuVari(data.kipu_taso).kehys} 0%, ${kipuVari(data.kipu_taso).kehys} ${data.kipu_taso * 10}%, #e5e7eb ${data.kipu_taso * 10}%, #e5e7eb 100%)`,
                   }}
                 />
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
@@ -1043,12 +1043,12 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
               <span
                 className="font-bold text-base w-8 h-8 rounded-full flex items-center justify-center border-2"
                 style={{
-                  color:           kipuVari(data.kipuaste).teksti,
-                  borderColor:     kipuVari(data.kipuaste).kehys,
-                  backgroundColor: kipuVari(data.kipuaste).tausta,
+                  color:           kipuVari(data.kipu_taso).teksti,
+                  borderColor:     kipuVari(data.kipu_taso).kehys,
+                  backgroundColor: kipuVari(data.kipu_taso).tausta,
                 }}
               >
-                {data.kipuaste}
+                {data.kipu_taso}
               </span>
             </div>
 

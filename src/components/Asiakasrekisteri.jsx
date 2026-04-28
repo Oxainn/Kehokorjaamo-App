@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 
-export default function Asiakasrekisteri({ onValitseAsiakas, onEsikatseluAsiakas, onAvaaAsiakkaana, hoitajaId, esitiedotLista = [] }) {
+export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
   const [asiakkaat, setAsiakkaat] = useState([])
   const [haku, setHaku]           = useState('')
   const [lataa, setLataa]         = useState(true)
@@ -48,48 +48,6 @@ export default function Asiakasrekisteri({ onValitseAsiakas, onEsikatseluAsiakas
           {asiakkaat.length} asiakasta
         </span>
       </h2>
-
-      {/* Käsittelemättömät esitiedot */}
-      {esitiedotLista.length > 0 && (
-        <div style={{ marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#854F0B', margin: '0 0 8px' }}>
-            🔔 Käsittelemättömät esitiedot ({esitiedotLista.length})
-          </h3>
-          {esitiedotLista.map(e => (
-            <div key={e.id} style={{
-              padding: '12px',
-              border: '1px solid #FAC775',
-              borderRadius: '8px',
-              background: '#FAEEDA',
-              marginBottom: '8px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-            }}>
-              <div>
-                <p style={{ fontWeight: '500', fontSize: '13px', margin: '0 0 4px' }}>{e.nimi}</p>
-                <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>
-                  {[e.sahkoposti, e.palvelu].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                <button
-                  onClick={() => onEsikatseluAsiakas?.(e)}
-                  style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: '1px solid #EF9F27', background: 'white', cursor: 'pointer' }}
-                >
-                  Esikatsele
-                </button>
-                <button
-                  onClick={() => onAvaaAsiakkaana?.(e)}
-                  style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer' }}
-                >
-                  Avaa asiakkaana
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       <input
         type="text"
