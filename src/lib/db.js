@@ -145,14 +145,16 @@ export const poistaAsiakas = async (id) => {
 }
 
 export const haeSairausTyypit = async () => {
+  console.log('[haeSairausTyypit] kutsuttu')
   const { data, error } = await supabase
     .from('sairaus_tyypit')
     .select('id, koodi, nimi, kontraindikaatio, ryhma, tarkenne_label, tarkenne_tyyppi')
     .order('nimi')
   if (error) {
-    console.error('Sairaustyyppienhaku:', error)
+    console.error('[haeSairausTyypit] virhe:', error)
     return []
   }
+  console.log('[haeSairausTyypit] tulos:', data?.length, 'riviä')
   return data ?? []
 }
 
