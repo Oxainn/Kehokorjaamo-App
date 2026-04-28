@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
 import { supabase } from '../services/supabase'
 import { kipuVari } from '../utils/helpers'
+import { haeSairausTyypit, tallennaAsiakastietolomake } from '../lib/db'
 
 const STORAGE_KEY   = 'kehokorjaamo_asiakasdata'
 const ASETUS_KEY    = 'kehokorjaamo_asetukset'
@@ -444,6 +445,9 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
   const [esikatselu, setEsikatselu]               = useState(false)
   const [tulostusAsetukset, setTulostusAsetukset] = useState(TULOSTUS_OLETUKSET)
   const [lomakeAsetukset]                         = useState(lueLomakeAsetukset)
+  const [sairausTyypit, setSairausTyypit]         = useState([])
+
+  useEffect(() => { haeSairausTyypit().then(setSairausTyypit) }, [])
 
   const toggleTulostusOsio = (id) =>
     setTulostusAsetukset(prev => ({ ...prev, [id]: !prev[id] }))
@@ -492,32 +496,76 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
     if (!data.nimi.trim() || !data.suostumus_rekisteri || ehdotonValittu) return
     setTallentaa(true)
     try {
-      const { data: tallennettu, error } = await supabase
-        .from('asiakkaat')
-        .insert({
-          hoitaja_id:        hoitajaId,
-          nimi:              data.nimi,
-          syntymaaika:       data.syntymaaika || null,
-          sahkoposti:        data.sahkoposti,
-          puhelin:           data.puhelin,
-          lahiosoite:        data.lahiosoite,
-          postinumero:       data.postinumero,
-          postitoimipaikka:  data.postitoimipaikka,
-          ammatti:           data.ammatti,
-          pituus:            data.pituus || null,
-          paino:             data.paino || null,
+      // 1. Tallenna henkilötiedot asiakkaat-tauluun
+      const perustiedot = {
+        hoitaja_id:        hoitajaId,
+        nimi:              data.nimi,
+        syntymaaika:       data.syntymaaika || null,
+        sahkoposti:        data.sahkoposti,
+        puhelin:           data.puhelin,
+        lahiosoite:        data.lahiosoite,
+        postinumero:       data.postinumero,
+        postitoimipaikka:  data.postitoimipaikka,
+        ammatti:           data.ammatti,
+        pituus:            data.pituus || null,
+        paino:             data.paino || null,
+      }
+
+      let asiakasId
+      if (data.supabase_id) {
+        // Olemassa oleva asiakas — päivitä
+        const { error } = await supabase
+          .from('asiakkaat')
+          .update(perustiedot)
+          .eq('id', data.supabase_id)
+        if (error) throw error
+        asiakasId = data.supabase_id
+      } else {
+        // Uusi asiakas — lisää
+        const { data: rivi, error } = await supabase
+          .from('asiakkaat')
+          .insert(perustiedot)
+          .select()
+        if (error) throw error
+        asiakasId = rivi[0].id
+      }
+
+      // 2. Muodosta sairauslista rastittujen checkboxien perusteella
+      const lomakeSairaudet = Object.entries(data.kontraindikaatiot)
+        .filter(([, val]) => val)
+        .map(([nimi]) => {
+          const tyyppi = sairausTyypit.find(t => t.nimi === nimi)
+          if (!tyyppi) return null
+          const tarkenne =
+            nimi === 'Allergia'  ? (data.allergia_lisatieto  || '') :
+            nimi === 'Tekonivel' ? (data.tekonivel_lisatieto || '') :
+            nimi === 'Raskaus'   ? (data.raskaus_lisatieto   || '') : ''
+          return { sairaus_tyyppi_id: tyyppi.id, tarkenne }
         })
-        .select()
+        .filter(Boolean)
 
-      if (error) throw error
+      // 3. Tallenna uusi lomakeversio + sairaudet
+      const { error: lomakeError } = await tallennaAsiakastietolomake(
+        asiakasId,
+        {
+          hoitoon_syy:            data.hoitoon_syy,
+          laakitys:               data.laakitys,
+          harrastukset:           data.harrastukset,
+          vammat_huomiot:         data.vammat,
+          kipu_taso:              data.kipuaste,
+          miten_loysi:            data.miten_loysi,
+          diagnosoidut_sairaudet: data.sairaudet,
+          muokkaaja_id:           hoitajaId,
+        },
+        lomakeSairaudet
+      )
+      if (lomakeError) throw lomakeError
 
-      const asiakasDataOut = { ...data, supabase_id: tallennettu[0].id }
+      const asiakasDataOut = { ...data, supabase_id: asiakasId }
       localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(asiakasDataOut))
       onComplete?.(asiakasDataOut)
     } catch (err) {
       console.error('Tallennus epäonnistui:', err)
-      localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(data))
-      onComplete?.(data)
     } finally {
       setTallentaa(false)
     }
