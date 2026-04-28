@@ -418,7 +418,7 @@ function Osio({ otsikko, lapset }) {
   )
 }
 
-export default function ClientForm({ onComplete, asiakasData = null, esitäytö = null, hoitajaId = null }) {
+export default function ClientForm({ onComplete, onPeruuta = null, asiakasData = null, esitäytö = null, hoitajaId = null }) {
   const [data, setData] = useState(() => {
     if (asiakasData) return { ...TYHJÄ, ...asiakasData }
     if (esitäytö) return { ...TYHJÄ, ...esitäytö }
@@ -545,6 +545,15 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
     )}
     <section className="flex flex-col gap-6 no-print">
       <div>
+        {onPeruuta && (
+          <button
+            type="button"
+            onClick={onPeruuta}
+            className="mb-3 text-sm text-emerald-700 hover:underline flex items-center gap-1"
+          >
+            ← Takaisin
+          </button>
+        )}
         <h2 className="text-2xl font-semibold text-gray-800">ASIAKASTIETOLOMAKE</h2>
         <p className="mt-1 text-gray-500 text-sm">
           Täytä tiedot ennen hoitoa. Tiedot tallennetaan automaattisesti.

@@ -14,6 +14,7 @@ import ProductBoard from './ProductBoard'
 import KuvaAnalyysi from './KuvaAnalyysi'
 import Asiakasrekisteri from './Asiakasrekisteri'
 import EsitietoKatselu from './EsitietoKatselu'
+import AsiakasKortti from './AsiakasKortti'
 
 const ylaNav = [
   { id: 'rekisteri',     nimi: 'Asiakasrekisteri', ikoni: '👥' },
@@ -43,6 +44,7 @@ export default function App() {
   const [treatmentPlan, setTreatmentPlan] = useState(null)
   const [kuvaAnalyysiMittaukset, setKuvaAnalyysiMittaukset] = useState([])
   const [asiakasNappiTila, setAsiakasNappiTila] = useState('tallenna')
+  const [muokkausTila, setMuokkausTila]         = useState(false)
   const [esitiedotLista, setEsitiedotLista] = useState([])
   const [avattuEsitieto, setAvattuEsitieto] = useState(null)
   const [kayntiPvm, setKayntiPvm]     = useState(new Date().toISOString().split('T')[0])
@@ -109,6 +111,7 @@ export default function App() {
     setEsitiedotLista(prev => prev.filter(e => e.id !== esitiedot.id))
     setAsiakas(normalisoiAsiakas({ ...esitiedot, id: data?.[0]?.id }))
     setAvattuEsitieto(null)
+    setMuokkausTila(false)
     setNakyma('kaynti')
     setAktiivinen('asiakastiedot')
     setVahvistusViesti(`${esitiedot.nimi} tallennettu!`)
@@ -326,11 +329,19 @@ export default function App() {
 
             {/* Sisältö */}
             {aktiivinen === 'asiakastiedot' && (
-              <ClientForm
-                asiakasData={asiakas}
-                onComplete={(data) => { setAsiakas(data); setAktiivinen('havainnot') }}
-                hoitajaId={hoitajaId}
-              />
+              muokkausTila || !asiakas?.supabase_id ? (
+                <ClientForm
+                  asiakasData={asiakas}
+                  onComplete={(data) => { setAsiakas(data); setMuokkausTila(false); setAktiivinen('havainnot') }}
+                  onPeruuta={asiakas?.supabase_id ? () => setMuokkausTila(false) : null}
+                  hoitajaId={hoitajaId}
+                />
+              ) : (
+                <AsiakasKortti
+                  asiakas={asiakas}
+                  onMuokkaa={() => setMuokkausTila(true)}
+                />
+              )
             )}
             {aktiivinen === 'havainnot' && (
               <ClinicalObservations
