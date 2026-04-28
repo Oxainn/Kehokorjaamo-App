@@ -579,6 +579,7 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
       }
 
       console.log('6. tallennus valmis')
+      alert('Tallennettu!')
       const asiakasDataOut = { ...data, supabase_id: asiakasId }
       localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(asiakasDataOut))
       onComplete?.(asiakasDataOut)
@@ -1125,19 +1126,22 @@ export default function ClientForm({ onComplete, onPeruuta = null, asiakasData =
         } />
 
         {/* ── Toiminnot ────────────────────────────────────────────────────── */}
-        <div className="sticky bottom-0 flex flex-col sm:flex-row gap-3 bg-white/95 backdrop-blur py-3 px-4 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] -mx-4 sm:-mx-6">
+        <div className="sticky bottom-0 z-50 flex flex-col sm:flex-row gap-3 bg-white/95 backdrop-blur py-3 px-4 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] -mx-4 sm:-mx-6">
           <button
             type="button"
             onClick={tulosta}
-            className="sm:flex-1 py-3 border-2 border-brand-600 text-brand-700 hover:bg-brand-50 font-semibold rounded-xl transition-colors"
+            className="sm:flex-1 py-3 border-2 border-brand-600 text-brand-700 hover:bg-brand-50 active:scale-95 cursor-pointer font-semibold rounded-xl transition-colors"
           >
             Tulosta
           </button>
           <button
             type="button"
-            onClick={tallennaAsiakas}
+            onClick={() => {
+              console.log('NAPPIA KLIKATTU')
+              tallennaAsiakas()
+            }}
             disabled={tallentaa}
-            className="sm:flex-1 py-3 bg-brand-600 hover:bg-brand-700 disabled:opacity-60 text-white font-semibold rounded-xl transition-colors shadow-sm"
+            className="sm:flex-1 py-3 bg-brand-600 hover:bg-brand-700 active:scale-95 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors shadow-sm"
           >
             {ehdotonValittu ? 'Hoito ei ole mahdollinen' : tallentaa ? 'Tallennetaan...' : onMuokkaus ? 'Tallenna muutokset' : 'Tallenna ja jatka →'}
           </button>
