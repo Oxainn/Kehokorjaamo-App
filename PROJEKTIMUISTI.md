@@ -4,7 +4,7 @@
 > Roadmap kertoo mitä tehdään, projektimuisti kertoo miksi.
 > Päivitä kun teet ison päätöksen.
 
-**Viimeisin päivitys:** 2026-04-28 (suunnittelukysymykset 1–4 päätetty)
+**Viimeisin päivitys:** 2026-04-28 (osiot 1–5 suunniteltu valmiiksi)
 
 ---
 
@@ -19,6 +19,19 @@
 - **Domain (tuleva):** päätetään vaiheessa 6, ks. Roadmap
 - **Ajanvaraus (nykyinen):** Vello, korvataan vaiheessa 7
 - **Sähköpostimuistutukset:** käsin lähetetty viikon päästä hoidosta (säilytetään, automatisoidaan myöhemmin)
+
+---
+
+## Olemassa olevat komponentit (säilytetään tai parannetaan)
+
+| Komponentti | Tila | Toimenpide vaiheessa 1 |
+|-------------|------|------------------------|
+| Kehonkartta (`ClientForm.jsx`) | ✅ Toimii | Parannus: vapaa piirtäminen + automaattinen vyöhyke-tunnistus |
+| Kehon vyöhykkeet (`kehonVyohykkeet.js`) | ✅ Toimii | Pidetään (35 vyöhykettä) |
+| Suostumukset-osa (allekirjoitus + GDPR) | ✅ Toimii | Käytetään sellaisenaan |
+| `useAsiakkaanSairaudet`-hook | ✅ Toimii | Käytetään uudessa lomakkeessa |
+| `normalisoiAsiakas`-funktio | ✅ Päivitetty | Käytetään |
+| Tietokanta (14 taulua) | ✅ Valmis | Pieni viilaus tarvittaessa |
 
 ---
 
@@ -74,6 +87,41 @@
 ---
 
 ## Tehdyt päätökset
+
+### 2026-04-28 — Osiot 1–5 suunniteltu valmiiksi
+
+**Kaikkien viiden osion käyttöliittymä-yksityiskohdat päätetty.** Yksityiskohdat ROADMAP.md:ssä "Osiokohtaiset suunnittelupäätökset" -osiossa.
+
+**Tärkeimmät päätökset:**
+
+**Osio 1 — Asiakastiedot:**
+- Pakollisten järjestys: nimi → sähköposti → puhelin → syntymäaika
+- Avattavat osiot tila-ilmaisimella ("2/5 täytetty")
+- Pituus ja paino kokonaislukuna (175, 72)
+- Syntymäaika: kirjoita TAI kalenterista
+- Puhelin: kansainvälinen tuki
+
+**Osio 2 — Sairaudet ja terveys:**
+- 8 ryhmää (aakkostettu ryhmien sisällä)
+- "ESTE HOIDOLLE (ole yhteydessä hoitajaan)" omana ryhmänä, amber-värillä
+- Tarkennekentät tarpeen mukaan (allergia → mille jne.)
+- Vapaat tekstikentät kompakteina, kasvavat kirjoittaessa
+
+**Osio 3 — Hoitoon tulon syy:**
+- Apukysymykset näkyvissä kentän alapuolella
+- Kipu 0–10 värikoodattuna skaalalla
+- Toiveet integroitu apukysymyksiin
+
+**Osio 4 — Asiakkaan kehonkartta:**
+- Käytetään olemassa olevaa pohjaa
+- Hahmovalinta: nainen/mies pikkukuvilla
+- **Hybridi-tallennus:** vapaa piirtäminen + automaattinen vyöhyke-tunnistus
+- Tallennus: kuvana + JSON-yhteenvetona
+
+**Osio 5 — Suostumukset:**
+- Käytetään olemassa olevaa toteutusta sellaisenaan
+- GDPR pakollinen, luovutuslupa valinnainen
+- Sormella piirretty allekirjoitus
 
 ### 2026-04-28 — Suunnittelukysymykset 1–4 päätetty
 
@@ -184,11 +232,18 @@
 
 **Miksi:** Käytännössä kontraindikaatio käy ilmi hoidon kuvauksessa muutenkin. Liika varoittelu turruttaa.
 
-### 2026-04-28 — Kehonkartta = kuva, ei dataa (asiakkaan puoli)
+### 2026-04-28 — Kehonkartta: hybridi-tallennus
 
-**Päätös:** Asiakas piirtää kehonkartan sormella/hiirellä — tallennetaan kuvana.
+**Päätös:** Asiakas piirtää sormella vapaasti, tallennetaan sekä kuvana että automaattisena vyöhyke-yhteenvetona.
 
-**Miksi:** Visuaalinen tieto riittää hoitajalle. Pisteistä rakenteistettu data olisi liian raskas asiakkaalle.
+**Miksi:**
+- Käyttäjä halusi alkuun "vain visuaalista tietoa" — kuvavertailu silmäilemällä
+- Mutta tulevassa vaiheessa 9 (AI-tuki) tarvitaan rakenteellista dataa
+- Hybridi täyttää molemmat tarpeet — asiakas piirtää intuitiivisesti, ohjelma analysoi taustalla
+- Olemassa olevat 35 vyöhykettä toimivat pohjana automaattiselle tunnistukselle
+- Visuaalinen kuva mahdollistaa täysin vapaan piirtämisen ilman vyöhyke-rajoituksia
+
+**Vaikutus:** Code parantaa olemassa olevaa kehonkartta-komponenttia tukemaan vapaata piirtämistä.
 
 ### 2026-04-28 — Yksi lomake, palveluvalinta osana lomaketta
 
@@ -210,9 +265,9 @@
 
 **Ehdotus:** Erillinen "kortti"-komponentti read-only katseluun, ClientForm muokkaukseen.
 
-**Hylätty koska:** Käyttäjä halusi yhtä lomaketta, ei kahta erillistä komponenttia. Lisäsi monimutkaisuutta ilman lisäarvoa.
+**Hylätty koska:** Käyttäjä halusi yhtä lomaketta, ei kahta erillistä komponenttia.
 
-**Korvaava ratkaisu:** Yksi `Asiakastietolomake`-komponentti joka näyttää kaikki tiedot.
+**Korvaava ratkaisu:** Yksi `Asiakastietolomake`-komponentti.
 
 ### Hylätty: Erilliset välilehdet (Havainnot, Kehokartta jne.)
 
@@ -226,13 +281,31 @@
 
 **Ehdotus:** Tallennetaan uusi lomakeversio aikaperusteisesti.
 
-**Hylätty koska:** Käyttäjä ehdotti paremman mallin: hoitokerta = lomake-snapshot. Versiointi syntyy luonnollisesti hoitokerroittain.
+**Hylätty koska:** Käyttäjä ehdotti paremman mallin: hoitokerta = lomake-snapshot.
 
 ### Hylätty: Salasanan käyttö asiakasportaalissa
 
 **Ehdotus:** Klassinen sähköposti + salasana -kirjautuminen.
 
-**Hylätty koska:** Salasanat unohtuvat etenkin pitkän tauon jälkeen. Passwordless-kirjautuminen sähköpostilinkillä on yksinkertaisempi ja turvallisempi.
+**Hylätty koska:** Salasanat unohtuvat etenkin pitkän tauon jälkeen. Passwordless-kirjautuminen on yksinkertaisempi ja turvallisempi.
+
+### Hylätty: Pelkkä kuvana tallennettava kehonkartta
+
+**Ehdotus:** Asiakkaan kehonkartta tallennetaan vain PNG-kuvana.
+
+**Hylätty koska:** Vaikka käyttäjä alkuun halusi pelkkää visuaalista tietoa, hybridi-ratkaisu (kuva + JSON) tukee paremmin tulevia vaiheita kuten AI-analyysiä (vaihe 9). Sama käyttäjäkokemus säilyy.
+
+### Hylätty: Pelkät vyöhykkeet kehonkartassa
+
+**Ehdotus:** Asiakas napsuttaa ennalta määriteltyjä vyöhykkeitä (Coden olemassa oleva versio).
+
+**Hylätty koska:** Käyttäjä huomautti että rajoitettu vaihtoehto turhauttaa jos sopivaa pistettä ei löydy. Vapaa piirtäminen on intuitiivisempi.
+
+### Hylätty: Hakukenttä sairauslistan yläosassa
+
+**Ehdotus:** Etsi-kenttä yläosassa nopeaan löytämiseen.
+
+**Hylätty koska:** 24 sairautta on hallittavissa silmäilyllä. Lisätään myöhemmin jos lista kasvaa.
 
 ### Hylätty: Sairaudet jsonb-kenttänä
 
@@ -264,6 +337,12 @@
 
 **Hylätty koska:** Korvautui paremmalla ratkaisulla (yksi Asiakastietolomake selkeällä osio-rakenteella).
 
+### Hylätty: Hahmovalinta osiossa 1 (sukupuoli pakollisena)
+
+**Ehdotus:** Sukupuoli kerätään osana henkilötietoja, käytetään automaattisesti kehonkartassa.
+
+**Hylätty koska:** Sukupuoli on arkaluonteinen tieto. GDPR-syistä parempi kerätä vain tarpeellinen. Hahmovalinta tehdään suoraan kehonkartassa.
+
 ---
 
 ## Avoimet kysymykset
@@ -271,11 +350,12 @@
 Nämä on tunnistettu mutta ei vielä päätetty:
 
 - **Domain:** vaiheessa 6 (kalevalapaja.fi vs app.kalevalapaja.fi vs muu)
-- **Hoitajan kehonkartta:** strukturoitu vai pelkkä kuva — päätetään vaiheessa 2 (osio 6 — havainnot)
+- **Hoitajan kehonkartta** osio 6: pidetään olemassa oleva BodyMap.jsx (hoitajan löydökset) vai muutetaan
 - **Multi-tenant arkkitehtuuri:** miten skaalataan kun muutkin hoitajat alkavat käyttää (vaihe 10)
 - **Maksaminen:** Stripe-integraatio osana ajanvarausta vai erillinen vaihe
 - **Sähköposti-ilmoitukset:** Edge functions Supabasessa vai ulkopuolinen palvelu
 - **Sähköpostimuistutusten automatisointi:** nykyinen viikon päästä lähtevä muistutus → milloin automatisoidaan
+- **Tietosuojaseloste:** vaiheessa 6 luodaan virallinen, vaiheessa 1 voi olla väliaikainen linkki
 
 ---
 
@@ -303,6 +383,7 @@ Nämä on tunnistettu mutta ei vielä päätetty:
 6. Null-suoja kaikkialla missä luetaan tietokantaa
 7. Tarkista että nykyiset toiminnot eivät rikkoudu
 8. **Suunnitellaan ensin koko visio loppuun, vasta sitten koodataan** (oppi 28.4.2026)
+9. **Hyödynnetään olemassa olevaa** — älä rakenna uudelleen mitä toimii (kehonkartta, suostumukset)
 
 ---
 
