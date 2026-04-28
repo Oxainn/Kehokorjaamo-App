@@ -42,6 +42,8 @@ export default function AsiakasKortti({ asiakas, onMuokkaa }) {
   const { sairaudet, kontraindikaatiot, lataa: sairaudetLataa } =
     useAsiakkaanSairaudet(asiakas?.id ?? null)
 
+  console.log('AsiakasKortti propsit:', asiakas)
+
   if (!asiakas) return null
 
   const ika     = laskeIka(asiakas.syntymaaika)
