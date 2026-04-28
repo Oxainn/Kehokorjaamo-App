@@ -144,8 +144,12 @@ export const poistaAsiakas = async (id) => {
   return true
 }
 
+// Sivulatausta kohden vain yksi haku — sairauslista ei muutu session aikana
+let _sairausTyyppiCache = null
+
 export const haeSairausTyypit = async () => {
-  console.log('[haeSairausTyypit] kutsuttu')
+  if (_sairausTyyppiCache) return _sairausTyyppiCache
+  console.log('[haeSairausTyypit] kutsuttu (ei cachea)')
   const { data, error } = await supabase
     .from('sairaus_tyypit')
     .select('id, koodi, nimi, kontraindikaatio, ryhma, tarkenne_label, tarkenne_tyyppi')
@@ -154,8 +158,10 @@ export const haeSairausTyypit = async () => {
     console.error('[haeSairausTyypit] virhe:', error)
     return []
   }
-  console.log('[haeSairausTyypit] tulos:', data?.length, 'riviä')
-  return data ?? []
+  const lista = data ?? []
+  console.log('[haeSairausTyypit] tulos:', lista.length, 'riviä — tallennettu cacheen')
+  _sairausTyyppiCache = lista
+  return lista
 }
 
 export const varmistaTaiLuoVersio = async (asiakasId) => {
@@ -299,6 +305,19 @@ export const tallennaAsiakastietolomake = async (asiakasId, lomakeData, sairaude
 }
 
 export const haeAsiakkaanSairaudet = async (asiakasId) => {
+  // Vaihe 1: hae nykyinen versio-id (ei embed-filtteriä, toimii varmasti)
+  const { data: versio } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('id')
+    .eq('asiakas_id', asiakasId)
+    .is('voimassa_asti', null)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!versio) return []
+
+  // Vaihe 2: hae sairaudet tälle versiolle
   const { data, error } = await supabase
     .from('lomake_sairaudet')
     .select(`
@@ -310,14 +329,9 @@ export const haeAsiakkaanSairaudet = async (asiakasId) => {
         koodi,
         nimi,
         kontraindikaatio
-      ),
-      lomake_versio:asiakastietolomake_versiot!inner (
-        asiakas_id,
-        voimassa_asti
       )
     `)
-    .eq('lomake_versio.asiakas_id', asiakasId)
-    .is('lomake_versio.voimassa_asti', null)
+    .eq('lomake_versio_id', versio.id)
     .eq('on_voimassa', true)
 
   if (error) {

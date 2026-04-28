@@ -67,7 +67,7 @@ export default function Osio2Sairaudet({ asiakas }) {
   const [sairausTyypit,  setSairausTyypit]  = useState([])
   const [valitut,        setValitut]        = useState({})
   const [tarkenteet,     setTarkenteet]     = useState({})
-  const [alustettu,      setAlustettu]      = useState(false)
+  const alustettuRef = useRef(false)   // ref → ei aiheuta re-renderiä, eikä loop-riskiä
   const [versioId,       setVersioId]       = useState(null)
   const [tallennusViesti, setTallennusViesti] = useState(null)
   const [undoToiminto,   setUndoToiminto]   = useState(null)
@@ -103,9 +103,10 @@ export default function Osio2Sairaudet({ asiakas }) {
     })
   }, [])
 
-  // Alusta valitut sairaudet DB:stä
+  // Alusta valitut sairaudet DB:stä — yksi kerta per mount
   useEffect(() => {
-    if (lataaSairaudet || alustettu) return
+    if (lataaSairaudet || alustettuRef.current) return
+    alustettuRef.current = true
     const v = {}
     const t = {}
     for (const s of sairaudetDB) {
@@ -116,8 +117,7 @@ export default function Osio2Sairaudet({ asiakas }) {
     }
     setValitut(v)
     setTarkenteet(t)
-    setAlustettu(true)
-  }, [sairaudetDB, lataaSairaudet, alustettu])
+  }, [sairaudetDB, lataaSairaudet])
 
   // Alusta tekstikentät DB:stä
   useEffect(() => {
