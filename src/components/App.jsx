@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
-import { tallennaKaynti } from '../lib/db'
+import { tallennaKaynti, haeAsiakkaanSairaudet } from '../lib/db'
 import { normalisoiAsiakas } from '../utils/asiakas'
 import Login from './Login'
 import ClientForm from './ClientForm'
@@ -49,6 +49,16 @@ export default function App() {
   const [vahvistusViesti, setVahvistusViesti] = useState('')
   const [kayttaja, setKayttaja]       = useState(null)
   const [lataaAuth, setLataaAuth]     = useState(true)
+  const [sairaudet, setSairaudet]     = useState([])
+  const [sairaudetLataa, setSairaudetLataa] = useState(false)
+
+  useEffect(() => {
+    if (!asiakas?.id) return
+    setSairaudetLataa(true)
+    haeAsiakkaanSairaudet(asiakas.id)
+      .then(setSairaudet)
+      .finally(() => setSairaudetLataa(false))
+  }, [asiakas?.id])
 
   useEffect(() => {
     const url = new URL(window.location.href)
