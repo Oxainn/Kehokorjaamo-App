@@ -4,7 +4,7 @@
 > Roadmap kertoo mitä tehdään, projektimuisti kertoo miksi.
 > Päivitä kun teet ison päätöksen.
 
-**Viimeisin päivitys:** 2026-04-28 (suunnitelma uudistettu)
+**Viimeisin päivitys:** 2026-04-28 (suunnittelukysymykset 1–4 päätetty)
 
 ---
 
@@ -17,6 +17,8 @@
 - **AI-koodaus:** Claude Code + Claude Chat (Claude Max -tilaus)
 - **Domain (nykyinen):** kehokorjaamo-app.vercel.app
 - **Domain (tuleva):** päätetään vaiheessa 6, ks. Roadmap
+- **Ajanvaraus (nykyinen):** Vello, korvataan vaiheessa 7
+- **Sähköpostimuistutukset:** käsin lähetetty viikon päästä hoidosta (säilytetään, automatisoidaan myöhemmin)
 
 ---
 
@@ -26,8 +28,8 @@
 
 | Taulu | Tarkoitus | Versionti? |
 |-------|-----------|------------|
-| `asiakkaat` | Henkilötiedot | Ei |
-| `asiakastietolomake_versiot` | Lomake versioituna | **Kyllä** |
+| `asiakkaat` | Henkilötiedot (nykyiset) | Ei |
+| `asiakastietolomake_versiot` | Lomake-snapshotit (yksi per hoitokerta) | **Kyllä** |
 | `lomake_sairaudet` | Mitkä sairaudet rastitettu | (versiokohtainen) |
 | `hoitokaynnit` | Yksi rivi per käynti | Snapshot lomakeversioon |
 | `kaynnin_esitiedot` | Päivän kunto, uni, stressi | Käyntikohtainen |
@@ -55,26 +57,80 @@
 
 **Tärkeää:** Näkymät käyttävät `security_invoker = true` — kunnioittavat RLS:ää.
 
-### Versiointi-logiikka
+### Versiointi-logiikka — uusi periaate (28.4.2026)
 
-Lomakeversio on **uniikki** asiakkaalle ja sillä on:
-- `versio_nro` (1, 2, 3...) — automaattinen trigger laskee
-- `voimassa_alkaen` (timestamp)
-- `voimassa_asti` (NULL = nykyinen versio)
+**Hoitokerta = lomake-snapshot:**
+- Jokainen hoitokerta tuo mukanaan oman lomake-versionsa
+- Ennen hoitoa: tarkistetaan tiedot asiakkaan kanssa, päivitetään jos tarpeen
+- Tallennetaan kyseiseen hoitokertaan
+- Vertailukelpoisuus käyntien välillä syntyy automaattisesti
 
-Kun uusi versio luodaan, trigger asettaa vanhan version `voimassa_asti = nyt`.
-
-Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoilla hoito tehtiin.
+**Identiteetti — Y-malli:**
+- Asiakkaalla pysyvä UUID-id (ei koskaan muutu)
+- Asiakkaalla "nykyiset tiedot" -kenttiä (helppo löytää listalta)
+- Hoitokerralla "silloinen snapshot" (historia tallessa)
+- Pieni duplikointi hyväksyttävä — selkeyden vuoksi
 
 ---
 
 ## Tehdyt päätökset
 
+### 2026-04-28 — Suunnittelukysymykset 1–4 päätetty
+
+**Kysymys 1: Tilanhallinta — hybridi**
+- **Checkboxit ja valinnat:** autosave (heti tallennus, "✓ tallennettu — Kumoa")
+- **Tekstikentät:** manuaalinen tallennus
+- **Tallenna-nappi** aina näkyvissä, värittyy muutoksien mukaan
+- **Vahinkopainallusten esto:** isot kosketuspinnat (48×48 px), välit (12 px), kumoa-toiminto, pyyhkäisy-minimimatka (80 px)
+
+**Kysymys 2: Tallennus — hoitokerta on lomake-snapshot**
+- Asiakkaan tiedot tarkistetaan asiakkaan kanssa **ennen** jokaista hoitoa
+- Tallennetaan kyseiseen hoitokertaan
+- Lomake on osa hoitokertaa, ei erillinen olio
+- Vertailukelpoisuus syntyy automaattisesti
+
+**Kysymys 3: Pakolliset kentät**
+- **Aina pakolliset:** Nimi, Syntymäaika, Puhelin, Hoitoon tulon syy
+- **Ehdollisesti pakollinen:** Sähköposti (pakollinen kun asiakas täyttää itse, suositeltu kun hoitaja täyttää)
+- **Vain uudella asiakkaalla:** Allekirjoitus, Tietosuojan suostumus
+
+**Kysymys 4: Asiakkaan etsiminen**
+- "+ Uusi asiakas" -nappi rekisterissä
+- "Aloita uusi käynti" rivin oikeassa reunassa olemassa olevalle
+- Haku nimellä, sähköpostilla, puhelimella
+- Turvaverkko: nimen+syntymäajan haku taustalla, varoittaa duplikaatista
+
+### 2026-04-28 — Identiteetti-malli (Y)
+
+**Päätös:** Asiakkaalla pysyvä UUID, kaikki muu voi muuttua. Asiakkaalla "nykyiset tiedot", hoitokerralla "silloinen snapshot".
+
+**Miksi:** Käyttäjä huomautti että nimikin voi muuttua (esim. avioliiton mukana). Sisäinen ID pysyy asiakkaan koko elämän ajan. Pieni duplikointi (asiakas + hoitokerta) on hyväksyttävää selkeyden vuoksi.
+
+### 2026-04-28 — Asiakasportaali käyttää passwordless-kirjautumista
+
+**Päätös:** Asiakas kirjautuu portaaliin sähköpostilinkillä, ei salasanalla.
+
+**Miksi:**
+- Yksinkertaista käyttäjälle (ei salasanoja muistettavaksi)
+- Turvallista (sähköpostilinkki yksittäiskäyttöön)
+- Toimii pitkän tauon jälkeen automaattisesti
+- Ratkaisee "unohdin salasanan" -ongelman
+
+**Vaikutus:** Sähköposti pakollinen kun asiakas täyttää itse lomakkeen.
+
+### 2026-04-28 — Lomakkeen lähetyksen jälkeen portaalin esittely
+
+**Päätös:** Vellon nykyinen "Kiitos ajanvarauksesta"-popup korvataan käyttökelpoisemmalla viestillä joka esittelee asiakasportaalin.
+
+**Miksi:** Nykyinen popup on turha — vain "OK"-nappi joka pitää klikata pois. Asiakas on motivoitunut juuri lomakkeen lähetyksen jälkeen — tämä on paras hetki esitellä portaali.
+
+**Vaikutus:** Vaiheessa 5 (asiakasportaali) tämä toteutetaan.
+
 ### 2026-04-28 — Suunnitelma uudistettu: yksi lomake, ei erillisiä komponentteja
 
-**Päätös:** Asiakastietolomake on **yksi** lomake joka kasvaa hoitoketjun aikana. Ei AsiakasKortti-komponenttia, ei välilehtiä (Havainnot, Kehokartta jne.).
+**Päätös:** Asiakastietolomake on **yksi** lomake joka kasvaa hoitoketjun aikana. Ei AsiakasKortti-komponenttia, ei välilehtiä.
 
-**Miksi:** Käyttäjä ilmaisi vision selkeästi: *"Mielellään yksi muunneltava lomake koko ketjun ajan."* Erilliset välilehdet rikkovat kokonaisuuden. Sama lomake palvelee sekä asiakasta että hoitajaa, vain osiot erillään.
+**Miksi:** Käyttäjä ilmaisi vision selkeästi: *"Mielellään yksi muunneltava lomake koko ketjun ajan."* Erilliset välilehdet rikkovat kokonaisuuden.
 
 **Vaikutus:**
 - AsiakasKortti.jsx **poistetaan**
@@ -100,12 +156,12 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 
 **Päätös:** Toimiva paketti ensin, kehitys käytön myötä. Ei yritetä rakentaa täydellistä versiota kerralla.
 
-**Miksi:** Käyttäjä sanoi: *"Saadaan paketti toimimaan, sitten kehitetään käyttökokemuksen myötä."* Tämä on viisaus jota Anthropic ja kaikki tuotekehityksen ammattilaiset suosittelevat.
+**Miksi:** Käyttäjä sanoi: *"Saadaan paketti toimimaan, sitten kehitetään käyttökokemuksen myötä."*
 
 **Vaikutus:**
 - Vaihe 1: vain osiot 1–5 (asiakkaan osa)
 - Vaihe 2: osiot 6–8 (hoitajan osa) lisätään myöhemmin
-- Pakolliset kentät minimoidaan: nimi, ikä, sähköposti, puhelin, hoitoon syy, allekirjoitus, tietosuoja
+- Pakolliset kentät minimoidaan
 - Muut osiot voi jättää tyhjiksi alkuun
 
 ### 2026-04-28 — Tietokanta uusittiin puhtaalta pöydältä
@@ -122,15 +178,11 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 
 **Miksi:** Hoitaja voi lisätä uusia sairauksia ilman koodimuutosta. Tukee laajaa käyttäjäkuntaa.
 
-**Vaikutus:** `lomake_sairaudet`-taulu yhdistää lomakeversion ja sairaustyypin.
-
 ### 2026-04-28 — Kontraindikaatio ei punaista bannereita
 
 **Päätös:** Kontraindikaatio-varoitusta ei korosteta isolla bannerilla.
 
 **Miksi:** Käytännössä kontraindikaatio käy ilmi hoidon kuvauksessa muutenkin. Liika varoittelu turruttaa.
-
-**Vaikutus:** Kontraindikaatiot listataan sairauksien yhteydessä erottuvasti (esim. ⚠-merkki), mutta ei erillistä bannereita.
 
 ### 2026-04-28 — Kehonkartta = kuva, ei dataa (asiakkaan puoli)
 
@@ -138,23 +190,15 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 
 **Miksi:** Visuaalinen tieto riittää hoitajalle. Pisteistä rakenteistettu data olisi liian raskas asiakkaalle.
 
-**Vaikutus:** `asiakastietolomake_versiot.kehonkartta_kuva_url` tallentaa Storage-linkin.
-
-**Tulevaisuudessa:** Hoitajan oma kehonkartta voi olla strukturoitu (`kehonkartta_pisteet`-taulu), suunnitelma kesken.
-
 ### 2026-04-28 — Yksi lomake, palveluvalinta osana lomaketta
 
-**Päätös:** Asiakastietolomake on yksi sähköinen lomake, jossa palveluvalinta on osio 3:n alussa (hoitoon tulon syy).
-
-**Miksi:** Helppo ylläpitää. Asiakas valitsee palvelun (Kalevalainen jäsenkorjaus, Tantrahieronta jne.), näkee kuvauksen avattavana osiona.
-
-**Tukee myös:** Suorat linkit muodossa `/varaa?palvelu=jasenkorjaus` markkinointia varten.
+**Päätös:** Asiakastietolomake on yksi sähköinen lomake, jossa palveluvalinta on osio 3:n alussa.
 
 ### 2026-04-28 — Custom hook `useAsiakkaanSairaudet`
 
 **Päätös:** Sairauksien haku tehdään custom hookilla, ei App.jsx:n staten kautta.
 
-**Miksi:** App.jsx pysyy kevyenä. Yhden vastuun periaate. Komponentit jotka tarvitsevat sairauksia, hakevat ne itse.
+**Miksi:** App.jsx pysyy kevyenä. Yhden vastuun periaate.
 
 **Sijainti:** `src/hooks/useAsiakkaanSairaudet.js`.
 
@@ -168,15 +212,27 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 
 **Hylätty koska:** Käyttäjä halusi yhtä lomaketta, ei kahta erillistä komponenttia. Lisäsi monimutkaisuutta ilman lisäarvoa.
 
-**Korvaava ratkaisu:** Yksi `Asiakastietolomake`-komponentti joka näyttää kaikki tiedot. Lomake voi olla luku- tai muokkaustilassa tarvittaessa, mutta osiojako on sama.
+**Korvaava ratkaisu:** Yksi `Asiakastietolomake`-komponentti joka näyttää kaikki tiedot.
 
 ### Hylätty: Erilliset välilehdet (Havainnot, Kehokartta jne.)
 
 **Ehdotus:** Käyntinäkymässä monta välilehteä eri toiminnoille.
 
-**Hylätty koska:** Käyttäjä ilmaisi: *"Erilliset välilehdet mielestäni rikkoo kokonaisuuden."* Lomakkeen pitää olla yhtenäinen.
+**Hylätty koska:** Käyttäjä: *"Erilliset välilehdet mielestäni rikkoo kokonaisuuden."*
 
 **Korvaava ratkaisu:** Kaikki entiset "välilehdet" ovat osioita yhdessä lomakkeessa (osiot 6–8).
+
+### Hylätty: Erillinen lomakkeen versiointi (versio per päivä tms.)
+
+**Ehdotus:** Tallennetaan uusi lomakeversio aikaperusteisesti.
+
+**Hylätty koska:** Käyttäjä ehdotti paremman mallin: hoitokerta = lomake-snapshot. Versiointi syntyy luonnollisesti hoitokerroittain.
+
+### Hylätty: Salasanan käyttö asiakasportaalissa
+
+**Ehdotus:** Klassinen sähköposti + salasana -kirjautuminen.
+
+**Hylätty koska:** Salasanat unohtuvat etenkin pitkän tauon jälkeen. Passwordless-kirjautuminen sähköpostilinkillä on yksinkertaisempi ja turvallisempi.
 
 ### Hylätty: Sairaudet jsonb-kenttänä
 
@@ -188,25 +244,25 @@ Hoitokäynti tallentaa `lomake_versio_id`:n — siten näkee aina millä tiedoil
 
 **Ehdotus:** Tallennetaan kontraindikaatiot omaan kenttään.
 
-**Hylätty koska:** Kontraindikaatio johdetaan suoraan `sairaus_tyypit.kontraindikaatio = true` -kentästä. Yksi totuuden lähde.
+**Hylätty koska:** Kontraindikaatio johdetaan suoraan `sairaus_tyypit.kontraindikaatio = true` -kentästä.
 
 ### Hylätty: Asentohavainnot ja rakenteelliset eri tauluihin
 
 **Ehdotus:** Erilliset taulut sivun 1 ja sivun 2 havainnoille.
 
-**Hylätty koska:** Yhdistetään `havainnot`-tauluun `tyyppi`-kentällä — vähemmän duplikointia, helpompi vertailu.
+**Hylätty koska:** Yhdistetään `havainnot`-tauluun `tyyppi`-kentällä.
 
 ### Hylätty: Iso "kontraindikaatio-banneri" punaisella
 
 **Ehdotus:** AsiakasKortin yläosaan iso varoitus.
 
-**Hylätty koska:** Hoitaja näkee kontraindikaatiot muutenkin sairauslistasta. Ei tarvita erillistä korostusta.
+**Hylätty koska:** Hoitaja näkee kontraindikaatiot muutenkin sairauslistasta.
 
 ### Hylätty: ClientForm `readOnly`-tilassa
 
 **Ehdotus:** Käytetään samaa lomaketta sekä katseluun että muokkaukseen.
 
-**Hylätty koska:** Korvautui paremmalla ratkaisulla (yksi Asiakastietolomake, jossa selkeä osio-rakenne).
+**Hylätty koska:** Korvautui paremmalla ratkaisulla (yksi Asiakastietolomake selkeällä osio-rakenteella).
 
 ---
 
@@ -219,6 +275,7 @@ Nämä on tunnistettu mutta ei vielä päätetty:
 - **Multi-tenant arkkitehtuuri:** miten skaalataan kun muutkin hoitajat alkavat käyttää (vaihe 10)
 - **Maksaminen:** Stripe-integraatio osana ajanvarausta vai erillinen vaihe
 - **Sähköposti-ilmoitukset:** Edge functions Supabasessa vai ulkopuolinen palvelu
+- **Sähköpostimuistutusten automatisointi:** nykyinen viikon päästä lähtevä muistutus → milloin automatisoidaan
 
 ---
 
