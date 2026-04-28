@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useSwipeable } from 'react-swipeable'
+import Osio1Asiakastiedot from './lomakkeen-osiot/Osio1Asiakastiedot'
 
 const OSIOT = [
   { numero: 1, otsikko: 'ASIAKASTIEDOT' },
@@ -11,6 +12,7 @@ const OSIOT = [
 
 export default function Asiakastietolomake({ asiakas, hoitajaId }) {
   const [nykyinenOsio, setNykyinenOsio] = useState(1)
+  const [nykyinenAsiakas, setNykyinenAsiakas] = useState(asiakas)
 
   const siirrySeuraavaan = () => {
     if (nykyinenOsio < OSIOT.length) setNykyinenOsio(n => n + 1)
@@ -94,9 +96,19 @@ export default function Asiakastietolomake({ asiakas, hoitajaId }) {
           userSelect:     'none',
         }}
       >
-        <p style={{ color: '#9ca3af', fontSize: '14px' }}>
-          Osion {nykyinenOsio} sisältö — tulossa
-        </p>
+        {nykyinenOsio === 1 ? (
+          <div style={{ width: '100%', alignSelf: 'flex-start' }}>
+            <Osio1Asiakastiedot
+              asiakas={nykyinenAsiakas}
+              hoitajaId={hoitajaId}
+              onTallennettu={setNykyinenAsiakas}
+            />
+          </div>
+        ) : (
+          <p style={{ color: '#9ca3af', fontSize: '14px' }}>
+            Osion {nykyinenOsio} sisältö — tulossa
+          </p>
+        )}
       </div>
 
       {/* ── ALAOSA: nuolinapit ────────────────────────────────────────── */}

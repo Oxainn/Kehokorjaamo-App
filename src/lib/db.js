@@ -3,21 +3,24 @@ import { supabase } from './supabase'
 export const tallennaAsiakas = async (data) => {
   const { data: { user } } = await supabase.auth.getUser()
 
+  const rivi = {
+    hoitaja_id:       user.id,
+    nimi:             data.nimi,
+    syntymaaika:      data.syntymaaika || null,
+    sahkoposti:       data.sahkoposti,
+    puhelin:          data.puhelin,
+    lahiosoite:       data.lahiosoite,
+    postinumero:      data.postinumero,
+    postitoimipaikka: data.postitoimipaikka,
+    ammatti:          data.ammatti,
+    pituus:           data.pituus || null,
+    paino:            data.paino || null,
+  }
+  if (data.id) rivi.id = data.id
+
   const { data: asiakas, error } = await supabase
     .from('asiakkaat')
-    .upsert({
-      hoitaja_id:       user.id,
-      nimi:             data.nimi,
-      syntymaaika:      data.syntymaaika || null,
-      sahkoposti:       data.sahkoposti,
-      puhelin:          data.puhelin,
-      lahiosoite:       data.lahiosoite,
-      postinumero:      data.postinumero,
-      postitoimipaikka: data.postitoimipaikka,
-      ammatti:          data.ammatti,
-      pituus:           data.pituus || null,
-      paino:            data.paino || null,
-    })
+    .upsert(rivi)
     .select()
     .single()
 
