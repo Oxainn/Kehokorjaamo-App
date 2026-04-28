@@ -966,10 +966,15 @@ VALMIS: Tehtävän teksti tässä
               />
               <button
                 type="button"
+                disabled={devTila === 'lähetetään'}
                 onClick={async () => {
+                  if (devTila === 'lähetetään') return
+
                   const teksti = devInput.trim()
                   if (!teksti) return
                   if (!hoitajaId) { alert('Kirjaudu sisään ensin.'); return }
+
+                  setDevTila('lähetetään')
 
                   const { data: rows, error: lukuErr } = await supabase
                     .from('productboard')
@@ -980,6 +985,7 @@ VALMIS: Tehtävän teksti tässä
                   if (lukuErr) {
                     console.error('ProductBoard lukuvirhe:', lukuErr)
                     alert('Tietojen lataus epäonnistui.')
+                    setDevTila(null)
                     return
                   }
 
@@ -987,17 +993,30 @@ VALMIS: Tehtävän teksti tässä
                   const { uudet, valmistuvat, valmistuvienIdt, uudetCL } =
                     rakennaPbPäivitys(teksti, pb.todo ?? [])
 
-                  if (uudet.length === 0 && valmistuvat.length === 0) {
-                    alert('Ei ideoita tai VALMIS-merkintöjä löydetty.')
+                  const olemassa = new Set(
+                    (pb.ideat ?? []).map(i => (i.teksti ?? '').toLowerCase().trim())
+                  )
+                  const ainutlaatuiset = uudet.filter(
+                    u => !olemassa.has((u.teksti ?? '').toLowerCase().trim())
+                  )
+                  const ohitettuja = uudet.length - ainutlaatuiset.length
+
+                  if (ainutlaatuiset.length === 0 && valmistuvat.length === 0) {
+                    if (ohitettuja > 0) {
+                      alert(`Kaikki ${ohitettuja} ideaa olivat jo listalla — ei lisätty.`)
+                    } else {
+                      alert('Ei ideoita tai VALMIS-merkintöjä löydetty.')
+                    }
+                    setDevTila(null)
                     return
                   }
 
                   const uusiPb = {
                     hoitaja_id: hoitajaId,
                     visio:     pb.visio ?? '',
-                    ideat:     uudet.length        > 0 ? [...(pb.ideat ?? []), ...uudet]                              : (pb.ideat ?? []),
-                    todo:      valmistuvienIdt.size > 0 ? (pb.todo ?? []).filter(t => !valmistuvienIdt.has(t.id))     : (pb.todo ?? []),
-                    changelog: uudetCL.length      > 0 ? [...(pb.changelog ?? []), ...uudetCL]                       : (pb.changelog ?? []),
+                    ideat:     ainutlaatuiset.length > 0 ? [...(pb.ideat ?? []), ...ainutlaatuiset] : (pb.ideat ?? []),
+                    todo:      valmistuvienIdt.size  > 0 ? (pb.todo ?? []).filter(t => !valmistuvienIdt.has(t.id)) : (pb.todo ?? []),
+                    changelog: uudetCL.length        > 0 ? [...(pb.changelog ?? []), ...uudetCL]   : (pb.changelog ?? []),
                   }
 
                   const { error: tallErr } = await supabase
@@ -1007,6 +1026,7 @@ VALMIS: Tehtävän teksti tässä
                   if (tallErr) {
                     console.error('ProductBoard tallennus epäonnistui:', tallErr)
                     alert('Tallennus epäonnistui.')
+                    setDevTila(null)
                     return
                   }
 
@@ -1014,9 +1034,11 @@ VALMIS: Tehtävän teksti tässä
                   setDevTila('ok')
                   setTimeout(() => setDevTila(null), 2500)
                 }}
-                className="mt-2 px-4 py-2.5 bg-brand-700 hover:bg-brand-800 text-white text-sm font-semibold rounded-lg transition-colors"
+                className="mt-2 px-4 py-2.5 bg-brand-700 hover:bg-brand-800 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {devTila === 'ok' ? '✅ Lisätty!' : '⬇️ Lisää tuotehallintaan'}
+                {devTila === 'lähetetään' ? '⏳ Tallennetaan...' :
+                 devTila === 'ok'         ? '✅ Lisätty!' :
+                                            '⬇️ Lisää tuotehallintaan'}
               </button>
             </div>
 
