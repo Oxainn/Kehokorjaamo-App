@@ -192,17 +192,6 @@ export default function Settings({ hoitajaId }) {
   })
   const [muokkausId, setMuokkausId] = useState(null)
   const [tallennettuPalvelut, setTallennettuPalvelut] = useState(false)
-  const [kopioituId, setKopioituId] = useState(null)
-  const [esikatseluId, setEsikatseluId] = useState(null)
-
-  const kopioiLinkki = (palveluId) => {
-    const url = `${window.location.origin}/esitiedot?palvelu=${palveluId}`
-    navigator.clipboard.writeText(url).then(() => {
-      setKopioituId(palveluId)
-      setTimeout(() => setKopioituId(null), 2000)
-    })
-  }
-
   const tallennaPalvelut = (lista = palvelut) => {
     tallennaOsa('palvelut', lista)
     setTallennettuPalvelut(true)
@@ -519,36 +508,6 @@ export default function Settings({ hoitajaId }) {
                   </button>
                 </div>
 
-                {/* Esitietolomakkeen linkki */}
-                <div style={{display:'flex',alignItems:'center',gap:'8px',marginTop:'4px'}}>
-                  <input
-                    readOnly
-                    value={`${window.location.origin}/esitiedot?palvelu=${p.id}`}
-                    style={{flex:1,fontSize:'12px',padding:'5px 8px',borderRadius:'6px',border:'1px solid #e2e8f0',background:'#f9fafb',color:'#6b7280',cursor:'text',minWidth:0}}
-                    onFocus={e => e.target.select()}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => kopioiLinkki(p.id)}
-                    style={{fontSize:'12px',padding:'5px 12px',borderRadius:'6px',border:'none',cursor:'pointer',flexShrink:0,
-                      background: kopioituId === p.id ? '#E1F5EE' : '#f1f5f9',
-                      color:      kopioituId === p.id ? '#085041' : '#374151',
-                      fontWeight: '500',
-                    }}
-                  >
-                    {kopioituId === p.id ? '✓ Kopioitu' : 'Kopioi'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEsikatseluId(p.id)}
-                    style={{fontSize:'12px',padding:'5px 12px',borderRadius:'6px',border:'none',cursor:'pointer',flexShrink:0,
-                      background:'#E6F1FB',color:'#0C447C',fontWeight:'500',
-                    }}
-                  >
-                    Avaa
-                  </button>
-                </div>
-
                 {muokkausId === p.id && (
                   <div style={{marginTop:'4px',padding:'14px',background:'#F8FAFC',borderRadius:'8px',border:'1px solid #e2e8f0'}}>
 
@@ -850,7 +809,7 @@ export default function Settings({ hoitajaId }) {
                 onClick={() => {
                   if (window.confirm('Haluatko varmasti tyhjentää kaikki asiakastiedot? Tätä ei voi peruuttaa.')) {
                     Object.keys(localStorage)
-                      .filter(k => k.startsWith('kehokorjaamo_asiakas') || k.startsWith('esitiedot_'))
+                      .filter(k => k.startsWith('kehokorjaamo_asiakas'))
                       .forEach(k => localStorage.removeItem(k))
                     alert('Asiakastiedot tyhjennetty.')
                   }
@@ -1080,36 +1039,6 @@ VALMIS: Tehtävän teksti tässä
         }
       />
 
-      {/* Esitietolomakkeen esikatselu */}
-      {esikatseluId && (
-        <div
-          onClick={() => setEsikatseluId(null)}
-          style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'stretch',justifyContent:'center'}}
-        >
-          <div
-            onClick={e => e.stopPropagation()}
-            style={{position:'relative',width:'100%',maxWidth:'640px',margin:'24px auto',display:'flex',flexDirection:'column',borderRadius:'16px',overflow:'hidden',boxShadow:'0 20px 60px rgba(0,0,0,0.3)'}}
-          >
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:'#1D9E75',color:'white',flexShrink:0}}>
-              <span style={{fontWeight:'600',fontSize:'14px'}}>
-                Esitietolomake — {palvelut.find(p => p.id === esikatseluId)?.nimi ?? ''}
-              </span>
-              <button
-                type="button"
-                onClick={() => setEsikatseluId(null)}
-                style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',borderRadius:'8px',padding:'4px 12px',cursor:'pointer',fontSize:'13px',fontWeight:'600'}}
-              >
-                ✕ Sulje
-              </button>
-            </div>
-            <iframe
-              src={`/esitiedot?palvelu=${esikatseluId}`}
-              title="Esitietolomake"
-              style={{flex:1,border:'none',width:'100%',background:'white',minHeight:0}}
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }
