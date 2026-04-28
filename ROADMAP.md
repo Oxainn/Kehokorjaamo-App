@@ -4,7 +4,7 @@
 > Päivitä aina kun vaihe valmistuu tai suunnitelma muuttuu.
 > Kun aloitat uuden Claude-chatin, voit sanoa: *"Lue ROADMAP.md ja jatka vaiheesta X"*.
 
-**Viimeisin päivitys:** 2026-04-28 (suunnittelukysymykset 1–4 päätetty)
+**Viimeisin päivitys:** 2026-04-28 (osiot 1–5 suunniteltu, valmiina toteutukseen)
 
 ---
 
@@ -12,9 +12,9 @@
 
 | # | Vaihe | Status | Huom |
 |---|-------|--------|------|
-| 1 | Asiakastietolomake — osiot 1–5 (asiakkaan osa) | 🟡 Suunnittelu valmis | Konkreettinen osio-suunnittelu seuraavaksi |
+| 1 | Asiakastietolomake — osiot 1–5 (asiakkaan osa) | 🟡 Suunnittelu valmis, koodaus alkaa | Yksityiskohdat ROADMAP:in lopussa |
 | 2 | Asiakastietolomake — osiot 6–8 (hoitajan osa) | ⚪ Odottaa | Lisätään kun osiot 1–5 toimivat |
-| 3 | Palvelut + hoitajaprofiili Asetuksiin | ⚪ Odottaa | Pohja sivustolle ja lomakkeelle |
+| 3 | Palvelut + hoitajaprofiili Asetuksiin | ⚪ Odottaa | Pohja sivustolle ja lomakkeelle, sis. sairauslistan muokkaus + palvelukohtainen lomake-konfiguraatio |
 | 4 | Sähköinen lomake asiakkaalle (osiot 1–5) | ⚪ Odottaa | Asiakas täyttää itse, URL `/varaa` |
 | 5 | Asiakasportaali (passwordless-kirjautuminen) | ⚪ Odottaa | Tietokanta jo valmis (RLS) |
 | 6 | Julkinen sivusto | ⚪ Odottaa | Korvaa kalevalapaja.fi WordPress |
@@ -38,7 +38,7 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 | 1 | **Asiakastiedot** | Nimi, syntymäaika, yhteystiedot, osoite, ammatti, pituus/paino | Nimi, syntymäaika, puhelin |
 | 2 | **Sairaudet ja terveys** | Sairauslista (24 kpl checkboxia), lääkitys, allergiat, vammat | — |
 | 3 | **Hoitoon tulon syy** | Vapaa tekstikenttä, kipuaste 0–10, toiveet hoidolta | Hoitoon tulon syy |
-| 4 | **Asiakkaan kehonkartta** | Kuvat (etu/sivu/taka) joihin asiakas merkitsee oireet sormella | — |
+| 4 | **Asiakkaan kehonkartta** | 4 hahmoa (etu/sivu/taka), 4 oiretyyppiä, vapaa piirtäminen sormella | — |
 | 5 | **Suostumukset** | Tietosuojaseloste, GDPR, allekirjoitus | Allekirjoitus, tietosuoja (vain uusilla) |
 
 **Sähköposti:**
@@ -64,7 +64,7 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 
 **Visuaaliset ilmaisimet:**
 - ● = osio täytetty (vihreä)
-- ◉ = nykyinen osio
+- ◉ = nykyinen osio (sininen)
 - ○ = tyhjä, ei vielä täytetty (harmaa)
 - ⭐ = pakollinen kenttä merkittynä punaisella tähdellä
 - ✓ = kenttä täytetty oikein (vihreä)
@@ -126,14 +126,136 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 
 ---
 
+## Osiokohtaiset suunnittelupäätökset (vaihe 1)
+
+### Osio 1: Asiakastiedot
+
+**Pakollisten kenttien järjestys:**
+1. Nimi *
+2. Sähköposti * (ehdollinen — pakollinen kun asiakas täyttää itse)
+3. Puhelin *
+4. Syntymäaika *
+
+**Avattavat osiot (kaksi):**
+- ▼ Lähiosoite, postinumero, paikka
+- ▼ Ammatti, harrastukset, pituus, paino, miten löysit
+
+**Avattavien osioiden otsikot:** kentät listattuna otsikossa, tila-ilmaisin oikealla ("Ei täytetty" / "2/5 täytetty")
+
+**Syntymäaika:** voi kirjoittaa TAI valita kalenterista (📅-ikoni)
+
+**Sähköposti:** perustarkistus (@-merkki ja piste), vihreä ✓ kun OK
+
+**Puhelin:** suomalaisille auto-muotoilu (040 123 4567), kansainväliset tuettu (+34 jne.)
+
+**Lähiosoite-osio:** postinumero ja postitoimipaikka rinnakkain (mobiilissa pinottu)
+
+**Lisätieto-osion järjestys:** ammatti → harrastukset → pituus/paino → miten löysit
+
+**Pituus ja paino:** kokonaisluvut (175 cm, 72 kg) — ei desimaaleja
+
+### Osio 2: Sairaudet ja terveys
+
+**Sairauslistan jakautuminen 8 ryhmään (aakkosjärjestys ryhmien sisällä):**
+
+1. **YLEISET** — Allergia, Astma/hengenahdistus, Diabetes, Migreeni
+2. **SYDÄN JA VERENKIERTO** — Kaulavaltimon ahtauma, Sydänsairauksia, Verenohennuslääkitys, Verenpaine
+3. **SELKÄRANKA JA NIVELET** — Hermojuuriaukon ahtauma, Osteoporoosi, Reuma, Spondylolyysi/-listeesi, Tekonivel
+4. **NEUROLOGISET** — Epilepsia
+5. **NAINEN** — Raskaus
+6. **MIELENTERVEYS** — Masennus, Psyykkinen sairaus
+7. **MUUT** — Kilpirauhasen sairauksia
+8. **ESTE HOIDOLLE (ole yhteydessä hoitajaan)** — Verisuoniproteesi, Tarttuva (iho)tauti, Tulehdus/kuume, Kasvain/syöpä, Tuore vamma, Vyöruusu
+
+**Visuaalinen erottaminen:** "ESTE HOIDOLLE" -ryhmä erottuu amber-värillä maltillisesti.
+
+**Ryhmien näkyvyys:** kaikki ryhmät ovat avattavia, näyttää tila-ilmaisimen ("1/4 valittu" / "Ei valintoja")
+
+**Ei hakukenttää** alkuun — lisätään myöhemmin jos lista kasvaa.
+
+**Tarkennekentät tarpeen mukaan:**
+- Allergia → "mille"
+- Raskaus → "viikko"
+- Verenpaine → "matala/korkea"
+- Sydänsairaus → "mikä"
+- Tekonivel → "mikä nivel"
+
+**Vapaat tekstikentät osion lopussa** (kompakti, kasvaa kirjoittaessa):
+- Säännöllinen lääkitys
+- Diagnosoidut sairaudet
+- Vammat ja muut hoidossa huomioitavat seikat
+
+**TÄRKEÄ:** Sairauslista on hoitajan muokattavissa Asetuksissa (vaihe 3). Palvelukohtaisuus myöhemmin.
+
+### Osio 3: Hoitoon tulon syy
+
+**Pakollinen tekstikenttä** + apukysymykset.
+
+**Apukysymykset näkyvissä kentän alapuolella** (harmaa tausta):
+- Mitä oireita sinulla on?
+- Kuinka kauan oireet ovat kestäneet?
+- Mikä pahentaa tai helpottaa oloa?
+- Mitä toivot tältä hoidolta?
+
+**Kipu nyt 0–10:** värikoodattu skaala (vihreä → keltainen → punainen)
+- Numero näkyvillä isona ("6 / 10")
+- Ohjeet ääripäissä: "0 — ei kipua" ja "10 — sietämätön"
+
+**Toiveet hoidolta** integroitu apukysymyksiin (ei erillistä kenttää).
+
+### Osio 4: Asiakkaan kehonkartta
+
+**Käytetään olemassa olevaa pohjaa** (`src/components/ClientForm.jsx` + `src/data/kehonVyohykkeet.js`).
+
+**Hahmovalinta:** nainen / mies (pikkukuvat siluettien kanssa, valittu reunuksella)
+
+**4 oiretyyppiä:**
+- Kipu (punainen)
+- Lihasjännitys (oranssi)
+- Puutuminen (sininen)
+- Tunnottomuus (harmaa)
+
+**4 hahmoa rinnakkain:** sivu vasen, taka, etu, sivu oikea (SVG `/hahmokuvat.svg`).
+
+**Hybridi-tallennus (parannus olemassa olevaan):**
+- Asiakas piirtää sormella vapaasti — ei napsuta vyöhykkeitä
+- Tallennetaan kuvana (PNG/SVG) — visuaaliseen vertailuun
+- Lisäksi automaattinen vyöhyke-yhteenveto (35 vyöhykettä) — datapohjaa varten
+
+**Toiminnot:** Kumoa, Tyhjennä.
+
+**Tietokanta:**
+- `kehonkartta_kuva` — visuaalinen
+- `vyohyke_yhteenveto` — JSON-objekti `{vyohyke_id: oiretyyppi}`
+
+### Osio 5: Suostumukset
+
+**Käytetään olemassa olevaa toteutusta** sellaisenaan.
+
+**Sisältö:**
+- ☑ GDPR-suostumus (pakollinen, vain uusilla)
+- ☐ Lupa tietojen luovuttamiseen hoitoon osallistuville (valinnainen)
+- Allekirjoitus (sormella piirretty kentässä)
+- Päiväys + asiakkaan nimi automaattisesti
+
+**Käyttöliittymä-ero kontekstin mukaan:**
+- **Vaihe 1** (hoitaja täyttää): "Tallenna asiakas" -nappi
+- **Vaihe 4** (asiakas täyttää): "Lähetä esitiedot ja varaa aika →" -nappi
+
+---
+
 ## Vaihe 1 — Asiakastietolomake osiot 1–5 (käynnissä)
 
-**Tavoite:** Hoitaja voi syöttää uuden asiakkaan tiedot lomakkeen kautta. Sama lomake näyttää tallennetut tiedot myös myöhemmin.
+**Tavoite:** Hoitaja voi syöttää uuden asiakkaan tiedot lomakkeen kautta. Sama lomake näyttää tallennetut tiedot myös myöhemmin. Sama lomake toimii myös pohjana asiakkaan omaan käyttöön (vaihe 4).
 
 **Tehty (tietokanta):**
 - ✅ Tietokanta uusittu (lomakeversiot, sairaudet referenssitauluna)
 - ✅ `normalisoiAsiakas` päivitetty
 - ✅ `useAsiakkaanSairaudet` -hook luotu
+
+**Tehty (osa olemassa olevia komponentteja):**
+- ✅ Kehonkartta-komponentti (35 vyöhykettä, 4 hahmoa, 4 oiretyyppiä)
+- ✅ Suostumukset-komponentti (allekirjoitus, GDPR, valinnainen luovutus)
 
 **Suunnittelu valmis:**
 - ✅ Käyttöliittymän tyyli (C-malli, pyyhkäisy + nuolet)
@@ -141,20 +263,25 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 - ✅ Pakolliset kentät (5 + ehdollinen sähköposti)
 - ✅ Asiakkaan etsiminen (kaksi nappia, haku)
 - ✅ Identiteetti (Y-malli, UUID)
+- ✅ Osiot 1–5 yksityiskohtaisesti
 
 **Tehtävänä (käyttöliittymä):**
-- ⏳ Konkreettinen osio-suunnittelu (osio 1: Asiakastiedot — tarkka layout)
 - ⏳ Asiakastietolomake-komponentti (uusi, korvaa AsiakasKortti + ClientForm)
 - ⏳ 5 osion C-tyylinen näkymä
 - ⏳ Pyyhkäisy + nuolet -navigointi
 - ⏳ Osio-pisteet ylhäällä, klikkaus hyppää osioon
-- ⏳ Pakolliset kentät merkittynä
+- ⏳ Pakolliset kentät merkittynä, reaaliaikainen palaute
 - ⏳ Tallennus oikein (lomake-snapshot hoitokerralle)
 - ⏳ Esikatselu + tulostus säilyy
 
-**Hylättynä (ei rakenneta):**
-- ❌ AsiakasKortti — yhdistettiin lomakkeeseen
+**Tehtävänä (olemassa olevien komponenttien parannukset):**
+- ⏳ Kehonkartta: vapaa piirtäminen + automaattinen vyöhyke-tunnistus
+- ⏳ Kehonkartta: tallennus sekä kuvana että vyöhyke-yhteenvetona
+
+**Hylättynä (poistetaan vanha koodi):**
+- ❌ AsiakasKortti.jsx — yhdistettiin lomakkeeseen
 - ❌ Erilliset välilehdet (Havainnot, Kehokartta jne.) — kaikki yhden lomakkeen osioita
+- ❌ Esitiedot.jsx (vanha, korvaantuu uudella lomakkeella)
 
 ---
 
@@ -166,16 +293,24 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 
 **Hyödyt:** Voit lopettaa paperilla kirjaamisen kokonaan.
 
+**Erityiset tarpeet osioon 6:**
+- Hoitajan havainnot rakenteellisesti (asentomuutokset numeerisesti)
+- Lantion/hartioiden/selän/polvien kallistukset, kierrot, taivutukset
+- Liukusäätimet kallistuksen astemäärälle
+- Vertailukelpoisuus käyntien välillä (esim. "lantio kallistus 5° → 2°")
+
 ---
 
-## Vaihe 3 — Palvelut Asetuksiin
+## Vaihe 3 — Palvelut + Asetukset
 
-**Tavoite:** Hoitaja voi lisätä omat palvelunsa, kuvaukset ja kestot.
+**Tavoite:** Hoitaja voi konfiguroida palvelunsa ja räätälöidä lomakkeen palvelukohtaisesti.
 
 **Sisältö:**
 - `palvelut`-taulu (hoitaja_id, nimi, kuvaus, kesto, hinta, järjestys, aktiivinen)
 - Asetukset-sivun palvelut-välilehti
 - Hoitajaprofiili (nimi, esittely, kuva, koulutukset)
+- **Sairauslistan muokkaus** Asetuksissa (lisää/muokkaa sairaustyyppejä)
+- **Palvelukohtainen lomake-konfiguraatio:** mitä osioita ja kysymyksiä näytetään milläkin palvelulla
 
 **Hyödyt:** Pohja vaiheille 4 (sähköinen lomake) ja 6 (sivusto).
 
@@ -238,6 +373,7 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 - Hoitajaesittely (vaihe 3:n datasta)
 - Palvelukuvaukset (vaihe 3:n palveluista)
 - Yhteystiedot
+- Tietosuojaseloste (linkki josta lomakkeen suostumukset osoittavat)
 - Blogi/artikkelit (myöhemmin)
 
 **Domain-päätös tehtävänä:** kalevalapaja.fi vs app.kalevalapaja.fi vs muu.
@@ -307,6 +443,7 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 
 Nämä eivät ole vaiheissa, mutta on hyvä muistaa:
 
+- **Lapsihahmo, raskaana olevan hahmo, sukupuolineutraali hahmo** kehonkartassa
 - **Hoitaja voi lisätä asiakkaan ilman sähköpostia** (yleisötapahtumat, iäkkäät asiakkaat) — sähköposti suositeltu mutta ei pakollinen kun hoitaja täyttää
 - **Asiakas voi päivittää oiretilannetta portaalissa** (vaihe 5) — hoitaja näkee päivityksen ennen seuraavaa hoitoa
 - **Hoitaja voi pyytää lomakkeen päivitystä** sähköpostilla jos asiakkaan tiedot ovat vanhat
