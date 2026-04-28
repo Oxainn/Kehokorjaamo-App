@@ -12,7 +12,9 @@ function muotoilePvm(iso) {
 }
 
 function onkoTyhja(arvo) {
-  return arvo === null || arvo === undefined || String(arvo).trim() === ''
+  const tulos = arvo === null || arvo === undefined || String(arvo).trim() === ''
+  console.log('onkoTyhja:', JSON.stringify(arvo), '→', tulos)
+  return tulos
 }
 
 function KipuPalkki({ arvo }) {
@@ -29,11 +31,11 @@ function KipuPalkki({ arvo }) {
   )
 }
 
-function Osio({ otsikko, lapset }) {
+function Osio({ otsikko, children }) {
   return (
     <div className="border-t border-gray-100 pt-4 pb-2">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-emerald-700 mb-2">{otsikko}</h3>
-      {lapset}
+      {children}
     </div>
   )
 }
