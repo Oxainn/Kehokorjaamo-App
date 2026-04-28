@@ -1,4 +1,6 @@
 import { useState, useRef, Fragment } from 'react'
+import { rakennaPbPäivitys } from '../utils/productboard'
+import { supabase } from '../services/supabase'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
 
@@ -56,7 +58,7 @@ function lueAsetukset() {
   }
 }
 
-function tallennnaOsa(avain, data) {
+function tallennaOsa(avain, data) {
   const asetukset = { ...lueAsetukset(), [avain]: data }
   localStorage.setItem(STORAGE_KEY, JSON.stringify(asetukset))
 }
@@ -140,9 +142,11 @@ function VarausKortti({ label, name, value, onChange, placeholder, ohje }) {
   )
 }
 
-export default function Settings() {
+export default function Settings({ hoitajaId }) {
   const [aukiOsio, setAukiOsio] = useState('terapeutti')
   const toggle = (id) => setAukiOsio(prev => prev === id ? null : id)
+  const [devInput, setDevInput]   = useState('')
+  const [devTila, setDevTila]     = useState(null)
 
   // ── Osio 1 ────────────────────────────────────────────────────────────────
   const [terapeutti, setTerapeutti] = useState(() => ({
@@ -156,7 +160,7 @@ export default function Settings() {
   }
   const tallennaTerapeutti = (e) => {
     e.preventDefault()
-    tallennnaOsa('terapeutti', terapeutti)
+    tallennaOsa('terapeutti', terapeutti)
     setTallennettu1(true)
     setTimeout(() => setTallennettu1(false), 2000)
   }
@@ -173,7 +177,7 @@ export default function Settings() {
   }
   const tallennaIntegr = (e) => {
     e.preventDefault()
-    tallennnaOsa('integraatiot', integraatiot)
+    tallennaOsa('integraatiot', integraatiot)
     setTallennettu2(true)
     setTimeout(() => setTallennettu2(false), 2000)
   }
@@ -200,7 +204,7 @@ export default function Settings() {
   }
 
   const tallennaPalvelut = (lista = palvelut) => {
-    tallennnaOsa('palvelut', lista)
+    tallennaOsa('palvelut', lista)
     setTallennettuPalvelut(true)
     setTimeout(() => setTallennettuPalvelut(false), 2000)
   }
@@ -277,7 +281,7 @@ export default function Settings() {
   }
   const tallennaBrand = (e) => {
     e.preventDefault()
-    tallennnaOsa('brandays', brandays)
+    tallennaOsa('brandays', brandays)
     setTallennettu3(true)
     setTimeout(() => setTallennettu3(false), 2000)
   }
@@ -887,6 +891,192 @@ export default function Settings() {
               <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-medium">V2</span>
             </div>
           </>
+        }
+      />
+
+      {/* ── 6: Kehittäjätyökalut ─────────────────────────────────────────── */}
+      <AccordionOsio
+        id="devtools" otsikko="Kehittäjätyökalut" ikoni="🛠️"
+        auki={aukiOsio === 'devtools'} onToggle={toggle}
+        lapset={
+          <div className="flex flex-col gap-4">
+
+            {/* Tarkista ja siivoa koodi */}
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Claude Code -promptit</p>
+              <button
+                type="button"
+                onClick={() => {
+                  const prompt = `TÄRKEÄÄ: Push suoraan mainiin, ei PR:ää.
+
+Tee kattava koodin tarkistus ja siivous Kehokorjaamo App -projektille:
+
+1. TARKISTA kaikki komponentit:
+   - Poistetut/turhat console.log rivit
+   - Käyttämättömät importit
+   - Duplikaattikoodi eri tiedostoissa
+   - Rikkinäiset propsit tai puuttuvat prop-validoinnit
+
+2. TARKISTA Supabase-kyselyt:
+   - Oikeat sarakkeiden nimet
+   - RLS-yhteensopivuus
+   - Virheenkäsittely kaikissa kutsuissa
+
+3. TARKISTA navigaatio ja tila:
+   - Tilamuuttujat järkeviä
+   - Ei muistivuotoja (cleanup useEffect)
+   - Komponentit unmountataan oikein
+
+4. SIIVOA:
+   - Poista debug-koodit
+   - Yhtenäistä tyylimäärittelyt
+   - Korjaa varoitukset
+
+5. RAPORTOI mitä löysit ja korjasit
+
+6. EHDOTA parannuksia selkokielellä käyttäen tätä muotoa:
+
+IDEAT_ALKAA
+- Idea 1 lyhyesti
+- Idea 2 lyhyesti
+IDEAT_LOPPUU
+
+Jos jokin tehtävä on valmis, ilmoita:
+VALMIS: Tehtävän teksti tässä
+
+7. Tee commit ja push mainiin`
+                  navigator.clipboard.writeText(prompt)
+                  alert('Prompt kopioitu! Liitä Claude Codeen.')
+                }}
+                className="px-4 py-2.5 bg-gray-800 hover:bg-gray-900 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                📋 Tarkista ja siivoa koodi
+              </button>
+            </div>
+
+            {/* Liitä Coden ehdotukset */}
+            <div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Liitä Coden ehdotukset</p>
+              <textarea
+                value={devInput}
+                onChange={e => setDevInput(e.target.value)}
+                placeholder="Liitä tähän Claude Coden vastaus..."
+                rows={5}
+                className="w-full text-sm border border-gray-200 rounded-lg p-3 resize-y font-mono focus:outline-none focus:border-brand-400"
+              />
+              <button
+                type="button"
+                disabled={devTila === 'lähetetään'}
+                onClick={async () => {
+                  if (devTila === 'lähetetään') return
+
+                  const teksti = devInput.trim()
+                  if (!teksti) return
+                  if (!hoitajaId) { alert('Kirjaudu sisään ensin.'); return }
+
+                  setDevTila('lähetetään')
+
+                  const { data: rows, error: lukuErr } = await supabase
+                    .from('productboard')
+                    .select('visio, ideat, todo, changelog')
+                    .eq('hoitaja_id', hoitajaId)
+                    .maybeSingle()
+
+                  if (lukuErr) {
+                    console.error('ProductBoard lukuvirhe:', lukuErr)
+                    alert('Tietojen lataus epäonnistui.')
+                    setDevTila(null)
+                    return
+                  }
+
+                  const pb = rows ?? { visio: '', ideat: [], todo: [], changelog: [] }
+                  const { uudet, valmistuvat, valmistuvienIdt, uudetCL } =
+                    rakennaPbPäivitys(teksti, pb.todo ?? [])
+
+                  const olemassa = new Set(
+                    (pb.ideat ?? []).map(i => (i.teksti ?? '').toLowerCase().trim())
+                  )
+                  const ainutlaatuiset = uudet.filter(
+                    u => !olemassa.has((u.teksti ?? '').toLowerCase().trim())
+                  )
+                  const ohitettuja = uudet.length - ainutlaatuiset.length
+
+                  if (ainutlaatuiset.length === 0 && valmistuvat.length === 0) {
+                    if (ohitettuja > 0) {
+                      alert(`Kaikki ${ohitettuja} ideaa olivat jo listalla — ei lisätty.`)
+                    } else {
+                      alert('Ei ideoita tai VALMIS-merkintöjä löydetty.')
+                    }
+                    setDevTila(null)
+                    return
+                  }
+
+                  const uusiPb = {
+                    hoitaja_id: hoitajaId,
+                    visio:     pb.visio ?? '',
+                    ideat:     ainutlaatuiset.length > 0 ? [...(pb.ideat ?? []), ...ainutlaatuiset] : (pb.ideat ?? []),
+                    todo:      valmistuvienIdt.size  > 0 ? (pb.todo ?? []).filter(t => !valmistuvienIdt.has(t.id)) : (pb.todo ?? []),
+                    changelog: uudetCL.length        > 0 ? [...(pb.changelog ?? []), ...uudetCL]   : (pb.changelog ?? []),
+                  }
+
+                  const { error: tallErr } = await supabase
+                    .from('productboard')
+                    .upsert(uusiPb, { onConflict: 'hoitaja_id' })
+
+                  if (tallErr) {
+                    console.error('ProductBoard tallennus epäonnistui:', tallErr)
+                    alert('Tallennus epäonnistui.')
+                    setDevTila(null)
+                    return
+                  }
+
+                  setDevInput('')
+                  setDevTila('ok')
+                  setTimeout(() => setDevTila(null), 2500)
+                }}
+                className="mt-2 px-4 py-2.5 bg-brand-700 hover:bg-brand-800 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {devTila === 'lähetetään' ? '⏳ Tallennetaan...' :
+                 devTila === 'ok'         ? '✅ Lisätty!' :
+                                            '⬇️ Lisää tuotehallintaan'}
+              </button>
+            </div>
+
+            {/* Aja testit (tuleva) */}
+            <div>
+              <button
+                type="button"
+                disabled
+                className="px-4 py-2.5 border border-gray-200 text-gray-400 text-sm font-semibold rounded-lg cursor-not-allowed"
+              >
+                Tulossa — automaattiset testit
+              </button>
+            </div>
+
+            {/* Versiotiedot */}
+            <div className="rounded-xl border border-gray-100 bg-gray-50 p-4 flex flex-col gap-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Versio</span>
+                <span className="font-medium text-gray-800">V1.0</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Viimeisin deploy</span>
+                <span className="font-medium text-gray-800">{new Date().toLocaleDateString('fi-FI')}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-500">GitHub</span>
+                <a
+                  href="https://github.com/oxainn/kehokorjaamo-app"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-brand-700 hover:underline"
+                >
+                  oxainn/kehokorjaamo-app
+                </a>
+              </div>
+            </div>
+
+          </div>
         }
       />
 

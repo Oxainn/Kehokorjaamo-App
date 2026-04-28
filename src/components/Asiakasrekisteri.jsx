@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 
-export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
+export default function Asiakasrekisteri({ onValitseAsiakas, onEsikatseluAsiakas, onAvaaAsiakkaana, hoitajaId, esitiedotLista = [] }) {
   const [asiakkaat, setAsiakkaat] = useState([])
   const [haku, setHaku]           = useState('')
   const [lataa, setLataa]         = useState(true)
 
   useEffect(() => {
-    if (!hoitajaId) { setLataa(false); return }
     const haeAsiakkaat = async () => {
+      if (!hoitajaId) {
+        setLataa(false)
+        return
+      }
       const { data, error } = await supabase
-        .from('asiakkaat')
-        .select('*, hoitokaynit(pvm)')
+        .from('asiakkaan_nykyinen_lomake')
+        .select('*')
         .eq('hoitaja_id', hoitajaId)
-        .order('created_at', { ascending: false })
+        .order('luotu', { ascending: false })
       if (!error) setAsiakkaat(data ?? [])
       setLataa(false)
     }
@@ -24,12 +27,6 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
     a.nimi?.toLowerCase().includes(haku.toLowerCase()) ||
     a.sahkoposti?.toLowerCase().includes(haku.toLowerCase())
   )
-
-  const viimeisinKaynti = (a) => {
-    const pvmLista = a.hoitokaynit?.map(k => k.pvm).filter(Boolean) ?? []
-    if (!pvmLista.length) return null
-    return pvmLista.sort().at(-1)
-  }
 
   const muotoilePvm = (iso) =>
     iso ? new Date(iso).toLocaleDateString('fi-FI') : null
@@ -52,6 +49,48 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
         </span>
       </h2>
 
+      {/* Käsittelemättömät esitiedot */}
+      {esitiedotLista.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <h3 style={{ fontSize: '14px', fontWeight: '500', color: '#854F0B', margin: '0 0 8px' }}>
+            🔔 Käsittelemättömät esitiedot ({esitiedotLista.length})
+          </h3>
+          {esitiedotLista.map(e => (
+            <div key={e.id} style={{
+              padding: '12px',
+              border: '1px solid #FAC775',
+              borderRadius: '8px',
+              background: '#FAEEDA',
+              marginBottom: '8px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+            }}>
+              <div>
+                <p style={{ fontWeight: '500', fontSize: '13px', margin: '0 0 4px' }}>{e.nimi}</p>
+                <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>
+                  {[e.sahkoposti, e.palvelu].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                <button
+                  onClick={() => onEsikatseluAsiakas?.(e)}
+                  style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: '1px solid #EF9F27', background: 'white', cursor: 'pointer' }}
+                >
+                  Esikatsele
+                </button>
+                <button
+                  onClick={() => onAvaaAsiakkaana?.(e)}
+                  style={{ fontSize: '12px', padding: '6px 12px', borderRadius: '6px', border: 'none', background: '#1D9E75', color: 'white', cursor: 'pointer' }}
+                >
+                  Avaa asiakkaana
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       <input
         type="text"
         placeholder="Hae nimellä tai sähköpostilla..."
@@ -72,58 +111,52 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {suodatettu.map(a => {
-            const viimKaynti = viimeisinKaynti(a)
-            return (
-              <div
-                key={a.id}
+          {suodatettu.map(a => (
+            <div
+              key={a.id}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                padding: '14px 16px', borderRadius: '12px',
+                background: 'white', border: '1px solid #e2e8f0',
+              }}
+            >
+              <div style={{
+                width: '42px', height: '42px', borderRadius: '50%',
+                background: '#E1F5EE', color: '#085041',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontWeight: '700', fontSize: '16px', flexShrink: 0,
+              }}>
+                {avatarKirjain(a.nimi)}
+              </div>
+
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: '15px', fontWeight: '600', color: '#111827', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {a.nimi}
+                </p>
+                <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {[a.sahkoposti, a.puhelin].filter(Boolean).join(' · ') || '—'}
+                </p>
+                {a.luotu && (
+                  <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>
+                    Lisätty: {muotoilePvm(a.luotu)}
+                  </p>
+                )}
+              </div>
+
+              <button
+                onClick={() => onValitseAsiakas?.(a)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '12px',
-                  padding: '14px 16px', borderRadius: '12px',
-                  background: 'white', border: '1px solid #e2e8f0',
+                  padding: '7px 16px', borderRadius: '20px',
+                  border: 'none', background: '#1D9E75',
+                  color: 'white', fontSize: '13px',
+                  fontWeight: '500', cursor: 'pointer',
+                  flexShrink: 0,
                 }}
               >
-                {/* Avatar */}
-                <div style={{
-                  width: '42px', height: '42px', borderRadius: '50%',
-                  background: '#E1F5EE', color: '#085041',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: '700', fontSize: '16px', flexShrink: 0,
-                }}>
-                  {avatarKirjain(a.nimi)}
-                </div>
-
-                {/* Tiedot */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: '15px', fontWeight: '600', color: '#111827', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {a.nimi}
-                  </p>
-                  <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {[a.sahkoposti, a.puhelin].filter(Boolean).join(' · ') || '—'}
-                  </p>
-                  {viimKaynti && (
-                    <p style={{ fontSize: '11px', color: '#9ca3af', margin: '2px 0 0' }}>
-                      Viimeisin käynti: {muotoilePvm(viimKaynti)}
-                    </p>
-                  )}
-                </div>
-
-                {/* Avaa-nappi */}
-                <button
-                  onClick={() => onValitseAsiakas?.(a)}
-                  style={{
-                    padding: '7px 16px', borderRadius: '20px',
-                    border: 'none', background: '#1D9E75',
-                    color: 'white', fontSize: '13px',
-                    fontWeight: '500', cursor: 'pointer',
-                    flexShrink: 0,
-                  }}
-                >
-                  Avaa
-                </button>
-              </div>
-            )
-          })}
+                Avaa
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </section>

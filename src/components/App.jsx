@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 import { tallennaKaynti } from '../lib/db'
+import { normalisoiAsiakas } from '../utils/asiakas'
 import Login from './Login'
 import ClientForm from './ClientForm'
 import ClinicalObservations from './ClinicalObservations'
@@ -13,6 +14,7 @@ import ProductBoard from './ProductBoard'
 import KuvaAnalyysi from './KuvaAnalyysi'
 import Asiakasrekisteri from './Asiakasrekisteri'
 import EsitietoKatselu from './EsitietoKatselu'
+import AsiakasKortti from './AsiakasKortti'
 
 const ylaNav = [
   { id: 'rekisteri',     nimi: 'Asiakasrekisteri', ikoni: '👥' },
@@ -41,12 +43,32 @@ export default function App() {
   const [highlights, setHighlights]   = useState([])
   const [treatmentPlan, setTreatmentPlan] = useState(null)
   const [kuvaAnalyysiMittaukset, setKuvaAnalyysiMittaukset] = useState([])
-  const [uudetAsiakkaat, setUudetAsiakkaat] = useState([])
+  const [asiakasNappiTila, setAsiakasNappiTila] = useState('tallenna')
+  const [muokkausTila, setMuokkausTila]         = useState(false)
+  const [esitiedotLista, setEsitiedotLista] = useState([])
   const [avattuEsitieto, setAvattuEsitieto] = useState(null)
   const [kayntiPvm, setKayntiPvm]     = useState(new Date().toISOString().split('T')[0])
   const [vahvistusViesti, setVahvistusViesti] = useState('')
   const [kayttaja, setKayttaja]       = useState(null)
   const [lataaAuth, setLataaAuth]     = useState(true)
+  useEffect(() => {
+    const url = new URL(window.location.href)
+    const error = url.searchParams.get('error')
+    const code  = url.searchParams.get('code')
+    const state = url.searchParams.get('state')
+
+    if (error || code || state) {
+      setTimeout(() => {
+        window.history.replaceState({}, '', '/')
+      }, 100)
+
+      if (error) {
+        console.error('OAuth-virhe:', error)
+        setLataaAuth(false)
+        setKayttaja(null)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -60,14 +82,14 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    const tarkista = async () => {
-      const { data, error } = await supabase
+    const haeEsitiedot = async () => {
+      const { data } = await supabase
         .from('esitiedot').select()
         .eq('kasitelty', false).order('created_at', { ascending: false })
-      if (!error) setUudetAsiakkaat(data ?? [])
+      setEsitiedotLista(data ?? [])
     }
-    tarkista()
-    const interval = setInterval(tarkista, 10000)
+    haeEsitiedot()
+    const interval = setInterval(haeEsitiedot, 10000)
     return () => clearInterval(interval)
   }, [])
 
@@ -86,9 +108,10 @@ export default function App() {
       hoitaja_id:        hoitajaId,
     }).select()
     if (error) console.error('Asiakas tallennus:', error)
-    setAsiakas({ ...esitiedot, supabase_id: data?.[0]?.id })
-    setUudetAsiakkaat(prev => prev.filter(e => e.id !== esitiedot.id))
+    setEsitiedotLista(prev => prev.filter(e => e.id !== esitiedot.id))
+    setAsiakas(normalisoiAsiakas({ ...esitiedot, id: data?.[0]?.id }))
     setAvattuEsitieto(null)
+    setMuokkausTila(false)
     setNakyma('kaynti')
     setAktiivinen('asiakastiedot')
     setVahvistusViesti(`${esitiedot.nimi} tallennettu!`)
@@ -103,6 +126,27 @@ export default function App() {
     )
     if (tulos) alert('Käynti tallennettu!')
     else alert('Tallennus epäonnistui')
+  }
+
+  const tallennaAsiakasYlapalkki = async () => {
+    if (!asiakas || asiakas.supabase_id) return
+    const { data, error } = await supabase.from('asiakkaat').insert({
+      hoitaja_id:       hoitajaId,
+      nimi:             asiakas.nimi,
+      syntymaaika:      asiakas.syntymaaika || null,
+      sahkoposti:       asiakas.sahkoposti,
+      puhelin:          asiakas.puhelin,
+      lahiosoite:       asiakas.lahiosoite,
+      postinumero:      asiakas.postinumero,
+      postitoimipaikka: asiakas.postitoimipaikka,
+      ammatti:          asiakas.ammatti,
+      pituus:           asiakas.pituus || null,
+      paino:            asiakas.paino || null,
+    }).select()
+    if (error) { console.error('Asiakas tallennus:', error); return }
+    setAsiakas(prev => ({ ...prev, supabase_id: data[0].id }))
+    setAsiakasNappiTila('tallennettu')
+    setTimeout(() => setAsiakasNappiTila('tallenna'), 2000)
   }
 
   const onYlaNav = (id) => {
@@ -220,43 +264,17 @@ export default function App() {
             </div>
           ) : (
             <div>
-              {uudetAsiakkaat.length > 0 && (
-                <div style={{ marginBottom: '24px' }}>
-                  <p style={{ fontSize: '14px', fontWeight: '500', color: '#085041', margin: '0 0 8px' }}>
-                    Odottavat esitiedot — {uudetAsiakkaat.length}
-                  </p>
-                  {uudetAsiakkaat.map(u => (
-                    <div key={u.id} style={{ padding: '12px', border: '1px solid #9FE1CB', borderRadius: '8px', background: '#E1F5EE', marginBottom: '8px' }}>
-                      <p style={{ fontSize: '13px', fontWeight: '500', color: '#085041', margin: '0 0 2px' }}>{u.nimi}</p>
-                      <p style={{ fontSize: '11px', color: '#0F6E56', margin: '0 0 8px' }}>{u.palvelu} · {u.sahkoposti}</p>
-                      {u.hoitoon_syy && (
-                        <p style={{ fontSize: '11px', color: '#0F6E56', margin: '0 0 8px', fontStyle: 'italic' }}>"{u.hoitoon_syy}"</p>
-                      )}
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button
-                          onClick={() => setAvattuEsitieto(u)}
-                          style={{ flex: 1, padding: '8px', background: 'transparent', color: '#085041', border: '1px solid #1D9E75', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
-                        >
-                          Avaa esitiedot
-                        </button>
-                        <button
-                          onClick={() => avaaAsiakkaana(u)}
-                          style={{ flex: 1, padding: '8px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '8px', fontSize: '12px', fontWeight: '500', cursor: 'pointer' }}
-                        >
-                          Tallenna asiakkaaksi →
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
               <Asiakasrekisteri
                 hoitajaId={hoitajaId}
+                esitiedotLista={esitiedotLista}
                 onValitseAsiakas={(a) => {
-                  setAsiakas({ ...a, supabase_id: a.id })
+                  setAsiakas(normalisoiAsiakas(a))
+                  setMuokkausTila(false)
                   setNakyma('kaynti')
                   setAktiivinen('asiakastiedot')
                 }}
+                onEsikatseluAsiakas={(e) => setAvattuEsitieto(e)}
+                onAvaaAsiakkaana={avaaAsiakkaana}
               />
             </div>
           )
@@ -265,7 +283,7 @@ export default function App() {
         {/* KÄYNTI */}
         {nakyma === 'kaynti' && asiakas && (
           <div>
-            {/* Asiakkaan nimi + takaisin + tallenna */}
+            {/* Asiakkaan nimi + takaisin + tallenna asiakas */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 0 8px', borderBottom: '1px solid #e2e8f0', marginBottom: '8px' }}>
               <button
                 onClick={() => setNakyma('rekisteri')}
@@ -276,20 +294,14 @@ export default function App() {
               <span style={{ fontSize: '14px', fontWeight: '600', color: '#085041' }}>
                 {asiakas.nimi}
               </span>
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="date"
-                  value={kayntiPvm}
-                  onChange={e => setKayntiPvm(e.target.value)}
-                  style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #d1d5db' }}
-                />
+              {!asiakas.supabase_id && (
                 <button
-                  onClick={tallennaKokoKaynti}
-                  style={{ padding: '5px 14px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '20px', fontSize: '12px', cursor: 'pointer', fontWeight: '500' }}
+                  onClick={tallennaAsiakasYlapalkki}
+                  style={{ padding: '6px 14px', background: asiakasNappiTila === 'tallennettu' ? '#059669' : '#1D9E75', color: 'white', border: 'none', borderRadius: '20px', fontSize: '12px', fontWeight: '500', cursor: 'pointer', marginLeft: 'auto' }}
                 >
-                  💾 Tallenna käynti
+                  {asiakasNappiTila === 'tallennettu' ? '✓ Tallennettu' : 'Tallenna asiakas'}
                 </button>
-              </div>
+              )}
             </div>
 
             {/* Hoitokäynnin välilehdet */}
@@ -318,11 +330,19 @@ export default function App() {
 
             {/* Sisältö */}
             {aktiivinen === 'asiakastiedot' && (
-              <ClientForm
-                asiakasData={asiakas}
-                onComplete={(data) => { setAsiakas(data); setAktiivinen('havainnot') }}
-                hoitajaId={hoitajaId}
-              />
+              muokkausTila || !asiakas?.supabase_id ? (
+                <ClientForm
+                  asiakasData={asiakas}
+                  onComplete={(data) => { setAsiakas(data); setMuokkausTila(false); setAktiivinen('havainnot') }}
+                  onPeruuta={asiakas?.supabase_id ? () => setMuokkausTila(false) : null}
+                  hoitajaId={hoitajaId}
+                />
+              ) : (
+                <AsiakasKortti
+                  asiakas={asiakas}
+                  onMuokkaa={() => setMuokkausTila(true)}
+                />
+              )
             )}
             {aktiivinen === 'havainnot' && (
               <ClinicalObservations
@@ -348,7 +368,29 @@ export default function App() {
               <MuscleLibrary highlights={highlights} />
             )}
             {aktiivinen === 'jalkihoito' && (
-              <Aftercare findings={findings} treatmentPlan={treatmentPlan} asiakas={asiakas} />
+              <div>
+                <Aftercare findings={findings} treatmentPlan={treatmentPlan} />
+                <div style={{ marginTop: '32px', padding: '20px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div>
+                    <p style={{ fontSize: '14px', fontWeight: '600', color: '#111827', margin: '0 0 2px' }}>Tallenna hoitokäynti</p>
+                    <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>Tallentaa havainnot, hoitosuunnitelman ja jälkihoidon</p>
+                  </div>
+                  <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input
+                      type="date"
+                      value={kayntiPvm}
+                      onChange={e => setKayntiPvm(e.target.value)}
+                      style={{ fontSize: '12px', padding: '5px 10px', borderRadius: '8px', border: '1px solid #d1d5db' }}
+                    />
+                    <button
+                      onClick={tallennaKokoKaynti}
+                      style={{ padding: '8px 20px', background: '#1D9E75', color: 'white', border: 'none', borderRadius: '20px', fontSize: '13px', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      💾 Tallenna käynti
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
@@ -372,7 +414,7 @@ export default function App() {
 
         {/* ASETUKSET */}
         {nakyma === 'asetukset' && (
-          <Settings />
+          <Settings hoitajaId={hoitajaId} />
         )}
 
       </main>

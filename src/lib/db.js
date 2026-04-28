@@ -180,3 +180,32 @@ export const poistaAsiakas = async (id) => {
   }
   return true
 }
+
+export const haeAsiakkaanSairaudet = async (asiakasId) => {
+  const { data, error } = await supabase
+    .from('lomake_sairaudet')
+    .select(`
+      id,
+      on_voimassa,
+      tarkenne,
+      sairaus_tyyppi:sairaus_tyypit (
+        id,
+        koodi,
+        nimi,
+        kontraindikaatio
+      ),
+      lomake_versio:asiakastietolomake_versiot!inner (
+        asiakas_id,
+        voimassa_asti
+      )
+    `)
+    .eq('lomake_versio.asiakas_id', asiakasId)
+    .is('lomake_versio.voimassa_asti', null)
+    .eq('on_voimassa', true)
+
+  if (error) {
+    console.error('Sairauksien haku epäonnistui:', error)
+    return []
+  }
+  return data ?? []
+}

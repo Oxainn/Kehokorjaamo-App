@@ -162,7 +162,7 @@ export default function Esitiedot() {
     })
   }
 
-  const ehdotonValittu = EHDOTTOMAT_KONTRA.some(e => data.kontraindikaatiot[e])
+  const ehdotonValittu = EHDOTTOMAT_KONTRA.some(e => data.kontraindikaatiot?.[e])
   const voidaanLähettää = data.nimi.trim() && !ehdotonValittu
     && (piilotettu('tietosuoja')    || tietosuoja1)
     && (piilotettu('allekirjoitus') || allekirjoitusKuva)
@@ -174,10 +174,6 @@ export default function Esitiedot() {
     setLataa(true)
 
     try {
-      console.log('Lähetetään esitiedot:', {
-        nimi: data.nimi,
-        sahkoposti: data.sahkoposti,
-      })
       const { data: tallennettu, error } = await supabase
         .from('esitiedot')
         .insert({
@@ -195,9 +191,7 @@ export default function Esitiedot() {
         .select()
 
       if (error) throw error
-      console.log('Esitiedot tallennettu:', tallennettu)
     } catch (err) {
-      console.error('Virhe:', err)
       alert('Virhe: ' + err?.message)
     }
 
@@ -226,7 +220,7 @@ export default function Esitiedot() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
           </div>
-          <h2 className="text-xl font-semibold text-gray-800 mb-2">Esitiedot lähetetty!</h2>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Tiedot lähetetty!</h2>
           <p className="text-gray-500 text-sm leading-relaxed">
             Kiitos, {data.nimi.split(' ')[0]}! Esitietosi on vastaanotettu. Otamme sinuun yhteyttä
             ajanvarauksen vahvistamiseksi.
@@ -244,7 +238,7 @@ export default function Esitiedot() {
         <div className="max-w-2xl mx-auto px-4 py-5">
           <div className="flex flex-col items-center text-center gap-1">
             <span className="text-2xl font-bold tracking-tight text-gray-900">Kalevalapaja</span>
-            <h1 className="text-lg font-semibold text-green-700 mt-1">Esitietolomake</h1>
+            <h1 className="text-lg font-semibold text-green-700 mt-1">Asiakastietolomake</h1>
             <p className="text-sm text-gray-500 mt-0.5">
               Täytä tiedot ennen hoitokäyntiäsi
             </p>

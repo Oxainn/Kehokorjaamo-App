@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { KEHON_VYÖHYKKEET } from '../data/kehonVyohykkeet'
 import { supabase } from '../services/supabase'
+import { kipuVari } from '../utils/helpers'
 
 const STORAGE_KEY   = 'kehokorjaamo_asiakasdata'
 const ASETUS_KEY    = 'kehokorjaamo_asetukset'
@@ -77,12 +78,6 @@ function laskikaIka(syntymaaika) {
   return ika
 }
 
-function kipuVari(arvo) {
-  if (arvo <= 3) return { kehys: '#16a34a', tausta: '#dcfce7', teksti: '#15803d' }
-  if (arvo <= 6) return { kehys: '#ea580c', tausta: '#ffedd5', teksti: '#c2410c' }
-  return { kehys: '#dc2626', tausta: '#fee2e2', teksti: '#b91c1c' }
-}
-
 const S = { // inline style helpers for print view
   osasto: { fontWeight: '700', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#555', marginBottom: '6px', borderBottom: '1px solid #ddd', paddingBottom: '3px', marginTop: '12px' },
   rivi:   { display: 'flex', gap: '8px', marginBottom: '3px' },
@@ -103,7 +98,7 @@ const TULOSTUS_OLETUKSET = Object.fromEntries(TULOSTUS_OSIOT.map(o => [o.id, tru
 function PrintView({ data, ika, asetukset = TULOSTUS_OLETUKSET, lomakeAsetukset = null }) {
   const vis = (id) => asetukset[id] !== false
 
-  const kontraValitut = Object.entries(data.kontraindikaatiot).filter(([, v]) => v).map(([k]) => k)
+  const kontraValitut = Object.entries(data.kontraindikaatiot ?? {}).filter(([, v]) => v).map(([k]) => k)
   const normaalit  = kontraValitut.filter(n => !EHDOTTOMAT_KONTRA.includes(n))
   const ehdottomat = kontraValitut.filter(n =>  EHDOTTOMAT_KONTRA.includes(n))
   const kipuV = kipuVari(data.kipuaste)
@@ -423,7 +418,7 @@ function Osio({ otsikko, lapset }) {
   )
 }
 
-export default function ClientForm({ onComplete, asiakasData = null, esitäytö = null, hoitajaId = null }) {
+export default function ClientForm({ onComplete, onPeruuta = null, asiakasData = null, esitäytö = null, hoitajaId = null }) {
   const [data, setData] = useState(() => {
     if (asiakasData) return { ...TYHJÄ, ...asiakasData }
     if (esitäytö) return { ...TYHJÄ, ...esitäytö }
@@ -500,29 +495,21 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
       const { data: tallennettu, error } = await supabase
         .from('asiakkaat')
         .insert({
+          hoitaja_id:        hoitajaId,
           nimi:              data.nimi,
-          syntymaaika:       data.syntymaaika,
+          syntymaaika:       data.syntymaaika || null,
           sahkoposti:        data.sahkoposti,
           puhelin:           data.puhelin,
           lahiosoite:        data.lahiosoite,
           postinumero:       data.postinumero,
           postitoimipaikka:  data.postitoimipaikka,
           ammatti:           data.ammatti,
-          pituus:            data.pituus,
-          paino:             data.paino,
-          hoitoon_syy:       data.hoitoon_syy,
-          laakitys:          data.laakitys,
-          harrastukset:      data.harrastukset,
-          miten_loysi:       data.miten_loysi,
-          kontraindikaatiot: data.kontraindikaatiot,
-          merkinnät:         data.merkinnät,
-          hoitaja_id:        hoitajaId,
+          pituus:            data.pituus || null,
+          paino:             data.paino || null,
         })
         .select()
 
       if (error) throw error
-
-      console.log('Asiakas tallennettu:', tallennettu)
 
       const asiakasDataOut = { ...data, supabase_id: tallennettu[0].id }
       localStorage.setItem(`kehokorjaamo_asiakas_${Date.now()}`, JSON.stringify(asiakasDataOut))
@@ -538,7 +525,7 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
 
   const ika = laskikaIka(data.syntymaaika)
   const alleKahdeksantoista = ika !== null && ika < 18
-  const ehdotonValittu = EHDOTTOMAT_KONTRA.some((e) => data.kontraindikaatiot[e])
+  const ehdotonValittu = EHDOTTOMAT_KONTRA.some((e) => data.kontraindikaatiot?.[e])
 
   const virheet = yritettyLähettää ? {
     nimi:      !data.nimi.trim()           ? 'Nimi on pakollinen'                        : '',
@@ -558,6 +545,15 @@ export default function ClientForm({ onComplete, asiakasData = null, esitäytö 
     )}
     <section className="flex flex-col gap-6 no-print">
       <div>
+        {onPeruuta && (
+          <button
+            type="button"
+            onClick={onPeruuta}
+            className="mb-3 text-sm text-emerald-700 hover:underline flex items-center gap-1"
+          >
+            ← Takaisin
+          </button>
+        )}
         <h2 className="text-2xl font-semibold text-gray-800">ASIAKASTIETOLOMAKE</h2>
         <p className="mt-1 text-gray-500 text-sm">
           Täytä tiedot ennen hoitoa. Tiedot tallennetaan automaattisesti.
