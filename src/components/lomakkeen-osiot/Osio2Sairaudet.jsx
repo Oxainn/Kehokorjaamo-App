@@ -267,6 +267,76 @@ export default function Osio2Sairaudet({ asiakas }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
 
+      {/* ── Vapaat tekstikentät ─────────────────────────────────────────── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div>
+          <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '6px' }}>
+            Säännöllinen lääkitys
+          </label>
+          <KasvavaTextarea
+            value={tekstikentat.laakitys}
+            onChange={e => setTekstikentat(k => ({ ...k, laakitys: e.target.value }))}
+            placeholder="Esim. verenpainelääke (nimi, annostus)"
+          />
+        </div>
+        <div>
+          <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '6px' }}>
+            Diagnosoidut sairaudet
+          </label>
+          <KasvavaTextarea
+            value={tekstikentat.diagnosoidut_sairaudet}
+            onChange={e => setTekstikentat(k => ({ ...k, diagnosoidut_sairaudet: e.target.value }))}
+            placeholder="Lisätietoja edellä mainituista tai muista sairauksista"
+          />
+        </div>
+        <div>
+          <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '6px' }}>
+            Vammat ja muut hoidossa huomioitavat seikat
+          </label>
+          <KasvavaTextarea
+            value={tekstikentat.vammat_huomiot}
+            onChange={e => setTekstikentat(k => ({ ...k, vammat_huomiot: e.target.value }))}
+            placeholder="Esim. olkapäävamma 2018"
+          />
+        </div>
+      </div>
+
+      {/* ── Tallenna-nappi (tekstikentät) ──────────────────────────────── */}
+      <div style={{ paddingTop: '8px' }}>
+        {tekstiTulos === 'ok' && (
+          <p style={{ textAlign: 'center', fontSize: '13px', color: '#1D9E75', fontWeight: '600', margin: '0 0 10px' }}>
+            ✓ Tallennettu
+          </p>
+        )}
+        {tekstiTulos === 'virhe' && (
+          <p style={{ textAlign: 'center', fontSize: '13px', color: '#EF4444', fontWeight: '600', margin: '0 0 10px' }}>
+            ⚠ Tallennus epäonnistui — yritä uudelleen
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={tallennaTekstikentat}
+          disabled={tallentaa || muutoksiaTeksti === 0}
+          style={{
+            width:        '100%',
+            minHeight:    '48px',
+            borderRadius: '12px',
+            border:       'none',
+            background:   muutoksiaTeksti > 0 ? '#1D9E75' : '#e2e8f0',
+            color:        muutoksiaTeksti > 0 ? 'white'   : '#9ca3af',
+            fontSize:     '14px',
+            fontWeight:   '700',
+            cursor:       muutoksiaTeksti > 0 ? 'pointer' : 'default',
+            transition:   'all 0.15s',
+          }}
+        >
+          {tallennaNappiTeksti()}
+        </button>
+      </div>
+
+      {/* ── Erotin ─────────────────────────────────────────────────────── */}
+      <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '8px 0' }} />
+
       {/* ── Lataus / virhe ─────────────────────────────────────────────── */}
       {lataaRyhmat && (
         <p style={{ fontSize: '13px', color: '#9ca3af', margin: '4px 0' }}>
@@ -424,75 +494,6 @@ export default function Osio2Sairaudet({ asiakas }) {
         </div>
       )}
 
-      {/* ── Erotinviiva ────────────────────────────────────────────────── */}
-      <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', margin: '8px 0' }} />
-
-      {/* ── Vapaat tekstikentät ─────────────────────────────────────────── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div>
-          <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '6px' }}>
-            Säännöllinen lääkitys
-          </label>
-          <KasvavaTextarea
-            value={tekstikentat.laakitys}
-            onChange={e => setTekstikentat(k => ({ ...k, laakitys: e.target.value }))}
-            placeholder="Esim. verenpainelääke (nimi, annostus)"
-          />
-        </div>
-        <div>
-          <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '6px' }}>
-            Diagnosoidut sairaudet
-          </label>
-          <KasvavaTextarea
-            value={tekstikentat.diagnosoidut_sairaudet}
-            onChange={e => setTekstikentat(k => ({ ...k, diagnosoidut_sairaudet: e.target.value }))}
-            placeholder="Lisätietoja edellä mainituista tai muista sairauksista"
-          />
-        </div>
-        <div>
-          <label style={{ fontSize: '13px', fontWeight: '600', color: '#374151', display: 'block', marginBottom: '6px' }}>
-            Vammat ja muut hoidossa huomioitavat seikat
-          </label>
-          <KasvavaTextarea
-            value={tekstikentat.vammat_huomiot}
-            onChange={e => setTekstikentat(k => ({ ...k, vammat_huomiot: e.target.value }))}
-            placeholder="Esim. olkapäävamma 2018"
-          />
-        </div>
-      </div>
-
-      {/* ── Tallenna-nappi (tekstikentät) ──────────────────────────────── */}
-      <div style={{ paddingTop: '8px' }}>
-        {tekstiTulos === 'ok' && (
-          <p style={{ textAlign: 'center', fontSize: '13px', color: '#1D9E75', fontWeight: '600', margin: '0 0 10px' }}>
-            ✓ Tallennettu
-          </p>
-        )}
-        {tekstiTulos === 'virhe' && (
-          <p style={{ textAlign: 'center', fontSize: '13px', color: '#EF4444', fontWeight: '600', margin: '0 0 10px' }}>
-            ⚠ Tallennus epäonnistui — yritä uudelleen
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={tallennaTekstikentat}
-          disabled={tallentaa || muutoksiaTeksti === 0}
-          style={{
-            width:        '100%',
-            minHeight:    '48px',
-            borderRadius: '12px',
-            border:       'none',
-            background:   muutoksiaTeksti > 0 ? '#1D9E75' : '#e2e8f0',
-            color:        muutoksiaTeksti > 0 ? 'white'   : '#9ca3af',
-            fontSize:     '14px',
-            fontWeight:   '700',
-            cursor:       muutoksiaTeksti > 0 ? 'pointer' : 'default',
-            transition:   'all 0.15s',
-          }}
-        >
-          {tallennaNappiTeksti()}
-        </button>
-      </div>
 
     </div>
   )
