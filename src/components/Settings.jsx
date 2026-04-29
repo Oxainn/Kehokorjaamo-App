@@ -147,7 +147,6 @@ function VarausKortti({ label, name, value, onChange, placeholder, ohje }) {
 export default function Settings({ hoitajaId }) {
   const [aukiOsio, setAukiOsio] = useState('terapeutti')
   const toggle = (id) => setAukiOsio(prev => prev === id ? null : id)
-  const [alaSivu, setAlaSivu] = useState(null)
   const [devInput, setDevInput]   = useState('')
   const [devTila, setDevTila]     = useState(null)
 
@@ -278,42 +277,6 @@ export default function Settings({ hoitajaId }) {
     setTimeout(() => setTallennettu3(false), 2000)
   }
 
-  // Koko näytön ala-sivut
-  if (alaSivu === 'testi1' || alaSivu === 'testi2') {
-    const otsikko = alaSivu === 'testi1' ? 'Testi 1' : 'Testi 2'
-    return (
-      <div className="flex flex-col gap-6">
-        {/* Takaisin-nappi */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setAlaSivu(null)}
-            style={{ fontSize: '13px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#1D9E75', fontWeight: '600', padding: '4px 0' }}
-          >
-            ← Asetukset
-          </button>
-          <span style={{ color: '#d1d5db' }}>/</span>
-          <span style={{ fontSize: '14px', fontWeight: '600', color: '#085041' }}>{otsikko}</span>
-        </div>
-
-        {/* Sivun sisältö */}
-        <div className="bg-white border border-gray-200 rounded-xl p-6 md:p-10">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-2">{otsikko}</h2>
-          <p className="text-sm text-gray-500 mb-8">Tämä on {otsikko.toLowerCase()} — sisältö tulossa.</p>
-
-          {/* Esimerkkisisältö — vaihda myöhemmin */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="rounded-lg border border-gray-200 p-4 bg-gray-50">
-                <div className="text-sm font-medium text-gray-700 mb-1">Kortti {i}</div>
-                <div className="text-xs text-gray-400">Placeholder-sisältö</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -321,7 +284,11 @@ export default function Settings({ hoitajaId }) {
         <p className="mt-1 text-gray-500 text-sm">Mukauta sovellus omaan käyttöösi.</p>
       </div>
 
-      {/* ── 1: Terapeutin tiedot ──────────────────────────────────────────── */}
+      {/* ── KÄYTTÄJÄHALLINTA ─────────────────────────────────────────────── */}
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest px-1 mb-2">Käyttäjähallinta</p>
+      </div>
+
       <AccordionOsio
         id="terapeutti" otsikko="Terapeutin tiedot" ikoni="👤"
         auki={aukiOsio === 'terapeutti'} onToggle={toggle}
@@ -348,48 +315,6 @@ export default function Settings({ hoitajaId }) {
             </div>
             <TextInput label="Nettisivu" name="nettisivu" value={terapeutti.nettisivu} onChange={päivitäTerapeutti} type="url" placeholder="https://kalevalapaja.fi" />
             <TallennaNappi tallennettu={tallennettu1} />
-          </form>
-        }
-      />
-
-      {/* ── 1b: Tuotehallinta ────────────────────────────────────────────── */}
-      <AccordionOsio
-        id="tuotehallinta" otsikko="Tuotehallinta" ikoni="📋"
-        auki={aukiOsio === 'tuotehallinta'} onToggle={toggle}
-        lapset={<ProductBoard hoitajaId={hoitajaId} hideHeader />}
-      />
-
-      {/* ── 2: Integraatiot ──────────────────────────────────────────────── */}
-      <AccordionOsio
-        id="integraatiot" otsikko="Integraatiot" ikoni="🔗"
-        auki={aukiOsio === 'integraatiot'} onToggle={toggle}
-        lapset={
-          <form onSubmit={tallennaIntegr} className="flex flex-col gap-3">
-            <VarausKortti
-              label="Vello"
-              name="vello"
-              value={integraatiot.vello}
-              onChange={päivitäIntegr}
-              placeholder="https://vello.fi/sinunnimesi"
-              ohje={OHJE}
-            />
-            <VarausKortti
-              label="Calendly"
-              name="calendly"
-              value={integraatiot.calendly}
-              onChange={päivitäIntegr}
-              placeholder="https://calendly.com/sinunnimesi"
-              ohje={OHJE}
-            />
-            <VarausKortti
-              label="Oma nettisivu"
-              name="omanettisivu"
-              value={integraatiot.omanettisivu}
-              onChange={päivitäIntegr}
-              placeholder="https://kalevalapaja.fi/varaa"
-              ohje={OHJE}
-            />
-            <TallennaNappi tallennettu={tallennettu2} />
           </form>
         }
       />
@@ -830,104 +755,50 @@ export default function Settings({ hoitajaId }) {
         }
       />
 
-      {/* ── 4b: Kehonkartan kalibrointi ──────────────────────────────────── */}
+      {/* ── Integraatiot (Käyttäjähallinta, viimeisenä) ─────────────────── */}
       <AccordionOsio
-        id="kehonkartta-kalibrointi" otsikko="Kehonkartan kalibrointi" ikoni="🗺️"
-        auki={aukiOsio === 'kehonkartta-kalibrointi'} onToggle={toggle}
-        lapset={<KehonkarttaKalibrointi />}
+        id="integraatiot" otsikko="Integraatiot" ikoni="🔗"
+        auki={aukiOsio === 'integraatiot'} onToggle={toggle}
+        lapset={
+          <form onSubmit={tallennaIntegr} className="flex flex-col gap-3">
+            <VarausKortti
+              label="Vello"
+              name="vello"
+              value={integraatiot.vello}
+              onChange={päivitäIntegr}
+              placeholder="https://vello.fi/sinunnimesi"
+              ohje={OHJE}
+            />
+            <VarausKortti
+              label="Calendly"
+              name="calendly"
+              value={integraatiot.calendly}
+              onChange={päivitäIntegr}
+              placeholder="https://calendly.com/sinunnimesi"
+              ohje={OHJE}
+            />
+            <VarausKortti
+              label="Oma nettisivu"
+              name="omanettisivu"
+              value={integraatiot.omanettisivu}
+              onChange={päivitäIntegr}
+              placeholder="https://kalevalapaja.fi/varaa"
+              ohje={OHJE}
+            />
+            <TallennaNappi tallennettu={tallennettu2} />
+          </form>
+        }
       />
 
-      {/* Testi 1 — avautuu koko näytölle */}
-      <button
-        onClick={() => setAlaSivu('testi1')}
-        className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl text-left hover:bg-gray-50 transition-colors"
-      >
-        <span className="flex items-center gap-3">
-          <span className="text-lg">🧪</span>
-          <span className="text-sm font-medium text-gray-800">Testi 1</span>
-        </span>
-        <span className="text-gray-400 text-sm">›</span>
-      </button>
+      {/* ── OHJELMAHALLINTA ──────────────────────────────────────────────── */}
+      <div>
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest px-1 mb-2 mt-4">Ohjelmahallinta</p>
+      </div>
 
-      {/* Testi 2 — avautuu koko näytölle */}
-      <button
-        onClick={() => setAlaSivu('testi2')}
-        className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl text-left hover:bg-gray-50 transition-colors"
-      >
-        <span className="flex items-center gap-3">
-          <span className="text-lg">🧪</span>
-          <span className="text-sm font-medium text-gray-800">Testi 2</span>
-        </span>
-        <span className="text-gray-400 text-sm">›</span>
-      </button>
-
-      {/* ── 5: Tiedot ja tallennus ───────────────────────────────────────── */}
       <AccordionOsio
-        id="tallennus" otsikko="Tiedot ja tallennus" ikoni="💾"
-        auki={aukiOsio === 'tallennus'} onToggle={toggle}
-        lapset={
-          <>
-            {/* Versio-info */}
-            <div className="flex items-center justify-between py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-500">Versio</span>
-              <span className="text-sm font-medium text-gray-800">Kehokorjaamo App V1</span>
-            </div>
-
-            {/* Tallennustieto */}
-            <div className="flex items-center justify-between py-2 border-b border-gray-50">
-              <span className="text-sm text-gray-500">Tallennus</span>
-              <span className="text-sm font-medium text-gray-700">Tiedot tallennettu tällä laitteella</span>
-            </div>
-
-            {/* Toimintanapit */}
-            <div className="flex flex-col gap-3 pt-1">
-              <button
-                type="button"
-                onClick={() => {
-                  if (window.confirm('Haluatko varmasti tyhjentää kaikki asiakastiedot? Tätä ei voi peruuttaa.')) {
-                    Object.keys(localStorage)
-                      .filter(k => k.startsWith('kehokorjaamo_asiakas'))
-                      .forEach(k => localStorage.removeItem(k))
-                    alert('Asiakastiedot tyhjennetty.')
-                  }
-                }}
-                className="px-5 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-lg transition-colors self-start"
-              >
-                Tyhjennä kaikki asiakastiedot
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  const kaikki = {}
-                  Object.keys(localStorage).forEach(k => {
-                    try { kaikki[k] = JSON.parse(localStorage.getItem(k)) }
-                    catch { kaikki[k] = localStorage.getItem(k) }
-                  })
-                  const blob = new Blob([JSON.stringify(kaikki, null, 2)], { type: 'application/json' })
-                  const url  = URL.createObjectURL(blob)
-                  const a    = document.createElement('a')
-                  a.href     = url
-                  a.download = `kehokorjaamo-vientitiedot-${new Date().toISOString().slice(0,10)}.json`
-                  a.click()
-                  URL.revokeObjectURL(url)
-                }}
-                className="px-5 py-2.5 border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-lg transition-colors self-start"
-              >
-                Vie tiedot JSON-tiedostona
-              </button>
-            </div>
-
-            {/* Tuleva: pilvipalvelu */}
-            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 flex items-center justify-between mt-1">
-              <div>
-                <p className="text-sm font-medium text-gray-400">Pilvitallennus (Supabase)</p>
-                <p className="text-xs text-gray-400 mt-0.5">Tiedot synkronoituvat kaikille laitteille</p>
-              </div>
-              <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-medium">V2</span>
-            </div>
-          </>
-        }
+        id="tuotehallinta" otsikko="Tuotehallinta" ikoni="📋"
+        auki={aukiOsio === 'tuotehallinta'} onToggle={toggle}
+        lapset={<ProductBoard hoitajaId={hoitajaId} hideHeader />}
       />
 
       {/* ── 6: Kehittäjätyökalut ─────────────────────────────────────────── */}
@@ -1115,6 +986,83 @@ VALMIS: Tehtävän teksti tässä
           </div>
         }
       />
+
+      {/* ── Kehonkartan kalibrointi ───────────────────────────────────────── */}
+      <AccordionOsio
+        id="kehonkartta-kalibrointi" otsikko="Kehonkartan kalibrointi" ikoni="🗺️"
+        auki={aukiOsio === 'kehonkartta-kalibrointi'} onToggle={toggle}
+        lapset={<KehonkarttaKalibrointi />}
+      />
+
+      {/* ── 5: Tiedot ja tallennus ───────────────────────────────────────── */}
+      <AccordionOsio
+        id="tallennus" otsikko="Tiedot ja tallennus" ikoni="💾"
+        auki={aukiOsio === 'tallennus'} onToggle={toggle}
+        lapset={
+          <>
+            {/* Versio-info */}
+            <div className="flex items-center justify-between py-2 border-b border-gray-50">
+              <span className="text-sm text-gray-500">Versio</span>
+              <span className="text-sm font-medium text-gray-800">Kehokorjaamo App V1</span>
+            </div>
+
+            {/* Tallennustieto */}
+            <div className="flex items-center justify-between py-2 border-b border-gray-50">
+              <span className="text-sm text-gray-500">Tallennus</span>
+              <span className="text-sm font-medium text-gray-700">Tiedot tallennettu tällä laitteella</span>
+            </div>
+
+            {/* Toimintanapit */}
+            <div className="flex flex-col gap-3 pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm('Haluatko varmasti tyhjentää kaikki asiakastiedot? Tätä ei voi peruuttaa.')) {
+                    Object.keys(localStorage)
+                      .filter(k => k.startsWith('kehokorjaamo_asiakas'))
+                      .forEach(k => localStorage.removeItem(k))
+                    alert('Asiakastiedot tyhjennetty.')
+                  }
+                }}
+                className="px-5 py-2.5 border border-red-200 text-red-600 hover:bg-red-50 text-sm font-semibold rounded-lg transition-colors self-start"
+              >
+                Tyhjennä kaikki asiakastiedot
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const kaikki = {}
+                  Object.keys(localStorage).forEach(k => {
+                    try { kaikki[k] = JSON.parse(localStorage.getItem(k)) }
+                    catch { kaikki[k] = localStorage.getItem(k) }
+                  })
+                  const blob = new Blob([JSON.stringify(kaikki, null, 2)], { type: 'application/json' })
+                  const url  = URL.createObjectURL(blob)
+                  const a    = document.createElement('a')
+                  a.href     = url
+                  a.download = `kehokorjaamo-vientitiedot-${new Date().toISOString().slice(0,10)}.json`
+                  a.click()
+                  URL.revokeObjectURL(url)
+                }}
+                className="px-5 py-2.5 border border-gray-200 text-gray-700 hover:bg-gray-50 text-sm font-semibold rounded-lg transition-colors self-start"
+              >
+                Vie tiedot JSON-tiedostona
+              </button>
+            </div>
+
+            {/* Tuleva: pilvipalvelu */}
+            <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-3 flex items-center justify-between mt-1">
+              <div>
+                <p className="text-sm font-medium text-gray-400">Pilvitallennus (Supabase)</p>
+                <p className="text-xs text-gray-400 mt-0.5">Tiedot synkronoituvat kaikille laitteille</p>
+              </div>
+              <span className="text-xs bg-gray-200 text-gray-500 px-2 py-1 rounded-full font-medium">V2</span>
+            </div>
+          </>
+        }
+      />
+
 
     </div>
   )
