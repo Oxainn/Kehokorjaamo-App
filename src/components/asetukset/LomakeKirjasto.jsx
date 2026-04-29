@@ -401,13 +401,20 @@ export default function LomakeKirjasto() {
     }
   }
 
+  async function haeHoitajaId() {
+    const { data: { user }, error } = await supabase.auth.getUser()
+    if (error || !user) throw new Error('Kirjautuminen vaaditaan')
+    return user.id
+  }
+
   async function luoPohja() {
     if (!luoModaali.nimi.trim()) return
     setLuoLataa(true)
     try {
+      const hoitajaId = await haeHoitajaId()
       const { data: pohja, error: e1 } = await supabase
         .from('lomakepohjat')
-        .insert({ nimi: luoModaali.nimi.trim(), kuvaus: luoModaali.kuvaus.trim() || null, on_oletus: false, aktiivinen: true })
+        .insert({ hoitaja_id: hoitajaId, nimi: luoModaali.nimi.trim(), kuvaus: luoModaali.kuvaus.trim() || null, on_oletus: false, aktiivinen: true })
         .select()
         .single()
       if (e1) throw e1
@@ -430,9 +437,10 @@ export default function LomakeKirjasto() {
   async function kopioPohja(pohja) {
     setMenuAuki(null)
     try {
+      const hoitajaId = await haeHoitajaId()
       const { data: uusi, error: e1 } = await supabase
         .from('lomakepohjat')
-        .insert({ nimi: pohja.nimi + ' (kopio)', kuvaus: pohja.kuvaus || null, on_oletus: false, aktiivinen: true })
+        .insert({ hoitaja_id: hoitajaId, nimi: pohja.nimi + ' (kopio)', kuvaus: pohja.kuvaus || null, on_oletus: false, aktiivinen: true })
         .select()
         .single()
       if (e1) throw e1
