@@ -147,6 +147,7 @@ function VarausKortti({ label, name, value, onChange, placeholder, ohje }) {
 export default function Settings({ hoitajaId }) {
   const [aukiOsio, setAukiOsio] = useState('terapeutti')
   const toggle = (id) => setAukiOsio(prev => prev === id ? null : id)
+  const [alaSivu, setAlaSivu] = useState(null)
   const [devInput, setDevInput]   = useState('')
   const [devTila, setDevTila]     = useState(null)
 
@@ -275,6 +276,42 @@ export default function Settings({ hoitajaId }) {
     tallennaOsa('brandays', brandays)
     setTallennettu3(true)
     setTimeout(() => setTallennettu3(false), 2000)
+  }
+
+  // Koko näytön ala-sivut
+  if (alaSivu === 'testi1' || alaSivu === 'testi2') {
+    const otsikko = alaSivu === 'testi1' ? 'Testi 1' : 'Testi 2'
+    return (
+      <div className="flex flex-col gap-6">
+        {/* Takaisin-nappi */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setAlaSivu(null)}
+            style={{ fontSize: '13px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#1D9E75', fontWeight: '600', padding: '4px 0' }}
+          >
+            ← Asetukset
+          </button>
+          <span style={{ color: '#d1d5db' }}>/</span>
+          <span style={{ fontSize: '14px', fontWeight: '600', color: '#085041' }}>{otsikko}</span>
+        </div>
+
+        {/* Sivun sisältö */}
+        <div className="bg-white border border-gray-200 rounded-xl p-6 md:p-10">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-2">{otsikko}</h2>
+          <p className="text-sm text-gray-500 mb-8">Tämä on {otsikko.toLowerCase()} — sisältö tulossa.</p>
+
+          {/* Esimerkkisisältö — vaihda myöhemmin */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="rounded-lg border border-gray-200 p-4 bg-gray-50">
+                <div className="text-sm font-medium text-gray-700 mb-1">Kortti {i}</div>
+                <div className="text-xs text-gray-400">Placeholder-sisältö</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -800,21 +837,29 @@ export default function Settings({ hoitajaId }) {
         lapset={<KehonkarttaKalibrointi />}
       />
 
-      <AccordionOsio
-        id="testi1" otsikko="Testi 1" ikoni="🧪"
-        auki={aukiOsio === 'testi1'} onToggle={toggle}
-        lapset={
-          <p className="text-sm text-gray-500">Testi 1 — sisältö tulossa</p>
-        }
-      />
+      {/* Testi 1 — avautuu koko näytölle */}
+      <button
+        onClick={() => setAlaSivu('testi1')}
+        className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl text-left hover:bg-gray-50 transition-colors"
+      >
+        <span className="flex items-center gap-3">
+          <span className="text-lg">🧪</span>
+          <span className="text-sm font-medium text-gray-800">Testi 1</span>
+        </span>
+        <span className="text-gray-400 text-sm">›</span>
+      </button>
 
-      <AccordionOsio
-        id="testi2" otsikko="Testi 2" ikoni="🧪"
-        auki={aukiOsio === 'testi2'} onToggle={toggle}
-        lapset={
-          <p className="text-sm text-gray-500">Testi 2 — sisältö tulossa</p>
-        }
-      />
+      {/* Testi 2 — avautuu koko näytölle */}
+      <button
+        onClick={() => setAlaSivu('testi2')}
+        className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl text-left hover:bg-gray-50 transition-colors"
+      >
+        <span className="flex items-center gap-3">
+          <span className="text-lg">🧪</span>
+          <span className="text-sm font-medium text-gray-800">Testi 2</span>
+        </span>
+        <span className="text-gray-400 text-sm">›</span>
+      </button>
 
       {/* ── 5: Tiedot ja tallennus ───────────────────────────────────────── */}
       <AccordionOsio
