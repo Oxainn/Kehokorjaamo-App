@@ -4,10 +4,10 @@
 // Mitä tämä tekee:
 // - UUSI asiakas: GDPR-suostumus + allekirjoitus pakollisia
 // - OLEMASSA OLEVA: näyttää tiedoksi "Suostumukset annettu [pvm]"
-//                   - voi halutessaan antaa uudet jos muuttunut
 // - Valinnainen: lupa tietojen luovuttamiseen
-// - Tallenna-nappi alaosassa (toistaiseksi vain ilmoittaa, varsinainen
-//   tallennus tehdään seuraavalla istunnolla)
+// - Kaksi nappia alaosassa:
+//     * "Tulosta PDF" — luo PDF lomakkeesta (tulossa)
+//     * "Allekirjoitus ja lähetä" — tallentaa + ohjaa eteenpäin (tulossa)
 
 import { useState } from 'react';
 import AllekirjoitusPad from '../AllekirjoitusPad';
@@ -22,7 +22,8 @@ export default function Osio5Suostumukset({
   asiakkaanNimi = '',
   onUusiAsiakas = true,
   aiempiSuostumusPvm = null,
-  onTallenna = null, // callback tallennukselle (tulossa myöhemmin)
+  onTulostaPdf = null,
+  onAllekirjoitusJaLaheta = null,
 }) {
   // Null-suoja
   const gdprHyvaksytty = arvo?.gdprHyvaksytty ?? false;
@@ -30,14 +31,12 @@ export default function Osio5Suostumukset({
   const allekirjoitus = arvo?.allekirjoitus ?? '';
 
   const [paivitetaan, setPaivitetaan] = useState(false);
-  const [tallennusIlmoitus, setTallennusIlmoitus] = useState(null);
+  const [ilmoitus, setIlmoitus] = useState(null);
 
   const tanaan = new Date().toLocaleDateString('fi-FI');
   const naytaTaysi = onUusiAsiakas || paivitetaan;
 
-  // Päivitä yksi kenttä rikkomatta muita.
-  // KORJAUS: AllekirjoitusPad kutsuu onChange(''):lla alustuessaan, mikä
-  // ei saa nollata GDPR-ruksia tai luovutuslupaa.
+  // Päivitä yksi kenttä rikkomatta muita
   function paivitaKentta(kentta, uusiArvo) {
     onMuutos({
       ...arvo,
@@ -45,27 +44,33 @@ export default function Osio5Suostumukset({
     });
   }
 
-  // Klikkaus tallenna-nappiin (toistaiseksi vain ilmoitus)
-  function kasitteleTallennus() {
-    if (onTallenna) {
-      onTallenna(arvo);
-      return;
-    }
-    // Toistaiseksi: kerrotaan että tulossa
-    console.log('Lomakedata valmiina tallennukseen:', {
-      suostumukset: arvo,
-      asiakkaanNimi,
-      onUusiAsiakas,
-      paivamaara: tanaan,
-    });
-    setTallennusIlmoitus('Tallennuslogiikka tulossa seuraavassa vaiheessa. Data on konsolissa nähtävillä.');
-    setTimeout(() => setTallennusIlmoitus(null), 5000);
+  function naytaIlmoitus(teksti) {
+    setIlmoitus(teksti);
+    setTimeout(() => setIlmoitus(null), 5000);
   }
 
-  // Voiko tallentaa? (kevyt validointi)
-  const voiTallentaa = naytaTaysi
+  function kasittelePdf() {
+    if (onTulostaPdf) {
+      onTulostaPdf(arvo);
+      return;
+    }
+    console.log('PDF-tulostus pyydetty:', { suostumukset: arvo, asiakkaanNimi, paivamaara: tanaan });
+    naytaIlmoitus('PDF-tulostus tulossa myöhemmin. Data on konsolissa nähtävillä.');
+  }
+
+  function kasitteleLahetys() {
+    if (onAllekirjoitusJaLaheta) {
+      onAllekirjoitusJaLaheta(arvo);
+      return;
+    }
+    console.log('Lähetys pyydetty:', { suostumukset: arvo, asiakkaanNimi, onUusiAsiakas, paivamaara: tanaan });
+    naytaIlmoitus('Lähetys ja tallennuslogiikka tulossa myöhemmin. Data on konsolissa nähtävillä.');
+  }
+
+  // Voiko lähettää?
+  const voiLahettaa = naytaTaysi
     ? (gdprHyvaksytty && allekirjoitus.length > 0)
-    : true; // olemassa oleva asiakas voi aina jatkaa
+    : true;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-6">
@@ -191,28 +196,38 @@ export default function Osio5Suostumukset({
         </>
       )}
 
-      {/* Tallenna-nappi */}
+      {/* Kaksi nappia alaosassa */}
       <div className="mt-6 pt-6 border-t border-gray-200">
-        <button
-          type="button"
-          onClick={kasitteleTallennus}
-          disabled={!voiTallentaa}
-          className="w-full px-4 py-3 text-base font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          style={{
-            background: voiTallentaa ? '#10b981' : '#d1d5db',
-            color: 'white',
-          }}
-        >
-          {onUusiAsiakas ? 'Tallenna asiakas' : 'Tallenna muutokset'}
-        </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={kasittelePdf}
+            className="px-4 py-3 text-base font-medium rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+          >
+            Tulosta PDF
+          </button>
 
-        {!voiTallentaa && naytaTaysi && (
+          <button
+            type="button"
+            onClick={kasitteleLahetys}
+            disabled={!voiLahettaa}
+            className="px-4 py-3 text-base font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: voiLahettaa ? '#10b981' : '#d1d5db',
+              color: 'white',
+            }}
+          >
+            Allekirjoitus ja lähetä
+          </button>
+        </div>
+
+        {!voiLahettaa && naytaTaysi && (
           <p className="mt-2 text-xs text-gray-500 text-center">
             Hyväksy tietojen käsittely ja anna allekirjoitus jatkaaksesi
           </p>
         )}
 
-        {tallennusIlmoitus && (
+        {ilmoitus && (
           <div
             style={{
               marginTop: 12,
@@ -225,7 +240,7 @@ export default function Osio5Suostumukset({
               textAlign: 'center',
             }}
           >
-            ℹ {tallennusIlmoitus}
+            ℹ {ilmoitus}
           </div>
         )}
       </div>
