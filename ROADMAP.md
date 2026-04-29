@@ -279,9 +279,7 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 - ⏳ Kehonkartta: tallennus sekä kuvana että vyöhyke-yhteenvetona
 
 **Hylättynä (poistetaan vanha koodi):**
-- ❌ AsiakasKortti.jsx — yhdistettiin lomakkeeseen
-- ❌ Erilliset välilehdet (Havainnot, Kehokartta jne.) — kaikki yhden lomakkeen osioita
-- ❌ Esitiedot.jsx (vanha, korvaantuu uudella lomakkeella)
+- ✅ Vanha rakenne purettu — ClientForm.jsx, AsiakasKortti.jsx, Esitiedot.jsx kaikki poistettu / ei koskaan luotu
 
 ---
 
