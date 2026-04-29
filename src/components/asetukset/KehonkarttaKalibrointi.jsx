@@ -145,6 +145,7 @@ export default function KehonkarttaKalibrointi() {
             y="0"
             width={SVG_LEVEYS}
             height={SVG_KORKEUS}
+            style={{ pointerEvents: 'none' }}
           />
 
           {/* Vyöhyke-pisteet päällä */}
