@@ -12,17 +12,17 @@ import AvattavaOsio from './AvattavaOsio'
 // ─── ryhmien järjestys ────────────────────────────────────────────────────────
 
 const RYHMAT_JARJESTYS = [
-  'YLEISET',
-  'SYDÄN JA VERENKIERTO',
-  'SELKÄRANKA JA NIVELET',
-  'NEUROLOGISET',
-  'NAINEN',
-  'MIELENTERVEYS',
-  'MUUT',
-  'ESTE HOIDOLLE',
+  'Yleiset',
+  'Sydän ja verenkierto',
+  'Selkäranka ja nivelet',
+  'Neurologiset',
+  'Nainen',
+  'Mielenterveys',
+  'Muut',
+  'Este hoidolle',
 ]
 
-const onEsteRyhma = (nimi) => nimi?.startsWith('ESTE')
+const onEsteRyhma = (nimi) => nimi?.toLowerCase().startsWith('este')
 
 // ─── kasvava textarea ─────────────────────────────────────────────────────────
 
@@ -145,22 +145,15 @@ export default function Osio2Sairaudet({ asiakas }) {
 
   // ─── ryhmittely ────────────────────────────────────────────────────────────
 
-  console.log('[Osio2 DEBUG] sairausTyypit:', sairausTyypit)
-  console.log('[Osio2 DEBUG] sairausTyypit.length:', sairausTyypit?.length)
-  if (sairausTyypit?.length > 0) {
-    console.log('[Osio2 DEBUG] ensimmäinen sairaus:', sairausTyypit[0])
-  }
   const ryhmaMap = {}
   for (const s of sairausTyypit) {
-    const r = s.ryhma ?? 'MUUT'
+    const r = s.ryhma ?? 'Muut'
     if (!ryhmaMap[r]) ryhmaMap[r] = []
     ryhmaMap[r].push(s)
   }
   const ryhmat = RYHMAT_JARJESTYS
     .filter(r => ryhmaMap[r]?.length > 0)
     .map(r => ({ nimi: r, sairaudet: ryhmaMap[r] }))
-  console.log('[Osio2 DEBUG] ryhmat:', ryhmat)
-  console.log('[Osio2 DEBUG] ryhmat.length:', ryhmat?.length)
 
   // ─── autosave checkboxille ─────────────────────────────────────────────────
 
@@ -270,8 +263,6 @@ export default function Osio2Sairaudet({ asiakas }) {
   }
 
   // ─── render ───────────────────────────────────────────────────────────────
-
-  console.log('[Osio2 DEBUG] renderöidään, lataaRyhmat:', lataaRyhmat)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
