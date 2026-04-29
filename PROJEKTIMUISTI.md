@@ -257,38 +257,62 @@
 
 **Sijainti:** `src/hooks/useAsiakkaanSairaudet.js`.
 
-### 29.4.2026 — Lomakepohja-järjestelmän suunnittelu
+### 29.4.2026 — Lomakepohja-järjestelmä A+B valmis, C käynnissä
 
-**Asetukset → Käyttäjähallinta uudelleenjärjestely:**
+**Asetukset → Käyttäjähallinta uudelleenjärjestely (✅ valmis):**
 - Terapeutin tiedot
 - Asiakastietolomakkeet (uusi)
 - Palvelut (siirretty)
 
-**Periaate: Palvelu on ensisijainen**
-Hoitaja luo ensin palvelun, sitten siihen lomakepohjan.
-Lomake on palvelun ennakkotietokaavake. Tämä määrittää
-käyttöliittymän järjestyksen ja työnkulun.
+**Vaihe A: Tietokanta (✅ valmis):**
+- lomakepohjat-, lomakepohja_versiot-, kenttakirjasto-,
+  kentan_versiot-taulut
+- Migraatio ajettu Supabasessa
+- 3 valmista pohjaa, 22 kenttää, FI+EN-käännökset
 
-**Tietokantarakenne:**
-- lomakepohjat — pohjan metatiedot
-- lomakepohja_versiot — versioitu rakenne JSON-kenttänä
-- kenttakirjasto — yhteiset kentät hoitajan kirjastossa
-- kentan_versiot — kenttien käännökset (FI/EN)
-- palvelu_lomake_linkit (B+ vaiheessa) — moni-moneen
+**Vaihe B: Lomakekirjasto (✅ valmis):**
+- LomakeKirjasto.jsx-komponentti
+- RLS-bug korjattu (hoitaja_id puuttui INSERTistä)
+- ⋯-valikko-bug korjattu (mousedown + useRef -patterni,
+  React 17+ event delegation -ongelma)
+- Pikkuasiat kesken: ⋯-koko liian pieni, accessibility-varoituksia
+
+**Vaihe C: Editori (🟡 käynnissä):**
+- Oma näkymä, ei modaali (URL `/asetukset/lomakepohja/<id>`)
+- Kaksipalstainen layout (tietokone-optimoitu)
+- Master-detail valittu pois — jokainen muokkausvaihe näkyvissä yhtä aikaa
+
+**Periaate-päätökset (TÄRKEÄT):**
+
+1. **Hoitaja vs asiakas — selkeä vastuujako:**
+   - Hoitaja luo, muokkaa ja hallinnoi lomakepohjia
+   - Asiakas täyttää valmiita lomakkeita
+   - Asiakkaan kielivalinta lomakkeessa siirretty vaiheeseen 4
+
+2. **Lomakkeet tehdään tietokoneella:**
+   - Editori suunniteltu tietokoneen näytölle
+   - Mobiilioptimointi vasta jos siihen tulee tarve
+   - Asiakkaan lomakkeen täyttö (vaihe 4) on eri juttu — siellä
+     mobiili-toimivuus on välttämätöntä
+
+3. **Vaihe B+ (palvelu-linkitys) lykätty:**
+   - Päätös: keskitytään ensin saamaan editori toimimaan
+   - Linkitys ei ole esteenä editorin rakentamiselle
+   - Palautetaan agendalle kun editori on käytettävissä
 
 **Hylätyt vaihtoehdot:**
-- Tapa B (relaatiomalli kentille omissa tauluissa) —
-  liian kahlitseva uusille kenttätyypeille
-- Vapaa kenttänimeäminen — rikkoo vertailukelpoisuuden
-- Tason 4 muokkausta varten kompleksinen drag-drop —
-  riittää yksinkertainen lista + nappi
-- Vain suomi -kielirakenne — Oxalla on englanninkielisiä
-  asiakkaita
+- Editori modaalina — liian ahdas isolle työkalulle,
+  mobiilissa erityisen tukala
+- Master-detail-näkymät tietokoneella — turhia sivunvaihtoja kun
+  ruutua on
+- Tapa B (relaatiomalli) tietokannassa — JSON joustavampi
+- Asiakas tekee/muokkaa lomakkeita — ei kuulu asiakkaan vastuulle
 
 **Avoinna:**
-- ⋯-valikon bug-korjaus (vaihe B viimeistely)
-- Yksi vai useampi lomakepohja palvelulle (vaihe B+)
-- Editorin yksityiskohdat (vaihe C)
+- Vaihe C: editori toteutus (suunnitelma valmis)
+- ⋯-koko isommaksi (vähäinen, tehdään myöhemmin)
+- Accessibility-varoitukset (muutamia, tehdään myöhemmin)
+- Vaihe B+ palvelu-linkitys (myöhemmin)
 
 ---
 

@@ -14,7 +14,11 @@
 |---|-------|--------|------|
 | 1 | Asiakastietolomake — osiot 1–5 (asiakkaan osa) | 🟡 Suunnittelu valmis, koodaus alkaa | Yksityiskohdat ROADMAP:in lopussa |
 | 2 | Asiakastietolomake — osiot 6–8 (hoitajan osa) | ⚪ Odottaa | Lisätään kun osiot 1–5 toimivat |
-| 3 | Palvelut + Asiakastietolomakkeet + linkitys | 🟡 Käynnissä | Lomakepohja-järjestelmä A+B valmis, B+ ja editori (C) tulossa |
+| 3 | Asiakastietolomakkeet + editori + palvelu-linkitys | 🟡 Käynnissä | ks. alla |
+|   | — A: Tietokanta + 3 aloituspohjaa | ✅ Valmis | — |
+|   | — B: Lomakekirjasto-käyttöliittymä | ✅ Valmis | — |
+|   | — C: Editori | 🟡 Käynnissä | — |
+|   | — B+: Palvelu-linkitys | ⚪ Lykätty | myöhemmin |
 | 4 | Sähköinen lomake asiakkaalle (osiot 1–5) | ⚪ Odottaa | Asiakas täyttää itse, URL `/varaa` |
 | 5 | Asiakasportaali (passwordless-kirjautuminen) | ⚪ Odottaa | Tietokanta jo valmis (RLS) |
 | 6 | Julkinen sivusto | ⚪ Odottaa | Korvaa kalevalapaja.fi WordPress |
@@ -299,21 +303,11 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 
 ---
 
-## Vaihe 3 — Palvelut + Asiakastietolomakkeet + linkitys
+## Vaihe 3 — Asiakastietolomakkeet + editori + palvelu-linkitys
 
-**Periaate (29.4.2026):** Palvelu on ensisijainen konsepti,
-lomakepohja on palvelun "ennakkotietolomake" jonka asiakas
-täyttää ilmoittautuessaan.
-
-**Hoitajan polku:**
-1. Luo palvelu (nimi, kesto, hinta)
-2. Valitse/luo palvelulle lomakepohja
-3. Palvelu on tarjottavissa
-
-**Asiakkaan polku:**
-1. Valitsee palvelun
-2. Saa siihen liittyvän lomakkeen
-3. Täyttää ennakkotiedot → varaus
+**Periaate (29.4.2026):** Hoitaja tekee ja muokkaa lomakepohjat.
+Asiakas täyttää valmiita lomakkeita omilla tiedoillaan. Lomakkeet
+tehdään ja muokataan tietokoneella — ei optimoida mobiilille.
 
 ### Tila
 
@@ -323,44 +317,60 @@ täyttää ilmoittautuessaan.
 - 22 kenttää kenttäkirjastossa
 - Käännökset: suomi + englanti
 
-**B — Lomakekirjasto-käyttöliittymä** 🟡 Käynnissä
+**B — Lomakekirjasto-käyttöliittymä** ✅ Valmis (29.4.2026)
 - Asetukset → Käyttäjähallinta → Asiakastietolomakkeet
-- ✅ Lista, Luo uusi, Kopioi, Aseta oletukseksi, Avaa-modaali
-- ❌ ⋯-valikko ei aukea (bug-fix tulossa)
-- ❌ Nimeä uudelleen, Aktivoi/Deaktivoi, Poista — ei käytettävissä
+- Lista, Luo uusi, Kopioi, Aseta oletukseksi, Avaa-modaali (lukutila)
+- ⋯-valikko: Nimeä uudelleen, Aktivoi/Deaktivoi, Poista
+- Oletus-suoja poistolle
 
-**B+ — Palvelu-linkitys** ⚪ Suunniteltu, odottaa
+**C — Editori** 🟡 Käynnissä
+- Oma näkymä: URL `/asetukset/lomakepohja/<id>`
+- Kaksipalstainen layout (tietokoneelle):
+  - Vasen: pohjan asetukset + osio-lista
+  - Oikea: valitun osion kentät
+- Muokattavissa:
+  - Pohjan nimi, kuvaus, näyttötyyli
+  - Osiot: lisää, poista, järjestä, otsikko
+  - Kentät: lisää kirjastosta tai uutena, poista, järjestä,
+    pakollisuus, otsikko, kenttätyyppi
+- 16 kenttätyyppiä (sis. asentomittari 3 alityyppinä)
+- Versiointi: muokkaus luo uuden lomakepohja_versio-rivin
+
+**B+ — Palvelu-linkitys** ⚪ Lykätty
 - Välitaulu palvelu_lomake_linkit
 - Linkitys molemmista suunnista (palvelu ↔ pohja)
-- Avoinna: yksi vai useampi pohja per palvelu
+- Avoinna kunnes editori toimii
 
-**C — Editori** ⚪ Odottaa
-- Pohjien sisällön muokkaus (osiot, kentät)
-- Vapaa muokkaus kenttätasolla
-- 16 kenttätyyppiä mukaan lukien asentomittari
+### Periaate-päätökset (29.4.2026)
 
-### Suunnittelupäätökset (29.4.2026)
+**Hoitaja vs asiakas:**
+- Hoitaja: tekee ja muokkaa lomakepohjat
+- Asiakas: täyttää hoitajan tekemät lomakkeet
+  (omilla tiedoillaan, hoitajalle välitettäväksi)
+
+**Tietokoneella tehdään:**
+- Lomakepohjien luonti ja muokkaus tapahtuu tietokoneella
+- Mobiilioptimointi editorille tehdään vasta kun siihen on tarve
+- Asiakkaiden lomakkeen täyttäminen on eri asia — sen mobiilikäytettävyys on tärkeää
 
 **Tietokanta:**
 - JSON-kenttä lomakepohja_versiot.rakenne
-- Versiointi: pohjan muokkaus luo uuden version, vanhat
-  säilyvät (snapshot-yhteensopivuus)
+- Versiointi: pohjan muokkaus luo uuden version, vanhat säilyvät
 
 **Kenttätyypit (16 kpl):**
-tekstirivi, tekstikentta, numero, sahkoposti, puhelin,
-paivamaara, radio, dropdown, checkbox_lista, checkbox,
-liukusaadin, allekirjoitus, kehonkartta, kuvalataus,
-otsikko, asentomittari (alityypit: numero, liukusaadin,
-vaaitus)
+tekstirivi, tekstikentta, numero, sahkoposti, puhelin, paivamaara,
+radio, dropdown, checkbox_lista, checkbox, liukusaadin,
+allekirjoitus, kehonkartta, kuvalataus, otsikko, asentomittari
+(alityypit: numero, liukusaadin, vaaitus)
 
 **Kenttäkirjasto:**
 - Yhteinen kirjasto, ei vapaa nimeäminen
 - Sama kenttä eri lomakkeissa = vertailukelpoisuus
 
 **Kielituki:**
-- Suomi + englanti (Oxalla on englanninkielisiä asiakkaita)
-- Asiakas valitsee kielen lomakkeen alussa
-- Varakieli suomi jos englanti puuttuu
+- Suomi + englanti (käännökset kenttäkirjastossa)
+- Asiakkaan lomakkeen kielenvaihto vasta vaiheessa 4 (sähköinen
+  asiakaslomake)
 
 ---
 
