@@ -800,6 +800,22 @@ export default function Settings({ hoitajaId }) {
         lapset={<KehonkarttaKalibrointi />}
       />
 
+      <AccordionOsio
+        id="testi1" otsikko="Testi 1" ikoni="🧪"
+        auki={aukiOsio === 'testi1'} onToggle={toggle}
+        lapset={
+          <p className="text-sm text-gray-500">Testi 1 — sisältö tulossa</p>
+        }
+      />
+
+      <AccordionOsio
+        id="testi2" otsikko="Testi 2" ikoni="🧪"
+        auki={aukiOsio === 'testi2'} onToggle={toggle}
+        lapset={
+          <p className="text-sm text-gray-500">Testi 2 — sisältö tulossa</p>
+        }
+      />
+
       {/* ── 5: Tiedot ja tallennus ───────────────────────────────────────── */}
       <AccordionOsio
         id="tallennus" otsikko="Tiedot ja tallennus" ikoni="💾"
