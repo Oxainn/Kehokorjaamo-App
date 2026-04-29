@@ -1,6 +1,7 @@
 import { useState, useRef, Fragment } from 'react'
 import { rakennaPbPäivitys } from '../utils/productboard'
 import { supabase } from '../services/supabase'
+import ProductBoard from './ProductBoard'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
 
@@ -311,6 +312,13 @@ export default function Settings({ hoitajaId }) {
             <TallennaNappi tallennettu={tallennettu1} />
           </form>
         }
+      />
+
+      {/* ── 1b: Tuotehallinta ────────────────────────────────────────────── */}
+      <AccordionOsio
+        id="tuotehallinta" otsikko="Tuotehallinta" ikoni="📋"
+        auki={aukiOsio === 'tuotehallinta'} onToggle={toggle}
+        lapset={<ProductBoard hoitajaId={hoitajaId} hideHeader />}
       />
 
       {/* ── 2: Integraatiot ──────────────────────────────────────────────── */}

@@ -3,14 +3,12 @@ import { supabase } from '../services/supabase'
 import { normalisoiAsiakas } from '../utils/asiakas'
 import Login from './Login'
 import Settings from './Settings'
-import ProductBoard from './ProductBoard'
 import Asiakasrekisteri from './Asiakasrekisteri'
 import Asiakastietolomake from './Asiakastietolomake'
 
 const ylaNav = [
   { id: 'rekisteri',    nimi: 'Asiakasrekisteri', ikoni: '👥' },
   { id: 'uusi-kaynti', nimi: 'Uusi käynti',       ikoni: '➕' },
-  { id: 'tuotehallinta', nimi: 'Tuotehallinta',   ikoni: '📋' },
   { id: 'asetukset',   nimi: 'Asetukset',          ikoni: '⚙️' },
 ]
 
@@ -149,11 +147,6 @@ export default function App() {
         {/* UUSI KÄYNTI */}
         {nakyma === 'uusi-kaynti' && (
           <Asiakastietolomake asiakas={null} hoitajaId={hoitajaId} />
-        )}
-
-        {/* TUOTEHALLINTA */}
-        {nakyma === 'tuotehallinta' && (
-          <ProductBoard hoitajaId={hoitajaId} />
         )}
 
         {/* ASETUKSET */}

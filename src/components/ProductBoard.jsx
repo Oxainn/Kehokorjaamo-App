@@ -6,8 +6,21 @@ const STORAGE_KEY = 'kehokorjaamo_productboard'
 const VERSIO = 'V1'
 
 const OLETUS_VISIO =
-  'Kehokorjaamo App on jäsenkorjaajan ammatillinen työkalu kehon tasapainon ' +
-  'kartoittamiseen ja hoitosuunnitelman rakentamiseen. Lantio on kaiken keskiössä.'
+  'Kehokorjaamo App on jäsenkorjaajan ammatillinen työkalu. Yksi lomake koko ' +
+  'hoitoketjun ajan — osio kerrallaan (C-malli), mobiili ensin. Hoitokerrat ' +
+  'tallennetaan rakenteellisesti (snapshot-malli), vertailukelpoisuus syntyy ' +
+  'automaattisesti. Tietokanta on totuuden lähde (Supabase, RLS aina päällä). ' +
+  'AI ehdottaa, hoitaja päättää.\n\n' +
+  'Periaatteet:\n' +
+  '• Yksi lomake koko ketjun ajan — ei erillisiä komponentteja eri vaiheille\n' +
+  '• Osio kerrallaan -navigointi (pyyhkäisy + nuolet)\n' +
+  '• MVP-lähestymistapa — toimiva paketti ensin, kehitys käytön myötä\n' +
+  '• AI ehdottaa, hoitaja päättää\n' +
+  '• Vertailukelpoisuus — hoitokäyntien data tallennetaan rakenteellisesti\n' +
+  '• Yksi totuuden lähde — Supabase, ei duplikoitua dataa\n' +
+  '• RLS aina päällä — hoitaja näkee vain omat asiakkaansa\n' +
+  '• Mobiilikäyttö ensin — toimii puhelimella ennen kuin desktopilla\n' +
+  '• Helppokäyttöisyys ennen kaikkea: "Onko tämä helppo Oxalle kiireisenä päivänä?"'
 
 const PRIORITEETIT = [
   { id: 'korkea', label: 'Korkea', ikoni: '🔴', kehys: 'border-red-200',    bg: 'bg-red-50',    teksti: 'text-red-700'    },
@@ -16,34 +29,24 @@ const PRIORITEETIT = [
 ]
 
 const OLETUS_TEHTÄVÄT = [
-  { id: 'dt-k1', teksti: 'Esitietolomakkeen brändäys (logo, värit)',              prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-k3', teksti: 'Supabase-tallennus pilveen',                            prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-k4', teksti: 'Lihaskartat hoitosuunnitelmaan',                        prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-k5', teksti: 'Kehonkuvan pisteet oikeille kohdille',                  prioriteetti: 'korkea', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-k6', teksti: 'Kuva-analyysi työkalu: hoitaja ottaa kuvan kameralla, merkitsee mittauspisteet sormella, sovellus laskee ja näyttää kulman viivoina — lantio/hartiat vaakalinjaan, selkäranka pystylinjaan. Tallennetaan asiakkaan tietoihin ja voidaan verrata edelliseen käyntiin.', prioriteetti: 'korkea', lisätty: '2026-04-26T00:00:00.000Z' },
-  { id: 'dt-m2', teksti: 'Hoitokertojen historia ja seuranta',                    prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-m3', teksti: 'Ennen/jälkeen vertailu käyntien välillä',               prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-m4', teksti: 'Automaattinen Claude API ilman kopioi/liitä',           prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-m5', teksti: 'Hoitosuunnitelman tulostus PDF',                        prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-m6', teksti: 'Henkilökohtainen itsehoito-PDF sähköpostilla',          prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-m7', teksti: 'Harjoituskirjasto kuvilla ja ohjeilla',                 prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-m8', teksti: 'Asetukset-välilehden viimeistely',                      prioriteetti: 'keski',  lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-l1', teksti: 'Asiakasportaali omille tiedoille',                      prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-l2', teksti: 'Monivuokrausmalli muille terapeuteille',                prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-l3', teksti: 'Lomakerakentaja hoitajalle',                            prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-l4', teksti: 'Stripe-laskutus maksulliseen versioon',                 prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-l5', teksti: 'Markkinointisivu kehokorjaamo.fi',                      prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
-  { id: 'dt-l6', teksti: 'Onboarding uudelle käyttäjälle',                        prioriteetti: 'matala', lisätty: '2026-04-25T00:00:00.000Z' },
+  { id: 'rm-v1b', teksti: 'Vaihe 1: Osio 3 — Hoitoon tulon syy (pakollinen tekstikenttä, apukysymykset, kipuasteikko 0–10 värikoodattuna)', prioriteetti: 'korkea', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v1c', teksti: 'Vaihe 1: Osio 4 — Kehonkartta (vapaa piirtäminen sormella, hybridi-tallennus: kuva + vyöhyke-JSON, nainen/mies-valinta)', prioriteetti: 'korkea', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v1d', teksti: 'Vaihe 1: Osio 5 — Suostumukset (GDPR pakollinen uusilla, allekirjoitus sormella, tietosuojaseloste)', prioriteetti: 'korkea', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v1e', teksti: 'Vaihe 1: Osionavigaatio — pyyhkäisy (80 px minimi) + nuolinapit, pisteet ylhäällä, klikkaus hyppää osioon', prioriteetti: 'korkea', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v2',  teksti: 'Vaihe 2: Hoitajan osiot 6–8 — havainnot (kallistukset numeroin, liukusäätimet), kuvantamiset (kamera + kulmalaskin), hoitoraportti (kasvaa käynti kerralta)', prioriteetti: 'korkea', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v3',  teksti: 'Vaihe 3: Palvelut + hoitajaprofiili Asetuksiin — nimi, esittely, kuva, koulutukset, sairauslistan muokkaus, palvelukohtainen lomake-konfiguraatio', prioriteetti: 'keski', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v4',  teksti: 'Vaihe 4: Sähköinen lomake asiakkaalle — URL /varaa, asiakas täyttää itse, kirjautumistunnukset sähköpostiin, siirto Velloon lomakkeen jälkeen', prioriteetti: 'keski', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v5',  teksti: 'Vaihe 5: Asiakasportaali (passwordless sähköpostilinkillä) — omat tiedot, hoitohistoria, itsehoito-ohjeet, jatkoajan varaus ilman uutta lomaketta', prioriteetti: 'matala', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v6',  teksti: 'Vaihe 6: Julkinen sivusto — korvaa kalevalapaja.fi WordPress, palvelukuvaukset hoitajaesittelyllä, tietosuojaseloste, blogi myöhemmin', prioriteetti: 'matala', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v7',  teksti: 'Vaihe 7: Ajanvaraus — korvaa Vello, toistuvat aikaslotit, poikkeukset, vahvistussähköpostit, peruutukset, jatkoajan varaus hoidon päätteeksi', prioriteetti: 'matala', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v8',  teksti: 'Vaihe 8: Itsehoito-ohjeet portaaliin — harjoituskirjasto kuvilla/videoilla, synkronoituu lomakkeen havainnoista automaattisesti', prioriteetti: 'matala', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v9',  teksti: 'Vaihe 9: AI-tuki hoidon aikana — hoitosuunnitelmaehdotukset havainnoista, kontraindikaatio-varoitukset, hoitaja hyväksyy ennen tallennusta', prioriteetti: 'matala', lisätty: '2026-04-28T00:00:00.000Z' },
+  { id: 'rm-v10', teksti: 'Vaihe 10: Skaalaus — multi-tenant kunnolla, Stripe-tilausjärjestelmä, tilastot ja raportit, verotusraportit', prioriteetti: 'matala', lisätty: '2026-04-28T00:00:00.000Z' },
 ]
 
-// Tehtävät jotka on valmistunut — poistetaan olemassa olevista listoista
-const VALMISTUNEET_IDT = new Set(['dt-m1', 'dt-k2', 'dt-k5', 'dt-l3'])
+const VALMISTUNEET_IDT = new Set([])
 
-const OLETUS_IDEAT = [
-  { id: 'di-1', teksti: 'Tallenna PDF automaattisesti hoitokerran päätteeksi asiakkaalle sähköpostilla', lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
-  { id: 'di-3', teksti: 'QR-koodi PDF:ään jonka asiakas skannaa ja näkee omat tietonsa mobiilissa',         lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
-  { id: 'di-4', teksti: 'Tulostusasettelu: vaaka- tai pystysuunta valittavissa, logo näkyy yläkulmassa',   lisätty: '2026-04-25T00:00:00.000Z', tila: 'idea' },
-]
+const OLETUS_IDEAT = []
 
 const OLETUS_CHANGELOG = [
   { id: 'cl-1', teksti: 'Asiakastietolomake',                                  valmistunut: '2026-03-01T00:00:00.000Z', versio: 'V1' },
@@ -107,7 +110,7 @@ function AccordionOsio({ id, otsikko, ikoni, badge, auki, onToggle, lapset }) {
   )
 }
 
-export default function ProductBoard({ hoitajaId = null }) {
+export default function ProductBoard({ hoitajaId = null, hideHeader = false }) {
   const [aukiOsio, setAukiOsio] = useState('visio')
   const [pb, setPb] = useState(() => {
     const s = luePB()
@@ -372,10 +375,12 @@ Projektin konteksti:
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-2xl font-semibold text-gray-800">Product Board</h2>
-        <p className="mt-1 text-gray-500 text-sm">Visio, ideat, tehtävät ja muutosloki.</p>
-      </div>
+      {!hideHeader && (
+        <div>
+          <h2 className="text-2xl font-semibold text-gray-800">Product Board</h2>
+          <p className="mt-1 text-gray-500 text-sm">Visio, ideat, tehtävät ja muutosloki.</p>
+        </div>
+      )}
 
       {/* ── 1: Visio ja periaatteet ──────────────────────────────────────── */}
       <AccordionOsio
