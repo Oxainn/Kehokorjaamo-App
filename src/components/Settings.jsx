@@ -145,7 +145,7 @@ function VarausKortti({ label, name, value, onChange, placeholder, ohje }) {
 }
 
 export default function Settings({ hoitajaId }) {
-  const [aukiOsio, setAukiOsio] = useState('terapeutti')
+  const [aukiOsio, setAukiOsio] = useState(null)
   const toggle = (id) => setAukiOsio(prev => prev === id ? null : id)
   const [devInput, setDevInput]   = useState('')
   const [devTila, setDevTila]     = useState(null)
@@ -285,8 +285,8 @@ export default function Settings({ hoitajaId }) {
       </div>
 
       {/* ── KÄYTTÄJÄHALLINTA ─────────────────────────────────────────────── */}
-      <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest px-1 mb-2">Käyttäjähallinta</p>
+      <div style={{ borderLeft: '3px solid #1D9E75', paddingLeft: '10px', marginTop: '4px' }}>
+        <p style={{ fontSize: '11px', fontWeight: '700', color: '#085041', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Käyttäjähallinta</p>
       </div>
 
       <AccordionOsio
@@ -791,8 +791,8 @@ export default function Settings({ hoitajaId }) {
       />
 
       {/* ── OHJELMAHALLINTA ──────────────────────────────────────────────── */}
-      <div>
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-widest px-1 mb-2 mt-4">Ohjelmahallinta</p>
+      <div style={{ borderLeft: '3px solid #185FA5', paddingLeft: '10px', marginTop: '8px' }}>
+        <p style={{ fontSize: '11px', fontWeight: '700', color: '#0C447C', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Ohjelmahallinta</p>
       </div>
 
       <AccordionOsio
