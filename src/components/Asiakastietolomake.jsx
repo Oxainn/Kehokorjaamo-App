@@ -3,6 +3,7 @@ import { useSwipeable } from 'react-swipeable'
 import Osio1Asiakastiedot from './lomakkeen-osiot/Osio1Asiakastiedot'
 import Osio2Sairaudet from './lomakkeen-osiot/Osio2Sairaudet'
 import Osio3HoitoonTulonSyy from './lomake/Osio3HoitoonTulonSyy'
+import Osio4Kehonkartta from './lomake/Osio4Kehonkartta'
 
 const OSIOT = [
   { numero: 1, otsikko: 'ASIAKASTIEDOT' },
@@ -16,6 +17,7 @@ export default function Asiakastietolomake({ asiakas, hoitajaId }) {
   const [nykyinenOsio, setNykyinenOsio] = useState(1)
   const [nykyinenAsiakas, setNykyinenAsiakas] = useState(asiakas)
   const [hoitoonTulonSyy, setHoitoonTulonSyy] = useState({ kuvaus: '', kipuluku: 0 })
+  const [kehonkartta, setKehonkartta] = useState({ merkinnat: {}, vedot: [], kuva: null, hahmo: 'nainen' })
 
   const siirrySeuraavaan = () => {
     if (nykyinenOsio < OSIOT.length) setNykyinenOsio(n => n + 1)
@@ -120,6 +122,10 @@ export default function Asiakastietolomake({ asiakas, hoitajaId }) {
               arvo={hoitoonTulonSyy}
               onMuutos={setHoitoonTulonSyy}
             />
+          </div>
+        ) : nykyinenOsio === 4 ? (
+          <div style={{ width: '100%', alignSelf: 'flex-start' }}>
+            <Osio4Kehonkartta arvo={kehonkartta} onMuutos={setKehonkartta} />
           </div>
         ) : (
           <p style={{ color: '#9ca3af', fontSize: '14px' }}>
