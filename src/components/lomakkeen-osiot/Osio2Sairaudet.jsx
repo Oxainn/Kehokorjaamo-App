@@ -19,10 +19,10 @@ const RYHMAT_JARJESTYS = [
   'Nainen',
   'Mielenterveys',
   'Muut',
-  'Este hoidolle',
+  'Hoidon este vähintään vamma-alueella — ole yhteydessä hoitajaan',
 ]
 
-const onEsteRyhma = (nimi) => nimi?.toLowerCase().startsWith('este')
+const onEsteRyhma = (nimi) => nimi?.toLowerCase().includes('este')
 
 // ─── kasvava textarea ─────────────────────────────────────────────────────────
 
@@ -361,9 +361,7 @@ export default function Osio2Sairaudet({ asiakas }) {
         const este        = onEsteRyhma(ryhma.nimi)
         const valittuja   = ryhma.sairaudet.filter(s => !!valitut[s.id]).length
         const tilaTeksti  = valittuja === 0 ? 'Ei valintoja' : `${valittuja}/${ryhma.sairaudet.length} valittu`
-        const otsikko     = este
-          ? `⚠ ESTE HOIDOLLE — ole yhteydessä hoitajaan`
-          : ryhma.nimi
+        const otsikko     = este ? `⚠ ${ryhma.nimi}` : ryhma.nimi
 
         return (
           <AvattavaOsio
