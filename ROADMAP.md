@@ -14,7 +14,7 @@
 |---|-------|--------|------|
 | 1 | Asiakastietolomake — osiot 1–5 (asiakkaan osa) | 🟡 Suunnittelu valmis, koodaus alkaa | Yksityiskohdat ROADMAP:in lopussa |
 | 2 | Asiakastietolomake — osiot 6–8 (hoitajan osa) | ⚪ Odottaa | Lisätään kun osiot 1–5 toimivat |
-| 3 | Palvelut + hoitajaprofiili Asetuksiin | ⚪ Odottaa | Pohja sivustolle ja lomakkeelle, sis. sairauslistan muokkaus + palvelukohtainen lomake-konfiguraatio |
+| 3 | Palvelut + Asiakastietolomakkeet + linkitys | 🟡 Käynnissä | Lomakepohja-järjestelmä A+B valmis, B+ ja editori (C) tulossa |
 | 4 | Sähköinen lomake asiakkaalle (osiot 1–5) | ⚪ Odottaa | Asiakas täyttää itse, URL `/varaa` |
 | 5 | Asiakasportaali (passwordless-kirjautuminen) | ⚪ Odottaa | Tietokanta jo valmis (RLS) |
 | 6 | Julkinen sivusto | ⚪ Odottaa | Korvaa kalevalapaja.fi WordPress |
@@ -299,18 +299,68 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 
 ---
 
-## Vaihe 3 — Palvelut + Asetukset
+## Vaihe 3 — Palvelut + Asiakastietolomakkeet + linkitys
 
-**Tavoite:** Hoitaja voi konfiguroida palvelunsa ja räätälöidä lomakkeen palvelukohtaisesti.
+**Periaate (29.4.2026):** Palvelu on ensisijainen konsepti,
+lomakepohja on palvelun "ennakkotietolomake" jonka asiakas
+täyttää ilmoittautuessaan.
 
-**Sisältö:**
-- `palvelut`-taulu (hoitaja_id, nimi, kuvaus, kesto, hinta, järjestys, aktiivinen)
-- Asetukset-sivun palvelut-välilehti
-- Hoitajaprofiili (nimi, esittely, kuva, koulutukset)
-- **Sairauslistan muokkaus** Asetuksissa (lisää/muokkaa sairaustyyppejä)
-- **Palvelukohtainen lomake-konfiguraatio:** mitä osioita ja kysymyksiä näytetään milläkin palvelulla
+**Hoitajan polku:**
+1. Luo palvelu (nimi, kesto, hinta)
+2. Valitse/luo palvelulle lomakepohja
+3. Palvelu on tarjottavissa
 
-**Hyödyt:** Pohja vaiheille 4 (sähköinen lomake) ja 6 (sivusto).
+**Asiakkaan polku:**
+1. Valitsee palvelun
+2. Saa siihen liittyvän lomakkeen
+3. Täyttää ennakkotiedot → varaus
+
+### Tila
+
+**A — Tietokanta + 3 aloituspohjaa** ✅ Valmis (29.4.2026)
+- 3 lomakepohjaa: Perus C-tyyli (oletus), Perus Yksi sivu,
+  Perus Avautuvat osiot
+- 22 kenttää kenttäkirjastossa
+- Käännökset: suomi + englanti
+
+**B — Lomakekirjasto-käyttöliittymä** 🟡 Käynnissä
+- Asetukset → Käyttäjähallinta → Asiakastietolomakkeet
+- ✅ Lista, Luo uusi, Kopioi, Aseta oletukseksi, Avaa-modaali
+- ❌ ⋯-valikko ei aukea (bug-fix tulossa)
+- ❌ Nimeä uudelleen, Aktivoi/Deaktivoi, Poista — ei käytettävissä
+
+**B+ — Palvelu-linkitys** ⚪ Suunniteltu, odottaa
+- Välitaulu palvelu_lomake_linkit
+- Linkitys molemmista suunnista (palvelu ↔ pohja)
+- Avoinna: yksi vai useampi pohja per palvelu
+
+**C — Editori** ⚪ Odottaa
+- Pohjien sisällön muokkaus (osiot, kentät)
+- Vapaa muokkaus kenttätasolla
+- 16 kenttätyyppiä mukaan lukien asentomittari
+
+### Suunnittelupäätökset (29.4.2026)
+
+**Tietokanta:**
+- JSON-kenttä lomakepohja_versiot.rakenne
+- Versiointi: pohjan muokkaus luo uuden version, vanhat
+  säilyvät (snapshot-yhteensopivuus)
+
+**Kenttätyypit (16 kpl):**
+tekstirivi, tekstikentta, numero, sahkoposti, puhelin,
+paivamaara, radio, dropdown, checkbox_lista, checkbox,
+liukusaadin, allekirjoitus, kehonkartta, kuvalataus,
+otsikko, asentomittari (alityypit: numero, liukusaadin,
+vaaitus)
+
+**Kenttäkirjasto:**
+- Yhteinen kirjasto, ei vapaa nimeäminen
+- Sama kenttä eri lomakkeissa = vertailukelpoisuus
+
+**Kielituki:**
+- Suomi + englanti (Oxalla on englanninkielisiä asiakkaita)
+- Asiakas valitsee kielen lomakkeen alussa
+- Varakieli suomi jos englanti puuttuu
 
 ---
 

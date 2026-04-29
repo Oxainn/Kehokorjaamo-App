@@ -4,7 +4,7 @@
 > Roadmap kertoo mitä tehdään, projektimuisti kertoo miksi.
 > Päivitä kun teet ison päätöksen.
 
-**Viimeisin päivitys:** 2026-04-28 (osiot 1–5 suunniteltu valmiiksi)
+**Viimeisin päivitys:** 2026-04-29
 
 ---
 
@@ -256,6 +256,39 @@
 **Miksi:** App.jsx pysyy kevyenä. Yhden vastuun periaate.
 
 **Sijainti:** `src/hooks/useAsiakkaanSairaudet.js`.
+
+### 29.4.2026 — Lomakepohja-järjestelmän suunnittelu
+
+**Asetukset → Käyttäjähallinta uudelleenjärjestely:**
+- Terapeutin tiedot
+- Asiakastietolomakkeet (uusi)
+- Palvelut (siirretty)
+
+**Periaate: Palvelu on ensisijainen**
+Hoitaja luo ensin palvelun, sitten siihen lomakepohjan.
+Lomake on palvelun ennakkotietokaavake. Tämä määrittää
+käyttöliittymän järjestyksen ja työnkulun.
+
+**Tietokantarakenne:**
+- lomakepohjat — pohjan metatiedot
+- lomakepohja_versiot — versioitu rakenne JSON-kenttänä
+- kenttakirjasto — yhteiset kentät hoitajan kirjastossa
+- kentan_versiot — kenttien käännökset (FI/EN)
+- palvelu_lomake_linkit (B+ vaiheessa) — moni-moneen
+
+**Hylätyt vaihtoehdot:**
+- Tapa B (relaatiomalli kentille omissa tauluissa) —
+  liian kahlitseva uusille kenttätyypeille
+- Vapaa kenttänimeäminen — rikkoo vertailukelpoisuuden
+- Tason 4 muokkausta varten kompleksinen drag-drop —
+  riittää yksinkertainen lista + nappi
+- Vain suomi -kielirakenne — Oxalla on englanninkielisiä
+  asiakkaita
+
+**Avoinna:**
+- ⋯-valikon bug-korjaus (vaihe B viimeistely)
+- Yksi vai useampi lomakepohja palvelulle (vaihe B+)
+- Editorin yksityiskohdat (vaihe C)
 
 ---
 
