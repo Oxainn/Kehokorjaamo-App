@@ -4,6 +4,7 @@ import Osio1Asiakastiedot from './lomakkeen-osiot/Osio1Asiakastiedot'
 import Osio2Sairaudet from './lomakkeen-osiot/Osio2Sairaudet'
 import Osio3HoitoonTulonSyy from './lomake/Osio3HoitoonTulonSyy'
 import Osio4Kehonkartta from './lomake/Osio4Kehonkartta'
+import Osio5Suostumukset from './lomake/Osio5Suostumukset'
 
 const OSIOT = [
   { numero: 1, otsikko: 'ASIAKASTIEDOT' },
@@ -18,6 +19,7 @@ export default function Asiakastietolomake({ asiakas, hoitajaId }) {
   const [nykyinenAsiakas, setNykyinenAsiakas] = useState(asiakas)
   const [hoitoonTulonSyy, setHoitoonTulonSyy] = useState({ kuvaus: '', kipuluku: 0 })
   const [kehonkartta, setKehonkartta] = useState({ merkinnat: {}, vedot: [], kuva: null, hahmo: 'nainen' })
+  const [suostumukset, setSuostumukset] = useState({ gdprHyvaksytty: false, lupaLuovutukseen: false, allekirjoitus: '' })
 
   const siirrySeuraavaan = () => {
     if (nykyinenOsio < OSIOT.length) setNykyinenOsio(n => n + 1)
@@ -126,6 +128,14 @@ export default function Asiakastietolomake({ asiakas, hoitajaId }) {
         ) : nykyinenOsio === 4 ? (
           <div style={{ width: '100%', alignSelf: 'flex-start' }}>
             <Osio4Kehonkartta arvo={kehonkartta} onMuutos={setKehonkartta} />
+          </div>
+        ) : nykyinenOsio === 5 ? (
+          <div style={{ width: '100%', alignSelf: 'flex-start' }}>
+            <Osio5Suostumukset
+              arvo={suostumukset}
+              onMuutos={setSuostumukset}
+              asiakkaanNimi={nykyinenAsiakas ? `${nykyinenAsiakas.etunimi ?? ''} ${nykyinenAsiakas.sukunimi ?? ''}`.trim() : ''}
+            />
           </div>
         ) : (
           <p style={{ color: '#9ca3af', fontSize: '14px' }}>
