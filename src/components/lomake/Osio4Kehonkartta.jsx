@@ -16,7 +16,7 @@ import { KEHON_VYOHYKKEET } from '../../data/kehonVyohykkeet';
 
 const CANVAS_LEVEYS = 1471;
 const CANVAS_KORKEUS = 1069;
-const SIVELLIN_KOKO = 60;
+const SIVELLIN_KOKO = 30;
 const VYOHYKKEEN_SADE = 80;
 const VAHINKO_KYNNYS_MS = 80;
 
