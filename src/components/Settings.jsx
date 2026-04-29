@@ -319,6 +319,31 @@ export default function Settings({ hoitajaId }) {
         }
       />
 
+      {/* ── Asiakastietolomakkeet ─────────────────────────────────────────── */}
+      <AccordionOsio
+        id="asiakastietolomakkeet" otsikko="Asiakastietolomakkeet" ikoni="📋"
+        auki={aukiOsio === 'asiakastietolomakkeet'} onToggle={toggle}
+        lapset={
+          <div style={{ padding: '8px 0' }}>
+            <p style={{ fontSize: '14px', color: '#6b7280', lineHeight: '1.6' }}>
+              Tähän tulee asiakastietolomakkeiden hallinta.
+              Voit luoda eri palveluille omia versioita.
+            </p>
+            <div style={{
+              marginTop: '16px',
+              padding: '12px 16px',
+              background: '#f8fafc',
+              border: '1px dashed #cbd5e1',
+              borderRadius: '10px',
+              fontSize: '13px',
+              color: '#94a3b8',
+            }}>
+              Tulossa vaiheessa 3
+            </div>
+          </div>
+        }
+      />
+
       {/* ── 3: Brändäys ──────────────────────────────────────────────────── */}
       <AccordionOsio
         id="brandays" otsikko="Brändäys" ikoni="🎨"
