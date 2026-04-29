@@ -19,7 +19,7 @@
 | 5 | Asiakasportaali (passwordless-kirjautuminen) | ⚪ Odottaa | Tietokanta jo valmis (RLS) |
 | 6 | Julkinen sivusto | ⚪ Odottaa | Korvaa kalevalapaja.fi WordPress |
 | 7 | Ajanvaraus | ⚪ Odottaa | Korvaa Vellon |
-| 8 | Itsehoito-ohjeet portaaliin | ⚪ Odottaa | Synkronoituu lomakkeen havainnoista |
+| 8 | Automaattinen laadunvarmistus ja kehitysapu | ⚪ Odottaa | Ks. PROJEKTIMUISTI.md — "Automaattinen laadunvarmistus" |
 | 9 | AI-tuki hoidon aikana | ⚪ Odottaa | Ehdotukset hoitosuunnitelmaan |
 | 10 | Tilastot, raportit, multi-hoitaja | ⚪ Odottaa | Skaalaus muille hoitajille |
 
@@ -398,16 +398,13 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 
 ---
 
-## Vaihe 8 — Itsehoito-ohjeet
+## Vaihe 8 — Automaattinen laadunvarmistus ja kehitysapu
 
-**Tavoite:** Asiakas saa harjoitukset videoineen ja kuvineen portaaliin.
+**Tavoite:** Yhden napin täysi koodianalyysi Asetuksissa — Claude tarkistaa koko sovelluksen ja ehdottaa parannuksia, käyttäjä valitsee mitkä siirtyvät To-Do:lle.
 
-**Sisältö:**
-- Harjoituskirjasto
-- Hoitaja valitsee asiakkaan ohjelmaan harjoituksia
-- **Synkronoituu lomakkeen havainnoista** automaattisesti
-- Asiakas näkee oman ohjelman portaalissa
-- Videot ja kuvat Supabase Storagessa
+**Yksityiskohtainen kuvaus:** ks. PROJEKTIMUISTI.md → "Tulevia ideoita ja päätöksiä" → "Automaattinen laadunvarmistus".
+
+**Huom:** Vaiheessa 5 (portaali) asiakkaalle tarjotaan myös itsehoito-ohjeet harjoituskirjastosta — se toiminto toteutetaan osana portaalia, ei erillisenä vaiheena.
 
 ---
 

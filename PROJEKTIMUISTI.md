@@ -359,6 +359,60 @@ Nämä on tunnistettu mutta ei vielä päätetty:
 
 ---
 
+## Tulevia ideoita ja päätöksiä
+
+### Automaattinen laadunvarmistus (vaihe 8 tai myöhemmin)
+
+**Idea:** Yhden napin täysi automaatio Asetuksissa.
+
+**Toiminta:**
+- Käyttäjä klikkaa "Tarkista" -nappia
+- Sovellus lähettää koko koodin + ROADMAP + PROJEKTIMUISTI Anthropic API:lle
+- Claude analysoi: koodin puhtaus, eheys, toimivuus, käyttäjäpolut, bugit, parannusehdotukset, uudet ideat
+- Vastaus listataan selkokielellä kategorioittain:
+  - 🔴 Bugit (jokin ei toimi)
+  - 🟠 Tekninen velka (sotkuinen koodi)
+  - 🟡 Käytettävyys (mobiili, validointi, palaute)
+  - 🟢 Uudet ideat
+  - 🔵 Suorituskyky
+- Käyttäjä valitsee valintaruudukoilla mitkä ehdotukset siirretään To-Do:lle
+- "Siirrä To-Do:lle" → tehtävät lisätään Tuotehallintaan valmiilla promptilla Codelle
+
+**Miksi ei tehdä nyt:**
+- Vaatii Anthropic API -avaimen ja maksaa per kutsu (~0.05–0.50 € / tarkistus)
+- Ohjelma ei vielä tuota → ei haluta lisämaksuja
+- Koodikanta on vasta kasvamassa → vähän tarkistettavaa
+- Iso työ (1–2 viikkoa) joka viivyttäisi vaihetta 1
+
+**Miksi myöhemmin ok:**
+- Vaiheessa 8 (tai aiemmin kun vaihe 2 valmis)
+- Koodikanta isompi → hyöty kasvaa
+- Ohjelma tuottaa → API-kulut hyväksyttäviä
+- Iso aikasäästö myöhemmin testauksessa
+
+**Prioriteetti:** Korkea — kun aika tulee, rakennetaan kunnolla ja kaiken kattavana.
+
+---
+
+### Tuotehallinnan oikea käyttötarkoitus
+
+**Periaate:** Tuotehallintaan EI duplikoida ROADMAP:ista mitä jo on.
+
+- `ROADMAP.md` = Suunnitelma (vaiheet 1–10, päätökset)
+- `Tuotehallinta` = Mitä **ilmenee** rakentamisen aikana
+
+**Tuotehallintaan kirjataan:**
+- 🐛 Bugit jotka löydetään
+- 💡 Uudet ideat jotka tulevat mieleen
+- 🔧 Tekninen velka
+- 📝 Pienet parannukset
+- ⏰ Asioita "myöhemmäksi"
+- ❓ Avoimia kysymyksiä jotka tarvitsevat ratkaisua
+
+Eli: asioita joita **ei ole ROADMAP:issa**, tai jotka tarkentavat ROADMAP:in vaiheita. Tuotehallinta täyttyy luonnollisesti kehityksen aikana — ei tarvitse alustaa väkisin.
+
+---
+
 ## Käyttäjän asetukset (Oxa)
 
 - Hoitajatili: `oxainn@gmail.com`
