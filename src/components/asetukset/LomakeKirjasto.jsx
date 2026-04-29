@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../services/supabase'
 
 const NAYTTOTYYLIT = {
@@ -13,13 +13,48 @@ function formattiPvm(iso) {
   return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`
 }
 
-// ── Pohjakortti ────────────────────────────────────────────────────────────────
+// ── PohjaKortti ───────────────────────────────────────────────────────────────
+// Valikkotila ja uudelleennimeäminen hallitaan komponenttipaikallisesti, jotta
+// ulkopuolinen sulkumekanismi ei häiritse Reactin event delegation -arkkitehtuuria.
 
-function PohjaKortti({
-  pohja, menuAuki, onMenuToggle,
-  uudelleennimea, onUudelleennimea, onTallennaNimi,
-  onAvaa, onKopioi, onAsetaOletus, onPoista, onToggleAktiivinen,
-}) {
+function PohjaKortti({ pohja, onRefresh, onAvaa, onKopioi, onAsetaOletus, onPoista }) {
+  const [menuAuki, setMenuAuki] = useState(false)
+  const [uudelleenNimi, setUudelleenNimi] = useState(null) // null = ei muokata
+  const menuRef = useRef(null)
+
+  // Sulje valikko klikkaamalla ulkopuolelle — mousedown ennen click-tapahtumaa
+  useEffect(() => {
+    if (!menuAuki) return
+    const handler = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuAuki(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [menuAuki])
+
+  async function tallennaNimi(nimi) {
+    if (!nimi.trim()) { setUudelleenNimi(null); return }
+    try {
+      const { error } = await supabase
+        .from('lomakepohjat').update({ nimi: nimi.trim() }).eq('id', pohja.id)
+      if (error) throw error
+      setUudelleenNimi(null)
+      onRefresh()
+    } catch (e) { alert('Nimeäminen epäonnistui: ' + e.message) }
+  }
+
+  async function toggleAktiivinen() {
+    setMenuAuki(false)
+    try {
+      const { error } = await supabase
+        .from('lomakepohjat').update({ aktiivinen: !pohja.aktiivinen }).eq('id', pohja.id)
+      if (error) throw error
+      onRefresh()
+    } catch (e) { alert('Epäonnistui: ' + e.message) }
+  }
+
   const tyyli = NAYTTOTYYLIT[pohja.viimeisinVersio?.rakenne?.nayttotyyli] || '—'
 
   return (
@@ -27,28 +62,28 @@ function PohjaKortti({
       {/* Otsikkorivi */}
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-1 min-w-0">
-          {uudelleennimea ? (
+          {uudelleenNimi !== null ? (
             <div className="flex items-center gap-2 flex-wrap">
               <input
-                value={uudelleennimea.nimi}
-                onChange={e => onUudelleennimea(prev => ({ ...prev, nimi: e.target.value }))}
+                value={uudelleenNimi}
+                onChange={e => setUudelleenNimi(e.target.value)}
                 onKeyDown={e => {
-                  if (e.key === 'Enter')  onTallennaNimi(pohja.id, uudelleennimea.nimi)
-                  if (e.key === 'Escape') onUudelleennimea(null)
+                  if (e.key === 'Enter')  tallennaNimi(uudelleenNimi)
+                  if (e.key === 'Escape') setUudelleenNimi(null)
                 }}
                 autoFocus
                 className="rounded-lg border border-gray-300 px-2 py-1 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
               />
               <button
                 type="button"
-                onClick={() => onTallennaNimi(pohja.id, uudelleennimea.nimi)}
+                onClick={() => tallennaNimi(uudelleenNimi)}
                 className="text-xs text-brand-600 font-medium hover:text-brand-700"
               >
                 Tallenna
               </button>
               <button
                 type="button"
-                onClick={() => onUudelleennimea(null)}
+                onClick={() => setUudelleenNimi(null)}
                 className="text-xs text-gray-400 hover:text-gray-600"
               >
                 Peruuta
@@ -72,38 +107,45 @@ function PohjaKortti({
           <p className="text-xs text-gray-500">{tyyli}</p>
         </div>
 
-        {/* Kolme pistettä */}
-        <div className="relative">
+        {/* Kolme pistettä — ref koko containerille jotta sisäklikkaus ei sulje */}
+        <div ref={menuRef} className="relative">
           <button
             type="button"
-            onClick={e => { e.stopPropagation(); onMenuToggle(pohja.id) }}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors text-lg leading-none"
+            onClick={() => setMenuAuki(p => !p)}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors select-none"
+            aria-label="Lisää toimintoja"
           >
             ···
           </button>
           {menuAuki && (
-            <div className="absolute right-0 top-9 z-20 w-44 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+            <div className="absolute right-0 top-9 z-50 w-44 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
               <button
                 type="button"
-                onClick={() => {
-                  onMenuToggle(null)
-                  onUudelleennimea({ pohja_id: pohja.id, nimi: pohja.nimi })
-                }}
+                onClick={() => { setMenuAuki(false); setUudelleenNimi(pohja.nimi) }}
                 className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Nimeä uudelleen
               </button>
               <button
                 type="button"
-                onClick={() => onToggleAktiivinen(pohja)}
+                onClick={toggleAktiivinen}
                 className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 {pohja.aktiivinen ? 'Deaktivoi' : 'Aktivoi'}
               </button>
-              {!pohja.on_oletus && (
+              {pohja.on_oletus ? (
                 <button
                   type="button"
-                  onClick={() => { onMenuToggle(null); onPoista(pohja) }}
+                  disabled
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-300 cursor-not-allowed"
+                  title="Oletuspohjaa ei voi poistaa"
+                >
+                  Poista
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setMenuAuki(false); onPoista(pohja) }}
                   className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 >
                   Poista
@@ -232,14 +274,13 @@ function LuoModaali({ tila, setTila, onLuo, lataa }) {
 // ── Avaa pohja -modaali ────────────────────────────────────────────────────────
 
 function AvaaNakymaModaali({ pohja, versio, kentat, onSulje }) {
-  const rakenne  = versio?.rakenne
-  const tyyli    = NAYTTOTYYLIT[rakenne?.nayttotyyli] || rakenne?.nayttotyyli || '—'
-  const osiot    = rakenne?.osiot || []
+  const rakenne = versio?.rakenne
+  const tyyli   = NAYTTOTYYLIT[rakenne?.nayttotyyli] || rakenne?.nayttotyyli || '—'
+  const osiot   = rakenne?.osiot || []
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto">
       <div className="w-full max-w-lg bg-white rounded-2xl shadow-xl my-8">
-        {/* Otsikko */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <h3 className="font-semibold text-gray-800">{pohja.nimi}</h3>
@@ -253,20 +294,17 @@ function AvaaNakymaModaali({ pohja, versio, kentat, onSulje }) {
             ✕
           </button>
         </div>
-
-        {/* Sisältö */}
         <div className="px-5 py-4 flex flex-col gap-4">
           <p className="text-sm font-medium text-gray-700">📋 Osiot tässä pohjassa:</p>
-
           {osiot.length === 0 ? (
             <p className="text-sm text-gray-400 italic">Tämä pohja ei sisällä osioita vielä.</p>
           ) : (
             osiot.map((osio, i) => {
-              const otsikko      = typeof osio.otsikko === 'object' ? osio.otsikko.fi : (osio.otsikko || osio.id)
-              const kenttaLista  = osio.kenttat || []
-              const naytettavat  = kenttaLista.slice(0, 5)
-              const lisaaKpl     = kenttaLista.length - 5
-              const hasRyhmat    = (osio.ryhmittelyt || []).length > 0
+              const otsikko     = typeof osio.otsikko === 'object' ? osio.otsikko.fi : (osio.otsikko || osio.id)
+              const kenttaLista = osio.kenttat || []
+              const naytettavat = kenttaLista.slice(0, 5)
+              const lisaaKpl    = kenttaLista.length - 5
+              const hasRyhmat   = (osio.ryhmittelyt || []).length > 0
 
               return (
                 <div key={osio.id} className="flex flex-col gap-1.5">
@@ -286,9 +324,7 @@ function AvaaNakymaModaali({ pohja, versio, kentat, onSulje }) {
                     {lisaaKpl > 0 && (
                       <li className="text-xs text-gray-400 flex items-center gap-1.5">
                         <span className="text-gray-200">•</span>
-                        <span>
-                          + {lisaaKpl} kenttää lisää{hasRyhmat ? ' (avattavissa ryhmissä)' : ''}
-                        </span>
+                        <span>+ {lisaaKpl} kenttää lisää{hasRyhmat ? ' (avattavissa ryhmissä)' : ''}</span>
                       </li>
                     )}
                     {lisaaKpl <= 0 && hasRyhmat && (
@@ -299,7 +335,6 @@ function AvaaNakymaModaali({ pohja, versio, kentat, onSulje }) {
               )
             })
           )}
-
           <div className="mt-1 pt-3 border-t border-gray-100">
             <p className="text-xs text-gray-400">ⓘ Editorissa (vaihe C) voit muokata näitä.</p>
           </div>
@@ -351,30 +386,16 @@ function VahvistusModaali({ vahvistus, lataa, onPeruuta, onVahvista }) {
 // ── Pääkomponentti ─────────────────────────────────────────────────────────────
 
 export default function LomakeKirjasto() {
-  const [pohjat,       setPohjat]       = useState([])
-  const [lataa,        setLataa]        = useState(true)
-  const [virhe,        setVirhe]        = useState(null)
-
-  const [luoModaali,   setLuoModaali]   = useState({ auki: false, nimi: '', kuvaus: '', nayttotyyli: 'c' })
-  const [luoLataa,     setLuoLataa]     = useState(false)
-
-  const [avaaNakyma,   setAvaaNakyma]   = useState({ auki: false, pohja: null, versio: null, kentat: {} })
-
-  const [vahvistus,    setVahvistus]    = useState(null)
+  const [pohjat,         setPohjat]         = useState([])
+  const [lataa,          setLataa]          = useState(true)
+  const [virhe,          setVirhe]          = useState(null)
+  const [luoModaali,     setLuoModaali]     = useState({ auki: false, nimi: '', kuvaus: '', nayttotyyli: 'c' })
+  const [luoLataa,       setLuoLataa]       = useState(false)
+  const [avaaNakyma,     setAvaaNakyma]     = useState({ auki: false, pohja: null, versio: null, kentat: {} })
+  const [vahvistus,      setVahvistus]      = useState(null)
   const [vahvistusLataa, setVahvistusLataa] = useState(false)
 
-  const [menuAuki,       setMenuAuki]       = useState(null)
-  const [uudelleennimea, setUudelleennimea] = useState(null)
-
   useEffect(() => { haePohjat() }, [])
-
-  // Sulje valikko ulkopuolisesta klikkauksesta
-  useEffect(() => {
-    if (!menuAuki) return
-    const suljeMenu = () => setMenuAuki(null)
-    document.addEventListener('click', suljeMenu)
-    return () => document.removeEventListener('click', suljeMenu)
-  }, [menuAuki])
 
   async function haePohjat() {
     setLataa(true)
@@ -388,10 +409,9 @@ export default function LomakeKirjasto() {
       if (error) throw error
 
       const enriched = (data || []).map(p => {
-        const versiot     = (p.lomakepohja_versiot || []).sort((a, b) => b.versio - a.versio)
-        const viimeisin   = versiot[0] || null
+        const versiot   = (p.lomakepohja_versiot || []).sort((a, b) => b.versio - a.versio)
         const { lomakepohja_versiot: _, ...rest } = p
-        return { ...rest, viimeisinVersio: viimeisin }
+        return { ...rest, viimeisinVersio: versiot[0] || null }
       })
       setPohjat(enriched)
     } catch {
@@ -415,14 +435,12 @@ export default function LomakeKirjasto() {
       const { data: pohja, error: e1 } = await supabase
         .from('lomakepohjat')
         .insert({ hoitaja_id: hoitajaId, nimi: luoModaali.nimi.trim(), kuvaus: luoModaali.kuvaus.trim() || null, on_oletus: false, aktiivinen: true })
-        .select()
-        .single()
+        .select().single()
       if (e1) throw e1
 
-      const rakenne = { formaatti_versio: 1, nayttotyyli: luoModaali.nayttotyyli, osiot: [] }
       const { error: e2 } = await supabase
         .from('lomakepohja_versiot')
-        .insert({ pohja_id: pohja.id, versio: 1, rakenne })
+        .insert({ pohja_id: pohja.id, versio: 1, rakenne: { formaatti_versio: 1, nayttotyyli: luoModaali.nayttotyyli, osiot: [] } })
       if (e2) throw e2
 
       setLuoModaali({ auki: false, nimi: '', kuvaus: '', nayttotyyli: 'c' })
@@ -435,20 +453,17 @@ export default function LomakeKirjasto() {
   }
 
   async function kopioPohja(pohja) {
-    setMenuAuki(null)
     try {
       const hoitajaId = await haeHoitajaId()
       const { data: uusi, error: e1 } = await supabase
         .from('lomakepohjat')
         .insert({ hoitaja_id: hoitajaId, nimi: pohja.nimi + ' (kopio)', kuvaus: pohja.kuvaus || null, on_oletus: false, aktiivinen: true })
-        .select()
-        .single()
+        .select().single()
       if (e1) throw e1
 
-      const rakenne = pohja.viimeisinVersio?.rakenne || { formaatti_versio: 1, nayttotyyli: 'c', osiot: [] }
       const { error: e2 } = await supabase
         .from('lomakepohja_versiot')
-        .insert({ pohja_id: uusi.id, versio: 1, rakenne })
+        .insert({ pohja_id: uusi.id, versio: 1, rakenne: pohja.viimeisinVersio?.rakenne || { formaatti_versio: 1, nayttotyyli: 'c', osiot: [] } })
       if (e2) throw e2
 
       await haePohjat()
@@ -460,18 +475,10 @@ export default function LomakeKirjasto() {
   async function asetaOletus(pohja) {
     setVahvistusLataa(true)
     try {
-      const { error: e1 } = await supabase
-        .from('lomakepohjat')
-        .update({ on_oletus: false })
-        .neq('id', pohja.id)
+      const { error: e1 } = await supabase.from('lomakepohjat').update({ on_oletus: false }).neq('id', pohja.id)
       if (e1) throw e1
-
-      const { error: e2 } = await supabase
-        .from('lomakepohjat')
-        .update({ on_oletus: true })
-        .eq('id', pohja.id)
+      const { error: e2 } = await supabase.from('lomakepohjat').update({ on_oletus: true }).eq('id', pohja.id)
       if (e2) throw e2
-
       setVahvistus(null)
       await haePohjat()
     } catch (e) {
@@ -484,13 +491,8 @@ export default function LomakeKirjasto() {
   async function poistaPohja(pohja) {
     setVahvistusLataa(true)
     try {
-      // CASCADE poistaa lomakepohja_versiot automaattisesti
-      const { error } = await supabase
-        .from('lomakepohjat')
-        .delete()
-        .eq('id', pohja.id)
+      const { error } = await supabase.from('lomakepohjat').delete().eq('id', pohja.id)
       if (error) throw error
-
       setVahvistus(null)
       await haePohjat()
     } catch (e) {
@@ -500,44 +502,13 @@ export default function LomakeKirjasto() {
     }
   }
 
-  async function toggleAktiivinen(pohja) {
-    setMenuAuki(null)
-    try {
-      const { error } = await supabase
-        .from('lomakepohjat')
-        .update({ aktiivinen: !pohja.aktiivinen })
-        .eq('id', pohja.id)
-      if (error) throw error
-      await haePohjat()
-    } catch (e) {
-      alert('Epäonnistui: ' + e.message)
-    }
-  }
-
-  async function tallennaNimi(pohja_id, nimi) {
-    if (!nimi.trim()) { setUudelleennimea(null); return }
-    try {
-      const { error } = await supabase
-        .from('lomakepohjat')
-        .update({ nimi: nimi.trim() })
-        .eq('id', pohja_id)
-      if (error) throw error
-      setUudelleennimea(null)
-      await haePohjat()
-    } catch (e) {
-      alert('Nimeäminen epäonnistui: ' + e.message)
-    }
-  }
-
   async function avaaPohjaNakyma(pohja) {
     try {
-      const rakenne   = pohja.viimeisinVersio?.rakenne
+      const rakenne    = pohja.viimeisinVersio?.rakenne
       const tunnisteet = []
-      for (const osio of rakenne?.osiot || []) {
-        for (const kf of osio.kenttat || []) {
+      for (const osio of rakenne?.osiot || [])
+        for (const kf of osio.kenttat || [])
           if (kf.kentta_id_tunniste) tunnisteet.push(kf.kentta_id_tunniste)
-        }
-      }
 
       let kentatMap = {}
       if (tunnisteet.length > 0) {
@@ -548,19 +519,17 @@ export default function LomakeKirjasto() {
         if (error) throw error
 
         for (const k of data || []) {
-          const versiot   = (k.kentan_versiot || []).sort((a, b) => b.versio - a.versio)
-          const viimeisin = versiot[0]
-          kentatMap[k.kentta_id_tunniste] = viimeisin?.kaannokset?.fi?.otsikko || k.kentta_id_tunniste
+          const v = (k.kentan_versiot || []).sort((a, b) => b.versio - a.versio)[0]
+          kentatMap[k.kentta_id_tunniste] = v?.kaannokset?.fi?.otsikko || k.kentta_id_tunniste
         }
       }
-
       setAvaaNakyma({ auki: true, pohja, versio: pohja.viimeisinVersio, kentat: kentatMap })
     } catch (e) {
       alert('Lataus epäonnistui: ' + e.message)
     }
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex flex-col gap-4">
@@ -579,39 +548,23 @@ export default function LomakeKirjasto() {
         </button>
       </div>
 
-      {lataa && (
-        <div className="text-sm text-gray-400 py-4 text-center">Ladataan…</div>
-      )}
-      {virhe && (
-        <div className="text-sm text-red-500 py-2">{virhe}</div>
-      )}
+      {lataa && <div className="text-sm text-gray-400 py-4 text-center">Ladataan…</div>}
+      {virhe  && <div className="text-sm text-red-500 py-2">{virhe}</div>}
 
-      {/* Pohjakortit */}
       {!lataa && pohjat.map(pohja => (
         <PohjaKortti
           key={pohja.id}
           pohja={pohja}
-          menuAuki={menuAuki === pohja.id}
-          onMenuToggle={id => setMenuAuki(prev => prev === id ? null : id)}
-          uudelleennimea={uudelleennimea?.pohja_id === pohja.id ? uudelleennimea : null}
-          onUudelleennimea={setUudelleennimea}
-          onTallennaNimi={tallennaNimi}
+          onRefresh={haePohjat}
           onAvaa={avaaPohjaNakyma}
           onKopioi={kopioPohja}
           onAsetaOletus={p => setVahvistus({ tyyppi: 'oletus', pohja: p })}
           onPoista={p => setVahvistus({ tyyppi: 'poisto', pohja: p })}
-          onToggleAktiivinen={toggleAktiivinen}
         />
       ))}
 
-      {/* Modaalit */}
       {luoModaali.auki && (
-        <LuoModaali
-          tila={luoModaali}
-          setTila={setLuoModaali}
-          onLuo={luoPohja}
-          lataa={luoLataa}
-        />
+        <LuoModaali tila={luoModaali} setTila={setLuoModaali} onLuo={luoPohja} lataa={luoLataa} />
       )}
 
       {avaaNakyma.auki && (
@@ -629,18 +582,8 @@ export default function LomakeKirjasto() {
           lataa={vahvistusLataa}
           onPeruuta={() => setVahvistus(null)}
           onVahvista={() =>
-            vahvistus.tyyppi === 'oletus'
-              ? asetaOletus(vahvistus.pohja)
-              : poistaPohja(vahvistus.pohja)
+            vahvistus.tyyppi === 'oletus' ? asetaOletus(vahvistus.pohja) : poistaPohja(vahvistus.pohja)
           }
-        />
-      )}
-
-      {/* Backdrop menulle */}
-      {menuAuki && (
-        <div
-          className="fixed inset-0 z-10"
-          onClick={() => setMenuAuki(null)}
         />
       )}
     </div>
