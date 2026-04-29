@@ -2,6 +2,7 @@ import { useState, useRef, Fragment } from 'react'
 import { rakennaPbPäivitys } from '../utils/productboard'
 import { supabase } from '../services/supabase'
 import ProductBoard from './ProductBoard'
+import KehonkarttaKalibrointi from './asetukset/KehonkarttaKalibrointi'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
 
@@ -790,6 +791,13 @@ export default function Settings({ hoitajaId }) {
 
           </div>
         }
+      />
+
+      {/* ── 4b: Kehonkartan kalibrointi ──────────────────────────────────── */}
+      <AccordionOsio
+        id="kehonkartta-kalibrointi" otsikko="Kehonkartan kalibrointi" ikoni="🗺️"
+        auki={aukiOsio === 'kehonkartta-kalibrointi'} onToggle={toggle}
+        lapset={<KehonkarttaKalibrointi />}
       />
 
       {/* ── 5: Tiedot ja tallennus ───────────────────────────────────────── */}
