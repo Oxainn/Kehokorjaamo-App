@@ -4,7 +4,7 @@
 > Päivitä aina kun vaihe valmistuu tai suunnitelma muuttuu.
 > Kun aloitat uuden Claude-chatin, voit sanoa: *"Lue ROADMAP.md ja jatka vaiheesta X"*.
 
-**Viimeisin päivitys:** 2026-04-28 (osiot 1–5 suunniteltu, valmiina toteutukseen)
+**Viimeisin päivitys:** 2026-04-29
 
 ---
 
@@ -90,7 +90,7 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 
 ### Tilanhallinta — hybridi
 - **Checkboxit ja valinnat:** autosave (heti tallennus, "✓ tallennettu — Kumoa")
-- **Tekstikentät:** manuaalinen tallennus
+- **Tekstikentät:** autosave osionvaihdossa (siirtymä = tallennus)
 - **Tallenna-nappi** aina näkyvissä, värittyy muutoksien mukaan
 
 ### Tallennus — lomake on osa hoitokertaa
@@ -189,7 +189,7 @@ Asiakastietolomake on **yksi pitkä lomake** joka kasvaa hoitoketjun aikana. Kä
 
 ### Osio 3: Hoitoon tulon syy
 
-**Pakollinen tekstikenttä** + apukysymykset.
+**Pakollinen tekstikenttä 'Oireiden ja tilanteen kuvaus'** + apukysymykset.
 
 **Apukysymykset näkyvissä kentän alapuolella** (harmaa tausta):
 - Mitä oireita sinulla on?
