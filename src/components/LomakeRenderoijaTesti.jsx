@@ -27,7 +27,7 @@ export default function LomakeRenderoijaTesti() {
           return { id: p.id, nimi: p.nimi, on_oletus: p.on_oletus, nayttotyyli: v?.rakenne?.nayttotyyli ?? '—' }
         })
         setPohjat(rikastetut)
-        const valittu = rikastetut.find((p) => p.nayttotyyli === 'yksi_sivu') ?? rikastetut[0]
+        const valittu = rikastetut.find((p) => p.on_oletus) ?? rikastetut[0]
         setPohjaId(valittu?.id ?? null)
         setLataa(false)
       })
@@ -50,6 +50,7 @@ export default function LomakeRenderoijaTesti() {
         <strong>🧪 Tilapäinen testinäkymä</strong>
         <p style={{ margin: '4px 0 0 0', lineHeight: 1.5 }}>
           T1-kenttätyypit (tekstirivi, tekstikentta, sähköposti, puhelin, päivämäärä, numero, checkbox) ovat tuettuja.
+          Näyttötyylit <code>yksi_sivu</code> ja <code>c</code> (osio kerrallaan) toimivat — accordion tulee myöhemmin.
           Kipuluku, sairauslista, kehonkartta ja allekirjoitus näkyvät puutemerkintöinä — niitä ei vielä tueta.
         </p>
       </div>

@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react'
 import { useLomakepohja } from '../../../hooks/useLomakepohja'
 import { validoiVastaukset } from '../../../lib/lomakeValidointi'
 import NayttoYksiSivu from './nayttotyylit/NayttoYksiSivu'
+import NayttoCKerrallaan from './nayttotyylit/NayttoCKerrallaan'
 
 const NAYTTOTYYLIT = {
   yksi_sivu: NayttoYksiSivu,
+  c:         NayttoCKerrallaan,
 }
 
 const tilaTyyli = {
