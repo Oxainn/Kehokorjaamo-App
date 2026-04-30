@@ -52,9 +52,12 @@ const ryhmaNuoliTyyli = (auki) => ({
   marginLeft: '8px',
 })
 
+// Pakota 2 palstaa kapeisiinkin näyttöihin (iPhone 13 mini ~251px sisätila ei
+// riitä auto-fit minmax(180)-haarukointiin). 3+ palstaa isommilla näytöillä
+// vaatisi media query — siirretään index.cssiin jos halutaan myöhemmin.
 const ruudukkoTyyli = {
   display:             'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
   gap:                 '8px',
   padding:             '10px',
 }
