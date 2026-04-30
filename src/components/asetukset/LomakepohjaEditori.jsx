@@ -6,6 +6,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../services/supabase'
 import { haeKenttakirjasto } from '../../lib/db'
 import LisaaKenttaModaali from './LisaaKenttaModaali'
+import LomakeRenderoija from '../lomake/runtime/LomakeRenderoija'
 
 const luoTunniste = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -53,8 +54,9 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
   const [virhe,       setVirhe]       = useState(null)
 
   // Kenttäkirjasto kentän lisäystä varten
-  const [kenttakirjasto,    setKenttakirjasto]    = useState([])
+  const [kenttakirjasto, setKenttakirjasto] = useState([])
   const [lisayksenKohde, setLisayksenKohde] = useState(null) // null tai osio.id
+  const [esikatselu,     setEsikatselu]     = useState({ auki: false, vastaukset: {} })
 
   useEffect(() => {
     let peruttu = false
@@ -70,6 +72,34 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
     for (const k of kenttakirjasto) map.set(k.tunniste, k)
     return map
   }, [kenttakirjasto])
+
+  // Esikatseluun: muunna kenttäkirjasto useLomakepohja-yhteensopivaan muotoon
+  const kentatEsikatselulle = useMemo(() => {
+    const map = {}
+    for (const k of kenttakirjasto) {
+      map[k.tunniste] = {
+        id:         k.id,
+        tunniste:   k.tunniste,
+        tyyppi:     k.tyyppi,
+        validointi: k.validointi ?? {},
+        oletukset:  k.oletukset ?? {},
+        kaannokset: {
+          fi: {
+            otsikko:     k.otsikko ?? k.tunniste,
+            apurivi:     k.apurivi ?? '',
+            placeholder: k.placeholder ?? '',
+          },
+        },
+      }
+    }
+    return map
+  }, [kenttakirjasto])
+
+  const esikatseluRakenne = useMemo(() => ({
+    formaatti_versio: rakenne?.formaatti_versio ?? 1,
+    nayttotyyli,
+    osiot: osiot.map((o, i) => ({ ...o, jarjestys: i + 1 })),
+  }), [rakenne, nayttotyyli, osiot])
 
   const [alkuTila] = useState({
     nimi:        pohja.nimi ?? '',
@@ -288,13 +318,22 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
             />
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0 pt-5">
+          <div className="flex items-center gap-2 flex-shrink-0 pt-5 flex-wrap">
             <button
               type="button"
               onClick={peruuta}
               className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors"
             >
               Peruuta
+            </button>
+            <button
+              type="button"
+              onClick={() => setEsikatselu({ auki: true, vastaukset: {} })}
+              disabled={osiot.length === 0}
+              className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:border-brand-500 hover:text-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title={osiot.length === 0 ? 'Lisää ensin osio' : 'Esikatsele tallentamaton rakenne'}
+            >
+              👁 Esikatsele
             </button>
             <button
               type="button"
@@ -495,6 +534,39 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
           onValitse={(tunniste) => lisaaKenttaOsioon(lisayksenKohde, tunniste)}
           onSulje={() => setLisayksenKohde(null)}
         />
+      )}
+
+      {/* Esikatselu-modaali */}
+      {esikatselu.auki && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 p-4 overflow-y-auto">
+          <div className="w-full max-w-2xl bg-white rounded-2xl shadow-xl my-8">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white rounded-t-2xl">
+              <div>
+                <h3 className="font-semibold text-gray-800">Esikatselu</h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Tallentamaton rakenne · vastaukset eivät tallennu mihinkään
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEsikatselu({ auki: false, vastaukset: {} })}
+                className="px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Sulje esikatselu
+              </button>
+            </div>
+            <div className="px-5 py-4 bg-gray-50">
+              <LomakeRenderoija
+                valmiitTiedot={{ rakenne: esikatseluRakenne, kentat: kentatEsikatselulle }}
+                vastaukset={esikatselu.vastaukset}
+                onMuutos={(uudet) => setEsikatselu((p) => ({
+                  ...p,
+                  vastaukset: typeof uudet === 'function' ? uudet(p.vastaukset) : uudet,
+                }))}
+              />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

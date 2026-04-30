@@ -36,15 +36,25 @@ const yhteenvetoTyyli = {
   lineHeight:   1.5,
 }
 
-export default function LomakeRenderoija({ pohjaId, vastaukset, onMuutos, onLahetys }) {
-  const { rakenne, kentat, lataa, virhe } = useLomakepohja(pohjaId)
+// LomakeRenderoija voi saada rakenteen kahdella tavalla:
+// 1. pohjaId — useLomakepohja-hookki lataa rakenteen + kentät tietokannasta
+// 2. valmiitTiedot = { rakenne, kentat } — käytä suoraan annettuja arvoja
+//    (esikatselu editorista — rakenne on tallentamaton)
+export default function LomakeRenderoija({ pohjaId, valmiitTiedot, vastaukset, onMuutos, onLahetys }) {
+  const haetut = useLomakepohja(valmiitTiedot ? null : pohjaId)
+
+  const rakenne = valmiitTiedot?.rakenne ?? haetut.rakenne
+  const kentat  = valmiitTiedot?.kentat  ?? haetut.kentat
+  const lataa   = !valmiitTiedot && haetut.lataa
+  const virhe   = !valmiitTiedot && haetut.virhe
+
   const [virheet,  setVirheet]  = useState({})
   const [yritetty, setYritetty] = useState(false)
 
   useEffect(() => {
     setVirheet({})
     setYritetty(false)
-  }, [pohjaId])
+  }, [pohjaId, valmiitTiedot])
 
   if (lataa) return <div style={tilaTyyli}>Ladataan lomakepohjaa…</div>
   if (virhe) return <div style={virheTyyli}>Virhe: {virhe}</div>
