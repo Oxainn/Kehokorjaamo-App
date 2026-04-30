@@ -344,6 +344,68 @@ export const haeAsiakkaanSairaudet = async (asiakasId) => {
   return data ?? []
 }
 
+// Luo uuden kentän kenttäkirjastoon (rivit kenttakirjasto + kentan_versiot).
+// Tunniste on uniikki per hoitaja — tarkistus tietokannan UNIQUE-rajoituksen kautta.
+export const luoUusiKentta = async ({
+  tunniste,
+  tyyppi,
+  otsikko,
+  apurivi = '',
+  placeholder = '',
+  virheilmoitus = '',
+  validointi = {},
+  oletukset = {},
+}) => {
+  if (!tunniste?.trim()) return { virhe: 'Tunniste puuttuu' }
+  if (!tyyppi)           return { virhe: 'Kenttätyyppi puuttuu' }
+  if (!otsikko?.trim())  return { virhe: 'Otsikko puuttuu' }
+
+  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
+  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
+
+  const { data: kentta, error: kenttaVirhe } = await supabase
+    .from('kenttakirjasto')
+    .insert({
+      hoitaja_id:         user.id,
+      kentta_id_tunniste: tunniste.trim(),
+      kenttatyyppi:       tyyppi,
+      validointi,
+      oletukset,
+    })
+    .select('id')
+    .single()
+
+  if (kenttaVirhe) {
+    if (kenttaVirhe.code === '23505') return { virhe: `Tunniste "${tunniste}" on jo käytössä — valitse toinen` }
+    console.error('Uuden kentän tallennus:', kenttaVirhe)
+    return { virhe: `Kentän tallennus: ${kenttaVirhe.message}` }
+  }
+
+  const { error: versioVirhe } = await supabase
+    .from('kentan_versiot')
+    .insert({
+      kentta_id: kentta.id,
+      versio:    1,
+      kaannokset: {
+        fi: {
+          otsikko:       otsikko.trim(),
+          apurivi:       apurivi?.trim() ?? '',
+          placeholder:   placeholder?.trim() ?? '',
+          virheilmoitus: virheilmoitus?.trim() ?? '',
+        },
+        en: { otsikko: '', apurivi: '', placeholder: '', virheilmoitus: '' },
+      },
+      aktiivinen: true,
+    })
+
+  if (versioVirhe) {
+    console.error('Käännösten tallennus:', versioVirhe)
+    return { virhe: `Käännösten tallennus: ${versioVirhe.message}` }
+  }
+
+  return { kenttaId: kentta.id, tunniste: tunniste.trim(), virhe: null }
+}
+
 // Hakee koko kenttäkirjaston editorin käyttöön — kentän tunniste + tyyppi + suomenkielinen otsikko.
 // Palautusmuoto: [{ id, tunniste, tyyppi, otsikko, apurivi, placeholder, validointi, oletukset }]
 export const haeKenttakirjasto = async () => {

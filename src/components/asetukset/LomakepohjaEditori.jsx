@@ -180,6 +180,32 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
     }))
   }
 
+  // Kun käyttäjä luo uuden kentän kenttäkirjastoon LuoUusiKenttaModaalin kautta,
+  // päivitä kenttäkirjasto-tila + lisää kenttä heti osioon.
+  async function uusiKenttaLuotu(osioId, tunniste) {
+    const uudetKentat = await haeKenttakirjasto()
+    setKenttakirjasto(uudetKentat)
+    // Lisää kenttä osioon — kenttaIndex on memo joka päivittyy seuraavalla
+    // renderillä, joten haetaan tunniste manuaalisesti tuoreesta listasta.
+    const kentta = uudetKentat.find((k) => k.tunniste === tunniste)
+    const pakollinenOletus = kentta?.validointi?.pakollinen === true
+    setOsiot((prev) => prev.map((o) => {
+      if (o.id !== osioId) return o
+      return {
+        ...o,
+        kenttat: [
+          ...(o.kenttat ?? []),
+          {
+            kentta_id_tunniste: tunniste,
+            jarjestys:          (o.kenttat?.length ?? 0) + 1,
+            pakollinen:         pakollinenOletus,
+            ryhma:              null,
+          },
+        ],
+      }
+    }))
+  }
+
   function poistaKenttaOsiosta(osioId, tunniste) {
     setOsiot(osiot.map((o) => {
       if (o.id !== osioId) return o
@@ -532,6 +558,7 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
           kenttakirjasto={kenttakirjasto}
           kaytetytTunnisteet={lisayksenKaytetytTunnisteet}
           onValitse={(tunniste) => lisaaKenttaOsioon(lisayksenKohde, tunniste)}
+          onUusiKenttaLuotu={(tunniste) => uusiKenttaLuotu(lisayksenKohde, tunniste)}
           onSulje={() => setLisayksenKohde(null)}
         />
       )}
