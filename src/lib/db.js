@@ -344,6 +344,37 @@ export const haeAsiakkaanSairaudet = async (asiakasId) => {
   return data ?? []
 }
 
+// Hakee koko kenttäkirjaston editorin käyttöön — kentän tunniste + tyyppi + suomenkielinen otsikko.
+// Palautusmuoto: [{ id, tunniste, tyyppi, otsikko, apurivi, placeholder, validointi, oletukset }]
+export const haeKenttakirjasto = async () => {
+  const { data, error } = await supabase
+    .from('kenttakirjasto')
+    .select('id, kentta_id_tunniste, kenttatyyppi, validointi, oletukset, kentan_versiot(versio, kaannokset, aktiivinen)')
+    .order('kentta_id_tunniste')
+
+  if (error) {
+    console.error('Kenttäkirjaston haku epäonnistui:', error)
+    return []
+  }
+
+  return (data ?? []).map((k) => {
+    const v = (k.kentan_versiot ?? [])
+      .filter((x) => x.aktiivinen)
+      .sort((a, b) => b.versio - a.versio)[0]
+    const fi = v?.kaannokset?.fi ?? {}
+    return {
+      id:          k.id,
+      tunniste:    k.kentta_id_tunniste,
+      tyyppi:      k.kenttatyyppi,
+      otsikko:     fi.otsikko ?? k.kentta_id_tunniste,
+      apurivi:     fi.apurivi ?? '',
+      placeholder: fi.placeholder ?? '',
+      validointi:  k.validointi ?? {},
+      oletukset:   k.oletukset ?? {},
+    }
+  })
+}
+
 export const haeOletusLomakepohjaId = async () => {
   const { data, error } = await supabase
     .from('lomakepohjat')
