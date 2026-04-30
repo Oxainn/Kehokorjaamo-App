@@ -4,8 +4,10 @@ import { normalisoiAsiakas } from '../utils/asiakas'
 import Login from './Login'
 import Settings from './Settings'
 import Asiakasrekisteri from './Asiakasrekisteri'
-import Asiakastietolomake from './Asiakastietolomake'
-import LomakeRenderoijaTesti from './LomakeRenderoijaTesti' // TILAPÄINEN — Pala 1:n testaus
+// eslint-disable-next-line no-unused-vars
+import Asiakastietolomake from './Asiakastietolomake' // ROLLBACK — vanha lomake, ei käytössä
+import AsiakaslomakeRenderoijalla from './AsiakaslomakeRenderoijalla'
+import LomakeRenderoijaTesti from './LomakeRenderoijaTesti' // TILAPÄINEN — kehitystestaus
 
 const ylaNav = [
   { id: 'rekisteri',    nimi: 'Asiakasrekisteri', ikoni: '👥' },
@@ -142,13 +144,19 @@ export default function App() {
                 {asiakas.nimi}
               </span>
             </div>
-            <Asiakastietolomake asiakas={asiakas} hoitajaId={hoitajaId} />
+            <AsiakaslomakeRenderoijalla
+              asiakas={asiakas}
+              onValmis={() => setNakyma('rekisteri')}
+            />
           </div>
         )}
 
         {/* UUSI KÄYNTI */}
         {nakyma === 'uusi-kaynti' && (
-          <Asiakastietolomake asiakas={null} hoitajaId={hoitajaId} />
+          <AsiakaslomakeRenderoijalla
+            asiakas={null}
+            onValmis={() => setNakyma('rekisteri')}
+          />
         )}
 
         {/* ASETUKSET */}
