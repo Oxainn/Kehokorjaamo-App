@@ -2,7 +2,7 @@
 // Pala 1: pohjan metadata + osioiden lisäys/poisto/järjestys/otsikko + versionti.
 // Pala 2: kenttien lisäys/poisto/järjestys osion sisällä + pakollisuusrasti.
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../services/supabase'
 import { haeKenttakirjasto } from '../../lib/db'
 import LisaaKenttaModaali from './LisaaKenttaModaali'
@@ -52,6 +52,8 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
   const [osiot,       setOsiot]       = useState(alkuosiot)
   const [tallentaa,   setTallentaa]   = useState(false)
   const [virhe,       setVirhe]       = useState(null)
+  const [tallennettu, setTallennettu] = useState(false)
+  const palauteRef = useRef(null)
 
   // Kenttäkirjasto kentän lisäystä varten
   const [kenttakirjasto, setKenttakirjasto] = useState([])
@@ -255,10 +257,17 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
 
   async function tallenna() {
     const validointivirhe = validoi()
-    if (validointivirhe) { setVirhe(validointivirhe); return }
+    if (validointivirhe) {
+      setVirhe(validointivirhe)
+      setTallennettu(false)
+      // Scrollaa virheilmoitus näkyviin jotta käyttäjä huomaa sen
+      setTimeout(() => palauteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+      return
+    }
 
     setTallentaa(true)
     setVirhe(null)
+    setTallennettu(false)
 
     try {
       // 1. Päivitä pohjan metadata jos muuttunut
@@ -271,7 +280,10 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
             paivitetty: new Date().toISOString(),
           })
           .eq('id', pohja.id)
-        if (error) throw error
+        if (error) {
+          console.error('[LomakepohjaEditori] Pohjan metadatan päivitys epäonnistui:', error)
+          throw error
+        }
       }
 
       // 2. Hae uusin versio-numero
@@ -282,27 +294,43 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
         .order('versio', { ascending: false })
         .limit(1)
         .maybeSingle()
-      if (hakuVirhe) throw hakuVirhe
+      if (hakuVirhe) {
+        console.error('[LomakepohjaEditori] Versio-numeron haku epäonnistui:', hakuVirhe)
+        throw hakuVirhe
+      }
       const seuraavaVersio = (viimeisin?.versio ?? 0) + 1
 
       // 3. Luo uusi versio
+      const uusiRakenne = {
+        formaatti_versio: rakenne?.formaatti_versio ?? 1,
+        nayttotyyli,
+        osiot: osiot.map((o, i) => ({ ...o, jarjestys: i + 1 })),
+      }
+      console.log('[LomakepohjaEditori] Tallennetaan versio', seuraavaVersio, 'pohjalle', pohja.id, '— osioita:', osiot.length, '— rakenne:', uusiRakenne)
+
       const { error: insertVirhe } = await supabase
         .from('lomakepohja_versiot')
         .insert({
-          pohja_id: pohja.id,
-          versio:   seuraavaVersio,
-          rakenne: {
-            formaatti_versio: rakenne?.formaatti_versio ?? 1,
-            nayttotyyli,
-            osiot: osiot.map((o, i) => ({ ...o, jarjestys: i + 1 })),
-          },
+          pohja_id:   pohja.id,
+          versio:     seuraavaVersio,
+          rakenne:    uusiRakenne,
           aktiivinen: true,
         })
-      if (insertVirhe) throw insertVirhe
+      if (insertVirhe) {
+        console.error('[LomakepohjaEditori] Version tallennus epäonnistui:', insertVirhe)
+        throw insertVirhe
+      }
 
-      onTallennettu()
+      console.log('[LomakepohjaEditori] Versio', seuraavaVersio, 'tallennettu onnistuneesti')
+      setTallennettu(true)
+      // Scrollaa onnistumisilmoitus näkyviin + viive jotta käyttäjä näkee sen ennen palaamista
+      setTimeout(() => palauteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
+      setTimeout(onTallennettu, 1200)
     } catch (e) {
-      setVirhe(e.message ?? 'Tallennus epäonnistui')
+      const viesti = e?.message ?? e?.error_description ?? 'Tallennus epäonnistui (tarkemmat tiedot konsolissa)'
+      console.error('[LomakepohjaEditori] Tallennusvirhe:', e)
+      setVirhe(viesti)
+      setTimeout(() => palauteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
     } finally {
       setTallentaa(false)
     }
@@ -401,8 +429,21 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
         </div>
 
         {virhe && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
-            {virhe}
+          <div ref={palauteRef} className="rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-sm flex items-start gap-3">
+            <span className="text-2xl leading-none flex-shrink-0">⚠</span>
+            <div className="flex-1">
+              <p className="font-semibold mb-0.5">Tallennus ei onnistunut</p>
+              <p className="text-red-700">{virhe}</p>
+            </div>
+          </div>
+        )}
+        {tallennettu && !virhe && (
+          <div ref={palauteRef} className="rounded-lg border-2 border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800 shadow-sm flex items-start gap-3">
+            <span className="text-2xl leading-none flex-shrink-0">✓</span>
+            <div className="flex-1">
+              <p className="font-semibold mb-0.5">Versio tallennettu</p>
+              <p className="text-emerald-700">Palataan kirjastoon hetken kuluttua…</p>
+            </div>
           </div>
         )}
       </div>
