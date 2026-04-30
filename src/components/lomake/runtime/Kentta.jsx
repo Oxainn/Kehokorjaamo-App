@@ -7,6 +7,8 @@ import Numero from './kenttatyypit/Numero'
 import Checkbox from './kenttatyypit/Checkbox'
 import Liukusaadin from './kenttatyypit/Liukusaadin'
 import CheckboxLista from './kenttatyypit/CheckboxLista'
+import Kehonkartta from './kenttatyypit/Kehonkartta'
+import Allekirjoitus from './kenttatyypit/Allekirjoitus'
 
 const KENTTATYYPIT = {
   tekstirivi:    Tekstirivi,
@@ -18,6 +20,8 @@ const KENTTATYYPIT = {
   checkbox:      Checkbox,
   liukusaadin:   Liukusaadin,
   checkbox_lista: CheckboxLista,
+  kehonkartta:   Kehonkartta,
+  allekirjoitus: Allekirjoitus,
 }
 
 // Tyypit jotka hoitavat oman otsikkonsa ja apurivinsä komponentin sisällä —
