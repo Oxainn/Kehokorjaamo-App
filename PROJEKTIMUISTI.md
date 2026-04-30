@@ -171,6 +171,23 @@
 
 **Miksi:** Päällekkäisyys aiheuttaa sekaannusta. Asiakas täyttää joko sähköisesti etukäteen tai hoitohuoneessa tabletilla. Hätätilanne ratkaistaan offline-toiminnallisuudella (vaihe B), ei paluulla paperiin.
 
+### 2026-04-30 — Pakollisuus pohjakohtaisesti, ei kenttäkirjastossa
+
+**Päätös:** Kentän pakollisuus määräytyy **pohjarakenteessa** (`osio.kenttat[].pakollinen`-attribuutti), ei kenttäkirjastossa muuttumattomana ominaisuutena. Sama kenttä voi olla pakollinen yhdessä pohjassa ja valinnainen toisessa.
+
+**Soveltava esimerkki — sähköposti:**
+
+- **Hoitaja-näkymät** (paperilomakkeen täydennys, tabletilla hoitohuoneessa): `sahkoposti.pakollinen = false` — iäkäs asiakas voi olla ilman sähköpostia, hoitaja voi täyttää ilman.
+- **Asiakas-täyttöpohjat** (asiakas itse täyttää etukäteen tai portaalissa): `sahkoposti.pakollinen = true` — sähköposti on asiakkaan tunniste portaalia ja muistutuksia varten.
+
+**Miksi:** Kenttäkirjasto kuvaa kentän tyyppiä ja perusrakennetta — ei siitä, missä kontekstissa se on pakollinen. Pakollisuus on käyttötilanteesta riippuva.
+
+**Vaikutus:**
+
+- Kenttäkirjastossa olevat `validointi.pakollinen`-arvot ovat vain oletuksia uutta kenttää lisättäessä — pohja yliajaa ne `kenttamerkinta.pakollinen`-attribuutilla.
+- Editori (Vaihe A) hallitsee tämän rastittavalla "Pakollinen" -valinnalla per kenttä per pohja.
+- Kun samaa pohjaa kopioidaan asiakas-versioksi (Vaihe A:n loppupuoli tai Vaihe C), pakollisuusasetukset päivitetään näkymäkohtaisesti.
+
 ### 2026-04-30 — Etsi vaihtoehtoja ja suosittele -periaate
 
 **Päätös:** AI:n työnkulkuun lisätään: kun toteutusvaihtoehtoja on, esitä 2–3 ja suosittele yksi. Hoitaja valitsee, AI toteuttaa.
