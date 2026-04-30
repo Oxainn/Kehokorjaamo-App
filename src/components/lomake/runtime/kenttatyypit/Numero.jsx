@@ -1,18 +1,18 @@
-const inputTyyli = {
+const inputTyyli = (virhe) => ({
   width:            '100%',
   padding:          '11px 12px',
   borderRadius:     '10px',
-  border:           '1.5px solid #e2e8f0',
+  border:           virhe ? '1.5px solid #EF4444' : '1.5px solid #e2e8f0',
   fontSize:         '14px',
   color:            '#111827',
   outline:          'none',
   boxSizing:        'border-box',
-  background:       'white',
+  background:       virhe ? '#fef2f2' : 'white',
   fontFamily:       'inherit',
   appearance:       'textfield',
   WebkitAppearance: 'none',
   MozAppearance:    'textfield',
-}
+})
 
 const yksikkoTyyli = {
   position:    'absolute',
@@ -25,7 +25,7 @@ const yksikkoTyyli = {
   pointerEvents: 'none',
 }
 
-export default function Numero({ kentta, arvo, onMuutos }) {
+export default function Numero({ kentta, arvo, virhe, onMuutos }) {
   const fi         = kentta.kaannokset?.fi ?? {}
   const validointi = kentta.validointi ?? {}
   const oletukset  = kentta.oletukset ?? {}
@@ -38,7 +38,9 @@ export default function Numero({ kentta, arvo, onMuutos }) {
     onMuutos(n)
   }
 
-  const tyyli = yksikko ? { ...inputTyyli, paddingRight: '48px' } : inputTyyli
+  const tyyli = yksikko
+    ? { ...inputTyyli(virhe), paddingRight: '48px' }
+    : inputTyyli(virhe)
 
   return (
     <div style={{ position: 'relative' }}>

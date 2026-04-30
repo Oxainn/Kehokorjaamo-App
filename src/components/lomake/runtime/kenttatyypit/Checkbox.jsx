@@ -1,13 +1,13 @@
-const containerTyyli = {
+const containerTyyli = (virhe) => ({
   display:    'flex',
   alignItems: 'flex-start',
   gap:        '12px',
   padding:    '12px 14px',
-  background: '#f9fafb',
+  background: virhe ? '#fef2f2' : '#f9fafb',
   borderRadius: '12px',
-  border:     '1.5px solid #e2e8f0',
+  border:     virhe ? '1.5px solid #EF4444' : '1.5px solid #e2e8f0',
   cursor:     'pointer',
-}
+})
 
 const checkboxTyyli = {
   width:     '22px',
@@ -38,13 +38,13 @@ const apuriviTyyli = {
   lineHeight: 1.4,
 }
 
-export default function Checkbox({ kentta, kenttamerkinta, arvo, onMuutos }) {
+export default function Checkbox({ kentta, kenttamerkinta, arvo, virhe, onMuutos }) {
   const fi         = kentta.kaannokset?.fi ?? {}
   const pakollinen = kenttamerkinta?.pakollinen || kentta.validointi?.pakollinen
   const tarkistettu = arvo === true
 
   return (
-    <label style={containerTyyli}>
+    <label style={containerTyyli(virhe)}>
       <input
         type="checkbox"
         checked={tarkistettu}

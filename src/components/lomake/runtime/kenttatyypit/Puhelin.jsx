@@ -1,15 +1,15 @@
-const inputTyyli = {
+const inputTyyli = (virhe) => ({
   width:        '100%',
   padding:      '11px 12px',
   borderRadius: '10px',
-  border:       '1.5px solid #e2e8f0',
+  border:       virhe ? '1.5px solid #EF4444' : '1.5px solid #e2e8f0',
   fontSize:     '14px',
   color:        '#111827',
   outline:      'none',
   boxSizing:    'border-box',
-  background:   'white',
+  background:   virhe ? '#fef2f2' : 'white',
   fontFamily:   'inherit',
-}
+})
 
 const muotoilePuhelin = (arvo) => {
   if (!arvo) return ''
@@ -21,7 +21,7 @@ const muotoilePuhelin = (arvo) => {
   return `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6, 10)}`
 }
 
-export default function Puhelin({ kentta, arvo, onMuutos }) {
+export default function Puhelin({ kentta, arvo, virhe, onMuutos }) {
   const fi = kentta.kaannokset?.fi ?? {}
 
   return (
@@ -32,7 +32,7 @@ export default function Puhelin({ kentta, arvo, onMuutos }) {
       value={arvo ?? ''}
       onChange={(e) => onMuutos(muotoilePuhelin(e.target.value))}
       placeholder={fi.placeholder ?? ''}
-      style={inputTyyli}
+      style={inputTyyli(virhe)}
     />
   )
 }

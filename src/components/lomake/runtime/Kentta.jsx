@@ -43,7 +43,20 @@ const eiTuettu = {
   border:     '1px dashed #e5e7eb',
 }
 
-export default function Kentta({ kentta, kenttamerkinta, arvo, onMuutos }) {
+const virhevistiTyyli = {
+  fontSize:   '12px',
+  color:      '#b91c1c',
+  margin:     '4px 0 0 0',
+  fontWeight: '500',
+}
+
+const apuriviTyyli = {
+  fontSize:   '12px',
+  color:      '#6b7280',
+  margin:     '4px 0 0 0',
+}
+
+export default function Kentta({ kentta, kenttamerkinta, arvo, virhe, onMuutos }) {
   if (!kentta) {
     return (
       <div style={eiTuettu}>
@@ -71,7 +84,16 @@ export default function Kentta({ kentta, kenttamerkinta, arvo, onMuutos }) {
 
   if (SISAINEN_LABEL.has(kentta.tyyppi)) {
     return (
-      <Komponentti kentta={kentta} kenttamerkinta={kenttamerkinta} arvo={arvo} onMuutos={onMuutos} />
+      <div>
+        <Komponentti
+          kentta={kentta}
+          kenttamerkinta={kenttamerkinta}
+          arvo={arvo}
+          virhe={virhe}
+          onMuutos={onMuutos}
+        />
+        {virhe && <p style={virhevistiTyyli}>{virhe}</p>}
+      </div>
     )
   }
 
@@ -81,10 +103,15 @@ export default function Kentta({ kentta, kenttamerkinta, arvo, onMuutos }) {
         {fi.otsikko ?? kentta.tunniste}
         {kenttamerkinta?.pakollinen && <span style={tahti}>*</span>}
       </label>
-      <Komponentti kentta={kentta} kenttamerkinta={kenttamerkinta} arvo={arvo} onMuutos={onMuutos} />
-      {fi.apurivi && (
-        <p style={{ fontSize: '12px', color: '#6b7280', margin: '4px 0 0 0' }}>{fi.apurivi}</p>
-      )}
+      <Komponentti
+        kentta={kentta}
+        kenttamerkinta={kenttamerkinta}
+        arvo={arvo}
+        virhe={virhe}
+        onMuutos={onMuutos}
+      />
+      {virhe && <p style={virhevistiTyyli}>{virhe}</p>}
+      {!virhe && fi.apurivi && <p style={apuriviTyyli}>{fi.apurivi}</p>}
     </div>
   )
 }

@@ -8,7 +8,7 @@ const otsikkoTyyli = {
   letterSpacing: '0.02em',
 }
 
-export default function Osio({ osio, kentat, vastaukset, onKenttamuutos }) {
+export default function Osio({ osio, kentat, vastaukset, virheet, onKenttamuutos }) {
   const otsikko = typeof osio.otsikko === 'object' ? (osio.otsikko.fi ?? osio.id) : (osio.otsikko ?? osio.id)
   const kenttat = osio.kenttat ?? []
 
@@ -30,6 +30,7 @@ export default function Osio({ osio, kentat, vastaukset, onKenttamuutos }) {
             kentta={kentat[tunniste]}
             kenttamerkinta={kenttamerkinta}
             arvo={vastaukset[tunniste]}
+            virhe={virheet?.[tunniste]}
             onMuutos={(uusiArvo) => onKenttamuutos(tunniste, uusiArvo)}
           />
         )
