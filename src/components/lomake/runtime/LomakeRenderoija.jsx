@@ -62,11 +62,15 @@ export default function LomakeRenderoija({ pohjaId, vastaukset, onMuutos, onLahe
   }
 
   function paivitaKentta(tunniste, uusiArvo) {
-    onMuutos({ ...vastaukset, [tunniste]: uusiArvo })
-    if (virheet[tunniste]) {
-      const { [tunniste]: _, ...loput } = virheet
-      setVirheet(loput)
-    }
+    // Funktionaalinen päivitys jotta stale-closurella varustetut komponentit
+    // (esim. AllekirjoitusPad jonka useEffect on tallentanut callback-referenssin)
+    // eivät yliaja toisten kenttien arvoja.
+    onMuutos((edellinen) => ({ ...(edellinen ?? {}), [tunniste]: uusiArvo }))
+    setVirheet((prev) => {
+      if (!prev[tunniste]) return prev
+      const { [tunniste]: _, ...loput } = prev
+      return loput
+    })
   }
 
   function lahetaLomake() {
