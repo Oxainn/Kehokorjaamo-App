@@ -3,8 +3,8 @@ import { useSwipeable } from 'react-swipeable'
 import Osio from '../Osio'
 
 const pisteTyyli = (aktiivinen, sisaltaaVirheen, valmis) => ({
-  width:        '28px',
-  height:       '28px',
+  width:        '24px',
+  height:       '24px',
   borderRadius: '50%',
   border:       sisaltaaVirheen
                   ? '2px solid #EF4444'
@@ -30,8 +30,8 @@ const pisteTyyli = (aktiivinen, sisaltaaVirheen, valmis) => ({
 })
 
 const sisapilkkuTyyli = {
-  width:        '8px',
-  height:       '8px',
+  width:        '7px',
+  height:       '7px',
   borderRadius: '50%',
   background:   'white',
 }
@@ -52,13 +52,23 @@ const alaotsikkoTyyli = {
 }
 
 const nappiPohja = {
-  flex:         1,
-  minHeight:    '48px',
-  borderRadius: '12px',
-  fontSize:     '14px',
+  minHeight:    '44px',
+  padding:      '0 14px',
+  borderRadius: '10px',
+  fontSize:     '13px',
   fontWeight:   '600',
   cursor:       'pointer',
   transition:   'all 0.15s',
+  whiteSpace:   'nowrap',
+}
+
+const alapalkkiTyyli = {
+  display:        'flex',
+  alignItems:     'center',
+  justifyContent: 'space-between',
+  gap:            '8px',
+  paddingTop:     '8px',
+  flexWrap:       'wrap',
 }
 
 export default function NayttoCKerrallaan({ rakenne, kentat, vastaukset, virheet, onKenttamuutos, onLahetys }) {
@@ -117,27 +127,8 @@ export default function NayttoCKerrallaan({ rakenne, kentat, vastaukset, virheet
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-      {/* Yläosa: pisteet + otsikko */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', paddingBottom: '4px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {osiot.map((o, i) => {
-            const aktiivinen = i === nykyinen
-            const sisaltaaVirheen = osionVirhe.has(i)
-            const valmis = i < nykyinen && !sisaltaaVirheen
-            const otsikkoNayttoon = typeof o.otsikko === 'object' ? (o.otsikko.fi ?? o.id) : (o.otsikko ?? o.id)
-            return (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => setNykyinen(i)}
-                aria-label={`Osio ${i + 1}: ${otsikkoNayttoon}`}
-                style={pisteTyyli(aktiivinen, sisaltaaVirheen, valmis)}
-              >
-                {aktiivinen && <div style={sisapilkkuTyyli} />}
-              </button>
-            )
-          })}
-        </div>
+      {/* Yläosa: alaotsikko + iso otsikko */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', paddingBottom: '4px' }}>
         <p style={alaotsikkoTyyli}>Osio {nykyinen + 1}/{osiot.length}</p>
         <h2 style={otsikkoTyyli}>{otsikko.toUpperCase()}</h2>
       </div>
@@ -161,11 +152,12 @@ export default function NayttoCKerrallaan({ rakenne, kentat, vastaukset, virheet
           vastaukset={vastaukset}
           virheet={virheet}
           onKenttamuutos={onKenttamuutos}
+          naytaOtsikko={false}
         />
       </div>
 
-      {/* Alaosa: nuolinapit + lähetä */}
-      <div style={{ display: 'flex', gap: '12px', paddingTop: '4px' }}>
+      {/* Alapalkki: edellinen | pisteet | seuraava/lähetä */}
+      <div style={alapalkkiTyyli}>
         <button
           type="button"
           onClick={edellinen}
@@ -181,6 +173,27 @@ export default function NayttoCKerrallaan({ rakenne, kentat, vastaukset, virheet
         >
           ◄ EDELLINEN
         </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {osiot.map((o, i) => {
+            const aktiivinen = i === nykyinen
+            const sisaltaaVirheen = osionVirhe.has(i)
+            const valmis = i < nykyinen && !sisaltaaVirheen
+            const otsikkoNayttoon = typeof o.otsikko === 'object' ? (o.otsikko.fi ?? o.id) : (o.otsikko ?? o.id)
+            return (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setNykyinen(i)}
+                aria-label={`Osio ${i + 1}: ${otsikkoNayttoon}`}
+                style={pisteTyyli(aktiivinen, sisaltaaVirheen, valmis)}
+              >
+                {aktiivinen && <div style={sisapilkkuTyyli} />}
+              </button>
+            )
+          })}
+        </div>
+
         {viimeisessa && onLahetys ? (
           <button
             type="button"
