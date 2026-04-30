@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../services/supabase'
+import LomakepohjaEditori from './LomakepohjaEditori'
 
 const NAYTTOTYYLIT = {
   c:         'Osio kerrallaan',
@@ -394,6 +395,7 @@ export default function LomakeKirjasto() {
   const [avaaNakyma,     setAvaaNakyma]     = useState({ auki: false, pohja: null, versio: null, kentat: {} })
   const [vahvistus,      setVahvistus]      = useState(null)
   const [vahvistusLataa, setVahvistusLataa] = useState(false)
+  const [editoitavaPohja, setEditoitavaPohja] = useState(null)
 
   useEffect(() => { haePohjat() }, [])
 
@@ -531,6 +533,21 @@ export default function LomakeKirjasto() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
+  // Editorinäkymä korvaa kirjaston kun pohja avataan muokattavaksi
+  if (editoitavaPohja) {
+    return (
+      <LomakepohjaEditori
+        pohja={editoitavaPohja}
+        rakenne={editoitavaPohja.viimeisinVersio?.rakenne ?? { formaatti_versio: 1, nayttotyyli: 'c', osiot: [] }}
+        onTallennettu={async () => {
+          setEditoitavaPohja(null)
+          await haePohjat()
+        }}
+        onPeruuta={() => setEditoitavaPohja(null)}
+      />
+    )
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {/* Otsikko + Luo uusi */}
@@ -556,7 +573,7 @@ export default function LomakeKirjasto() {
           key={pohja.id}
           pohja={pohja}
           onRefresh={haePohjat}
-          onAvaa={avaaPohjaNakyma}
+          onAvaa={(p) => setEditoitavaPohja(p)}
           onKopioi={kopioPohja}
           onAsetaOletus={p => setVahvistus({ tyyppi: 'oletus', pohja: p })}
           onPoista={p => setVahvistus({ tyyppi: 'poisto', pohja: p })}
