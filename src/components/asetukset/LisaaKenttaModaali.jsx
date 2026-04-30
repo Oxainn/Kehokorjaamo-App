@@ -16,6 +16,7 @@ const KENTTATYYPPI_NIMET = {
   checkbox_lista: 'Lista (rastit)',
   kehonkartta:   'Kehonkartta',
   allekirjoitus: 'Allekirjoitus',
+  infoteksti:    'Infoteksti (staattinen)',
 }
 
 export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet, onValitse, onUusiKenttaLuotu, onSulje }) {

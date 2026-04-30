@@ -26,6 +26,9 @@ export const validoiVastaukset = (rakenne, kentat, vastaukset) => {
       const kentta   = kentat[tunniste]
       if (!kentta) continue
 
+      // Infoteksti on staattinen sisältö — ei syötettä, ei pakollisuutta
+      if (kentta.tyyppi === 'infoteksti') continue
+
       const pakollinen = kf.pakollinen || kentta.validointi?.pakollinen
       if (!pakollinen) continue
 

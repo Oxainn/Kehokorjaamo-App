@@ -1,10 +1,11 @@
 // Modaali uuden kentän luomiseksi kenttäkirjastoon.
-// Tukee kaikkia 11 kenttätyyppiä, tyyppikohtaiset asetukset (numero/liukusaadin/checkbox_lista).
+// Tukee 12 kenttätyyppiä, tyyppikohtaiset asetukset (numero/liukusaadin/checkbox_lista/infoteksti).
 
 import { useState, useMemo, useEffect } from 'react'
 import { luoUusiKentta } from '../../lib/db'
 
 const KENTTATYYPIT = [
+  { arvo: 'infoteksti',     nimi: 'Infoteksti (näkyy lomakkeessa, ei syötettä)' },
   { arvo: 'tekstirivi',     nimi: 'Tekstirivi (lyhyt teksti)' },
   { arvo: 'tekstikentta',   nimi: 'Tekstikenttä (pitkä teksti, monirivinen)' },
   { arvo: 'sahkoposti',     nimi: 'Sähköposti' },
@@ -65,6 +66,9 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
   // Checkbox-lista
   const [listaLahde,     setListaLahde]     = useState('sairaustyypit_taulu')
 
+  // Infoteksti — sisältö (pidempi tekstilohko)
+  const [infoSisalto,    setInfoSisalto]    = useState('')
+
   const [tallentaa,      setTallentaa]      = useState(false)
   const [virhe,          setVirhe]          = useState(null)
 
@@ -115,7 +119,17 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
   }, [tyyppi, numeroYksikko, saadinAskel, saadinVari, saadinOhjeMin, saadinOhjeMax])
 
   async function tallenna() {
-    if (!otsikko.trim())  { setVirhe('Otsikko puuttuu'); return }
+    // Infoteksti voi olla ilman otsikkoa kunhan sisältö on annettu
+    if (tyyppi === 'infoteksti') {
+      if (!otsikko.trim() && !infoSisalto.trim()) {
+        setVirhe('Anna joko otsikko tai sisältö')
+        return
+      }
+    } else if (!otsikko.trim()) {
+      setVirhe('Otsikko puuttuu')
+      return
+    }
+
     if (!tunniste.trim()) { setVirhe('Tunniste puuttuu'); return }
     if (!/^[a-z][a-z0-9_]*$/.test(tunniste)) {
       setVirhe('Tunniste saa sisältää vain pieniä kirjaimia, numeroita ja alaviivoja, alkaa kirjaimella')
@@ -128,9 +142,10 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
       const tulos = await luoUusiKentta({
         tunniste,
         tyyppi,
-        otsikko,
+        otsikko: otsikko.trim() || tunniste,
         apurivi,
         placeholder,
+        sisalto: tyyppi === 'infoteksti' ? infoSisalto : '',
         validointi,
         oletukset,
       })
@@ -228,6 +243,26 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
                 placeholder="Esim. Hieronta, kiropraktikko, fysioterapia"
                 className={inputLuokka}
               />
+            </div>
+          )}
+
+          {/* Infoteksti-kohtaiset asetukset */}
+          {tyyppi === 'infoteksti' && (
+            <div className="flex flex-col gap-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
+              <p className="text-xs font-semibold text-blue-900 uppercase tracking-wide">Infoteksti-asetukset</p>
+              <div className="flex flex-col gap-1">
+                <label className={labelLuokka}>Sisältö (näytetään lomakkeessa)</label>
+                <textarea
+                  value={infoSisalto}
+                  onChange={(e) => setInfoSisalto(e.target.value)}
+                  placeholder="Esim. Tämä lomake on tarkoitettu jäsenkorjausta varten. Hoito kestää noin 60 minuuttia. Pukeudu mukavasti."
+                  rows={4}
+                  className={`${inputLuokka} resize-y`}
+                />
+                <p className="text-xs text-gray-500">
+                  Otsikko ja sisältö näkyvät lomakkeessa harmaana laatikkona. Käytetään palvelukuvaukseen, lisäohjeisiin tai väliotsikoihin. Ei syötettä asiakkaalle.
+                </p>
+              </div>
             </div>
           )}
 

@@ -27,6 +27,7 @@ const KENTTATYYPPI_NIMET = {
   checkbox_lista: 'Lista',
   kehonkartta:   'Kehonkartta',
   allekirjoitus: 'Allekirjoitus',
+  infoteksti:    'Infoteksti',
 }
 
 function osioidenJsonStringi(osiot) {
@@ -90,6 +91,7 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
             otsikko:     k.otsikko ?? k.tunniste,
             apurivi:     k.apurivi ?? '',
             placeholder: k.placeholder ?? '',
+            sisalto:     k.sisalto ?? '',
           },
         },
       }

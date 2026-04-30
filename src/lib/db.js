@@ -353,6 +353,7 @@ export const luoUusiKentta = async ({
   apurivi = '',
   placeholder = '',
   virheilmoitus = '',
+  sisalto = '',
   validointi = {},
   oletukset = {},
 }) => {
@@ -392,8 +393,9 @@ export const luoUusiKentta = async ({
           apurivi:       apurivi?.trim() ?? '',
           placeholder:   placeholder?.trim() ?? '',
           virheilmoitus: virheilmoitus?.trim() ?? '',
+          sisalto:       sisalto?.trim() ?? '',
         },
-        en: { otsikko: '', apurivi: '', placeholder: '', virheilmoitus: '' },
+        en: { otsikko: '', apurivi: '', placeholder: '', virheilmoitus: '', sisalto: '' },
       },
       aktiivinen: true,
     })
@@ -431,6 +433,7 @@ export const haeKenttakirjasto = async () => {
       otsikko:     fi.otsikko ?? k.kentta_id_tunniste,
       apurivi:     fi.apurivi ?? '',
       placeholder: fi.placeholder ?? '',
+      sisalto:     fi.sisalto ?? '',
       validointi:  k.validointi ?? {},
       oletukset:   k.oletukset ?? {},
     }

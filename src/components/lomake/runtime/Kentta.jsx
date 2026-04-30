@@ -9,6 +9,7 @@ import Liukusaadin from './kenttatyypit/Liukusaadin'
 import CheckboxLista from './kenttatyypit/CheckboxLista'
 import Kehonkartta from './kenttatyypit/Kehonkartta'
 import Allekirjoitus from './kenttatyypit/Allekirjoitus'
+import Infoteksti from './kenttatyypit/Infoteksti'
 
 const KENTTATYYPIT = {
   tekstirivi:    Tekstirivi,
@@ -22,11 +23,12 @@ const KENTTATYYPIT = {
   checkbox_lista: CheckboxLista,
   kehonkartta:   Kehonkartta,
   allekirjoitus: Allekirjoitus,
+  infoteksti:    Infoteksti,
 }
 
 // Tyypit jotka hoitavat oman otsikkonsa ja apurivinsä komponentin sisällä —
 // Kentta-wrapperi ei piirrä yläpuolen labelia näille.
-const SISAINEN_LABEL = new Set(['checkbox'])
+const SISAINEN_LABEL = new Set(['checkbox', 'infoteksti'])
 
 const labelTyyli = {
   fontSize:   '13px',
