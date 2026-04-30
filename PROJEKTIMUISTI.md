@@ -34,7 +34,8 @@
 | Tietokanta (14 taulua) | ✅ Valmis | Pieni viilaus tarvittaessa |
 | Lomakepohja-järjestelmä A (tietokanta + 3 aloituspohjaa) | ✅ Valmis (29.4.2026) | — |
 | Lomakekirjasto-käyttöliittymä B | ✅ Valmis (29.4.2026) | — |
-| Editori (vaihe C) | 🟡 Käynnissä | Loppuun viety vaiheessa A (uusi numerointi) |
+| Editori (vaihe C) | 🟢 Valmis (30.4.2026) | Osioiden + kenttien CRUD, esikatselu, uuden kentän luonti, versionti |
+| Runtime-renderöijä | 🟢 Valmis (30.4.2026) | 22 kenttätyyppiä, 3 näyttötyyliä, validointi, tallennus hybridi-arkkitehtuurilla |
 
 ---
 

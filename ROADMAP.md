@@ -24,7 +24,7 @@ Kehokorjaamo-App on **täysi alustatuote** joka korvaa kaiken hoitohuoneen pyör
 
 | # | Vaihe | Status | Aikaarvio |
 |---|-------|--------|-----------|
-| A | Palvelukohtainen asiakaslomake + perusrekisteri | 🟡 Käynnissä | 2–3 vk |
+| A | Palvelukohtainen asiakaslomake + perusrekisteri | 🟡 Käynnissä (renderöijä + editori valmis) | 2–3 vk |
 | B | Hoitajan kirjauspuoli | ⚪ Odottaa | 3–4 vk |
 | C | Asiakasportaali | ⚪ Odottaa | 2–3 vk |
 | D | Julkinen sivusto | ⚪ Odottaa | 2–3 vk |
@@ -66,14 +66,15 @@ Kehokorjaamo-App on **täysi alustatuote** joka korvaa kaiken hoitohuoneen pyör
 
 **Sisältö:**
 
-- Editori (ROADMAPin nykyinen 3C) loppuun viety — palvelukohtaisten lomakepohjien luonti rasti ruutuun -tyyliin
-- Palvelu-linkitys (ROADMAPin lykätty 3 B+) — lomake + palvelu pari toimii. **Nostettu ydintehtäväksi.**
-- Pohjalomake (perustiedot, sairaudet, lääkitys, esteet) + palvelukohtaiset variantit (jäsenkorjaus, klassinen hieronta, tantrahieronta, energiahoito ensin — muiden lisäys onnistuu editorista jatkossa)
-- Sähköpostitunnistautuminen lomakkeessa (sähköposti = tunniste, tulee toimimaan myös portaalin kirjautumisessa)
-- Asiakkaan automaattinen rekisteröityminen lomakkeen täytön yhteydessä
-- "Kiitos" + Vello-linkki ohjautuminen lomakkeen jälkeen
-- Kotisivun ajanvarauspainike muutetaan: johtaa nyt ensin lomakkeeseen, sitten Velloon
-- Mobile-first asiakaskäyttöliittymä — toimii puhelimella ensisijaisesti
+- 🟢 **Runtime-renderöijä** — geneerinen pohjasta lomakkeen renderöivä komponentti (22 kenttätyyppiä, 3 näyttötyyliä, validointi, tallennus). Korvaa vanhan Asiakastietolomakkeen tuotannossa. Valmis 30.4.2026.
+- 🟢 **Editori (ROADMAPin nykyinen 3C) loppuun viety** — palvelukohtaisten lomakepohjien luonti rasti ruutuun -tyyliin. Osioiden + kenttien hallinta, esikatselu, uuden kentän luonti kenttäkirjastoon. Valmis 30.4.2026.
+- ⚪ Palvelu-linkitys (ROADMAPin lykätty 3 B+) — lomake + palvelu pari toimii. **Nostettu ydintehtäväksi.**
+- ⚪ Palvelukohtaiset variantit (jäsenkorjaus, klassinen hieronta, tantrahieronta, energiahoito ensin — muiden lisäys onnistuu editorista jatkossa)
+- ⚪ Sähköpostitunnistautuminen lomakkeessa (sähköposti = tunniste, tulee toimimaan myös portaalin kirjautumisessa)
+- ⚪ Asiakkaan automaattinen rekisteröityminen lomakkeen täytön yhteydessä
+- ⚪ "Kiitos" + Vello-linkki ohjautuminen lomakkeen jälkeen
+- ⚪ Kotisivun ajanvarauspainike muutetaan: johtaa nyt ensin lomakkeeseen, sitten Velloon
+- 🟢 **Mobile-first asiakaskäyttöliittymä** — toimii puhelimella ensisijaisesti. Renderöijän kenttäkomponentit suunniteltu mobiili-painotteisesti. Valmis.
 
 **Lopputulos:**
 Asiakkaat täyttävät lomakkeen sähköisesti — joko etukäteen kotona tai hoitohuoneessa tabletilla. Saat tiedot ennen hoitoa, voit valmistautua. Paperilomakkeesta luovutaan.
