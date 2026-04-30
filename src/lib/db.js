@@ -153,7 +153,9 @@ export const haeSairausTyypit = async () => {
   console.log('[haeSairausTyypit] kutsuttu (ei cachea)')
   const { data, error } = await supabase
     .from('sairaus_tyypit')
-    .select('id, koodi, nimi, kontraindikaatio, ryhma, tarkenne_label, tarkenne_tyyppi')
+    .select('id, koodi, nimi, kontraindikaatio, ryhma, jarjestys, tarkenne_label, tarkenne_tyyppi')
+    .eq('aktiivinen', true)
+    .order('jarjestys', { ascending: true, nullsFirst: false })
     .order('nimi')
   if (error) {
     console.error('[haeSairausTyypit] virhe:', error)
