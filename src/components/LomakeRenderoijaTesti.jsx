@@ -50,7 +50,7 @@ export default function LomakeRenderoijaTesti() {
         <strong>🧪 Tilapäinen testinäkymä</strong>
         <p style={{ margin: '4px 0 0 0', lineHeight: 1.5 }}>
           T1-kenttätyypit (tekstirivi, tekstikentta, sähköposti, puhelin, päivämäärä, numero, checkbox) ovat tuettuja.
-          Näyttötyylit <code>yksi_sivu</code> ja <code>c</code> (osio kerrallaan) toimivat — accordion tulee myöhemmin.
+          Kaikki kolme näyttötyyliä toimivat: <code>yksi_sivu</code>, <code>c</code> (osio kerrallaan), <code>accordion</code>.
           Kipuluku, sairauslista, kehonkartta ja allekirjoitus näkyvät puutemerkintöinä — niitä ei vielä tueta.
         </p>
       </div>

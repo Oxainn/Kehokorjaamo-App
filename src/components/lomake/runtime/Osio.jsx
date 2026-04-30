@@ -44,14 +44,14 @@ function ryhmittele(kenttat, ryhmittelyt) {
   return tulokset
 }
 
-export default function Osio({ osio, kentat, vastaukset, virheet, onKenttamuutos }) {
+export default function Osio({ osio, kentat, vastaukset, virheet, onKenttamuutos, naytaOtsikko = true }) {
   const otsikko = typeof osio.otsikko === 'object' ? (osio.otsikko.fi ?? osio.id) : (osio.otsikko ?? osio.id)
   const kenttat = (osio.kenttat ?? []).slice().sort((a, b) => (a.jarjestys ?? 0) - (b.jarjestys ?? 0))
   const palaset = ryhmittele(kenttat, osio.ryhmittelyt)
 
   return (
     <section style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <h3 style={otsikkoTyyli}>{otsikko}</h3>
+      {naytaOtsikko && <h3 style={otsikkoTyyli}>{otsikko}</h3>}
 
       {kenttat.length === 0 && (
         <p style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic', margin: 0 }}>

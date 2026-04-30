@@ -3,10 +3,12 @@ import { useLomakepohja } from '../../../hooks/useLomakepohja'
 import { validoiVastaukset } from '../../../lib/lomakeValidointi'
 import NayttoYksiSivu from './nayttotyylit/NayttoYksiSivu'
 import NayttoCKerrallaan from './nayttotyylit/NayttoCKerrallaan'
+import NayttoAccordion from './nayttotyylit/NayttoAccordion'
 
 const NAYTTOTYYLIT = {
   yksi_sivu: NayttoYksiSivu,
   c:         NayttoCKerrallaan,
+  accordion: NayttoAccordion,
 }
 
 const tilaTyyli = {
