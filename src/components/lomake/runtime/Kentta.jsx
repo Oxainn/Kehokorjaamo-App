@@ -5,15 +5,19 @@ import Puhelin from './kenttatyypit/Puhelin'
 import Paivamaara from './kenttatyypit/Paivamaara'
 import Numero from './kenttatyypit/Numero'
 import Checkbox from './kenttatyypit/Checkbox'
+import Liukusaadin from './kenttatyypit/Liukusaadin'
+import CheckboxLista from './kenttatyypit/CheckboxLista'
 
 const KENTTATYYPIT = {
-  tekstirivi:   Tekstirivi,
-  tekstikentta: Tekstikentta,
-  sahkoposti:   Sahkoposti,
-  puhelin:      Puhelin,
-  paivamaara:   Paivamaara,
-  numero:       Numero,
-  checkbox:     Checkbox,
+  tekstirivi:    Tekstirivi,
+  tekstikentta:  Tekstikentta,
+  sahkoposti:    Sahkoposti,
+  puhelin:       Puhelin,
+  paivamaara:    Paivamaara,
+  numero:        Numero,
+  checkbox:      Checkbox,
+  liukusaadin:   Liukusaadin,
+  checkbox_lista: CheckboxLista,
 }
 
 // Tyypit jotka hoitavat oman otsikkonsa ja apurivinsä komponentin sisällä —

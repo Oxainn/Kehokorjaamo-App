@@ -5,6 +5,7 @@ const onTyhja = (arvo, kenttatyyppi) => {
   if (arvo === null || arvo === undefined) return true
   if (kenttatyyppi === 'checkbox') return arvo !== true
   if (typeof arvo === 'string') return arvo.trim() === ''
+  if (Array.isArray(arvo)) return arvo.length === 0
   return false
 }
 
