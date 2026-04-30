@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../services/supabase'
 import { normalisoiAsiakas } from '../utils/asiakas'
 import Login from './Login'
@@ -8,6 +8,7 @@ import Asiakasrekisteri from './Asiakasrekisteri'
 import Asiakastietolomake from './Asiakastietolomake' // ROLLBACK — vanha lomake, ei käytössä
 import AsiakaslomakeRenderoijalla from './AsiakaslomakeRenderoijalla'
 import LomakeRenderoijaTesti from './LomakeRenderoijaTesti' // TILAPÄINEN — kehitystestaus
+import JulkinenLomake from './JulkinenLomake'
 
 const ylaNav = [
   { id: 'rekisteri',    nimi: 'Asiakasrekisteri', ikoni: '👥' },
@@ -21,6 +22,12 @@ export default function App() {
   const [asiakas, setAsiakas]     = useState(null)
   const [kayttaja, setKayttaja]   = useState(null)
   const [lataaAuth, setLataaAuth] = useState(true)
+
+  // Julkinen lomakenäkymä: ?palvelu=ID URL-parametri ohittaa kirjautumisen
+  const julkinenPalveluId = useMemo(() => {
+    if (typeof window === 'undefined') return null
+    return new URL(window.location.href).searchParams.get('palvelu')
+  }, [])
 
   useEffect(() => {
     const url   = new URL(window.location.href)
@@ -60,6 +67,25 @@ export default function App() {
   }
 
   const aktiivisenYlaNav = (nakyma === 'kaynti' || nakyma === 'uusi-kaynti') ? null : nakyma
+
+  // Julkinen lomake — asiakas saapuu ?palvelu=ID URL:lla, ei tarvitse kirjautua
+  if (julkinenPalveluId) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <header style={{ background: '#085041', color: 'white', padding: '10px 16px' }}>
+          <div className="max-w-5xl mx-auto" style={{ textAlign: 'center' }}>
+            <span style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px' }}>Kehokorjaamo</span>
+          </div>
+        </header>
+        <main style={{ flex: 1 }}>
+          <JulkinenLomake palveluId={julkinenPalveluId} />
+        </main>
+        <footer style={{ background: 'white', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '12px', color: '#9ca3af', padding: '16px' }}>
+          © {new Date().getFullYear()} Kehokorjaamo
+        </footer>
+      </div>
+    )
+  }
 
   if (lataaAuth) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontSize: '14px', color: '#666' }}>

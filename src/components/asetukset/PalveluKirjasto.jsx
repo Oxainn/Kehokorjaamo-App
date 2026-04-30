@@ -8,12 +8,13 @@ const inputLuokka = 'rounded-lg border border-gray-200 px-3 py-2 text-sm text-gr
 const labelLuokka = 'text-xs font-medium text-gray-500 uppercase tracking-wide'
 
 function PalveluModaali({ palvelu, onTallennettu, onSulje }) {
-  const [nimi,      setNimi]      = useState(palvelu?.nimi      ?? '')
-  const [kuvaus,    setKuvaus]    = useState(palvelu?.kuvaus    ?? '')
-  const [kestoMin,  setKestoMin]  = useState(palvelu?.kesto_min ?? '')
-  const [hintaEur,  setHintaEur]  = useState(palvelu?.hinta_eur ?? '')
-  const [tallentaa, setTallentaa] = useState(false)
-  const [virhe,     setVirhe]     = useState(null)
+  const [nimi,         setNimi]         = useState(palvelu?.nimi             ?? '')
+  const [kuvaus,       setKuvaus]       = useState(palvelu?.kuvaus           ?? '')
+  const [kestoMin,     setKestoMin]     = useState(palvelu?.kesto_min        ?? '')
+  const [hintaEur,     setHintaEur]     = useState(palvelu?.hinta_eur        ?? '')
+  const [varauslinkki, setVarauslinkki] = useState(palvelu?.varauslinkki_url ?? '')
+  const [tallentaa,    setTallentaa]    = useState(false)
+  const [virhe,        setVirhe]        = useState(null)
 
   const onUusi = !palvelu
 
@@ -23,10 +24,11 @@ function PalveluModaali({ palvelu, onTallennettu, onSulje }) {
     setVirhe(null)
     try {
       const arvot = {
-        nimi:      nimi.trim(),
-        kuvaus:    kuvaus.trim() || null,
-        kesto_min: kestoMin === '' ? null : Number(kestoMin),
-        hinta_eur: hintaEur === '' ? null : Number(hintaEur),
+        nimi:             nimi.trim(),
+        kuvaus:           kuvaus.trim() || null,
+        kesto_min:        kestoMin === '' ? null : Number(kestoMin),
+        hinta_eur:        hintaEur === '' ? null : Number(hintaEur),
+        varauslinkki_url: varauslinkki.trim() || null,
       }
       const tulos = onUusi
         ? await luoPalvelu(arvot)
@@ -106,6 +108,20 @@ function PalveluModaali({ palvelu, onTallennettu, onSulje }) {
             </div>
           </div>
 
+          <div className="flex flex-col gap-1">
+            <label className={labelLuokka}>Varauslinkki (Vello tai vastaava)</label>
+            <input
+              type="url"
+              value={varauslinkki}
+              onChange={(e) => setVarauslinkki(e.target.value)}
+              placeholder="https://vello.fi/oxain/jasenkorjaus"
+              className={inputLuokka}
+            />
+            <p className="text-xs text-gray-500">
+              Avataan uudessa välilehdessä julkisen lomakkeen lähetyksen jälkeen.
+            </p>
+          </div>
+
           {virhe && (
             <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-700">
               {virhe}
@@ -151,6 +167,9 @@ function PalveluKortti({ palvelu, onMuokkaa, onPoista, onToggleAktiivinen }) {
             {palvelu.kesto_min ? `${palvelu.kesto_min} min` : 'Kesto ei tiedossa'}
             {' · '}
             {palvelu.hinta_eur != null ? `${palvelu.hinta_eur} €` : 'Hinta ei määritelty'}
+            {palvelu.varauslinkki_url && (
+              <>{' · '}<span className="text-brand-600">🔗 Varauslinkki asetettu</span></>
+            )}
           </p>
         </div>
       </div>

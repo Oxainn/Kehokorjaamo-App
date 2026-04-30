@@ -349,7 +349,7 @@ export const haeAsiakkaanSairaudet = async (asiakasId) => {
 export const haePalvelut = async () => {
   const { data, error } = await supabase
     .from('palvelut')
-    .select('id, nimi, kuvaus, kesto_min, hinta_eur, jarjestys, aktiivinen, luotu, paivitetty')
+    .select('id, nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, jarjestys, aktiivinen, luotu, paivitetty')
     .order('jarjestys', { ascending: true })
     .order('nimi', { ascending: true })
 
@@ -360,7 +360,7 @@ export const haePalvelut = async () => {
   return data ?? []
 }
 
-export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eur = null }) => {
+export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eur = null, varauslinkki_url = '' }) => {
   if (!nimi?.trim()) return { virhe: 'Nimi puuttuu' }
   const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
   if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
@@ -368,11 +368,12 @@ export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eu
   const { data, error } = await supabase
     .from('palvelut')
     .insert({
-      hoitaja_id: user.id,
-      nimi:       nimi.trim(),
-      kuvaus:     kuvaus?.trim() || null,
-      kesto_min:  kesto_min ?? null,
-      hinta_eur:  hinta_eur ?? null,
+      hoitaja_id:       user.id,
+      nimi:             nimi.trim(),
+      kuvaus:           kuvaus?.trim() || null,
+      kesto_min:        kesto_min ?? null,
+      hinta_eur:        hinta_eur ?? null,
+      varauslinkki_url: varauslinkki_url?.trim() || null,
     })
     .select('id')
     .single()
@@ -384,14 +385,15 @@ export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eu
   return { id: data.id, virhe: null }
 }
 
-export const paivitaPalvelu = async (id, { nimi, kuvaus, kesto_min, hinta_eur, jarjestys, aktiivinen }) => {
+export const paivitaPalvelu = async (id, { nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, jarjestys, aktiivinen }) => {
   const muutokset = { paivitetty: new Date().toISOString() }
-  if (nimi !== undefined)       muutokset.nimi = nimi.trim()
-  if (kuvaus !== undefined)     muutokset.kuvaus = kuvaus?.trim() || null
-  if (kesto_min !== undefined)  muutokset.kesto_min = kesto_min
-  if (hinta_eur !== undefined)  muutokset.hinta_eur = hinta_eur
-  if (jarjestys !== undefined)  muutokset.jarjestys = jarjestys
-  if (aktiivinen !== undefined) muutokset.aktiivinen = aktiivinen
+  if (nimi !== undefined)             muutokset.nimi = nimi.trim()
+  if (kuvaus !== undefined)           muutokset.kuvaus = kuvaus?.trim() || null
+  if (kesto_min !== undefined)        muutokset.kesto_min = kesto_min
+  if (hinta_eur !== undefined)        muutokset.hinta_eur = hinta_eur
+  if (varauslinkki_url !== undefined) muutokset.varauslinkki_url = varauslinkki_url?.trim() || null
+  if (jarjestys !== undefined)        muutokset.jarjestys = jarjestys
+  if (aktiivinen !== undefined)       muutokset.aktiivinen = aktiivinen
 
   const { error } = await supabase
     .from('palvelut')
