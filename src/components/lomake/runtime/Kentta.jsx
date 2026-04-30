@@ -1,10 +1,24 @@
 import Tekstirivi from './kenttatyypit/Tekstirivi'
 import Tekstikentta from './kenttatyypit/Tekstikentta'
+import Sahkoposti from './kenttatyypit/Sahkoposti'
+import Puhelin from './kenttatyypit/Puhelin'
+import Paivamaara from './kenttatyypit/Paivamaara'
+import Numero from './kenttatyypit/Numero'
+import Checkbox from './kenttatyypit/Checkbox'
 
 const KENTTATYYPIT = {
   tekstirivi:   Tekstirivi,
   tekstikentta: Tekstikentta,
+  sahkoposti:   Sahkoposti,
+  puhelin:      Puhelin,
+  paivamaara:   Paivamaara,
+  numero:       Numero,
+  checkbox:     Checkbox,
 }
+
+// Tyypit jotka hoitavat oman otsikkonsa ja apurivinsä komponentin sisällä —
+// Kentta-wrapperi ei piirrä yläpuolen labelia näille.
+const SISAINEN_LABEL = new Set(['checkbox'])
 
 const labelTyyli = {
   fontSize:   '13px',
@@ -55,13 +69,19 @@ export default function Kentta({ kentta, kenttamerkinta, arvo, onMuutos }) {
     )
   }
 
+  if (SISAINEN_LABEL.has(kentta.tyyppi)) {
+    return (
+      <Komponentti kentta={kentta} kenttamerkinta={kenttamerkinta} arvo={arvo} onMuutos={onMuutos} />
+    )
+  }
+
   return (
     <div>
       <label style={labelTyyli}>
         {fi.otsikko ?? kentta.tunniste}
         {kenttamerkinta?.pakollinen && <span style={tahti}>*</span>}
       </label>
-      <Komponentti kentta={kentta} arvo={arvo} onMuutos={onMuutos} />
+      <Komponentti kentta={kentta} kenttamerkinta={kenttamerkinta} arvo={arvo} onMuutos={onMuutos} />
       {fi.apurivi && (
         <p style={{ fontSize: '12px', color: '#6b7280', margin: '4px 0 0 0' }}>{fi.apurivi}</p>
       )}
