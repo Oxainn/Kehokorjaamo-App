@@ -340,3 +340,73 @@ export const haeAsiakkaanSairaudet = async (asiakasId) => {
   }
   return data ?? []
 }
+
+export const haeOletusLomakepohjaId = async () => {
+  const { data, error } = await supabase
+    .from('lomakepohjat')
+    .select('id')
+    .eq('on_oletus', true)
+    .eq('aktiivinen', true)
+    .limit(1)
+    .maybeSingle()
+
+  if (error) {
+    console.error('Oletuspohjan haku epäonnistui:', error)
+    return null
+  }
+  return data?.id ?? null
+}
+
+export const haeLomakepohja = async (pohjaId) => {
+  if (!pohjaId) return { pohja: null, rakenne: null, kentat: {}, virhe: 'Pohjan id puuttuu' }
+
+  const { data: pohjaRivi, error: pohjaVirhe } = await supabase
+    .from('lomakepohjat')
+    .select('id, nimi, kuvaus, on_oletus, aktiivinen, lomakepohja_versiot(versio, rakenne)')
+    .eq('id', pohjaId)
+    .single()
+
+  if (pohjaVirhe || !pohjaRivi) {
+    return { pohja: null, rakenne: null, kentat: {}, virhe: 'Pohjaa ei löytynyt' }
+  }
+
+  const versiot = (pohjaRivi.lomakepohja_versiot ?? []).slice().sort((a, b) => b.versio - a.versio)
+  const rakenne = versiot[0]?.rakenne ?? null
+  if (!rakenne) {
+    return { pohja: pohjaRivi, rakenne: null, kentat: {}, virhe: 'Pohjalla ei ole versiota' }
+  }
+
+  const tunnisteet = []
+  for (const osio of rakenne.osiot ?? []) {
+    for (const kf of osio.kenttat ?? []) {
+      if (kf.kentta_id_tunniste) tunnisteet.push(kf.kentta_id_tunniste)
+    }
+  }
+
+  let kentat = {}
+  if (tunnisteet.length > 0) {
+    const { data: kenttaRivit, error: kenttaVirhe } = await supabase
+      .from('kenttakirjasto')
+      .select('id, kentta_id_tunniste, kenttatyyppi, validointi, oletukset, kentan_versiot(versio, kaannokset)')
+      .in('kentta_id_tunniste', tunnisteet)
+
+    if (kenttaVirhe) {
+      return { pohja: pohjaRivi, rakenne, kentat: {}, virhe: 'Kenttien haku epäonnistui' }
+    }
+
+    for (const k of kenttaRivit ?? []) {
+      const v = (k.kentan_versiot ?? []).slice().sort((a, b) => b.versio - a.versio)[0]
+      kentat[k.kentta_id_tunniste] = {
+        id:           k.id,
+        tunniste:     k.kentta_id_tunniste,
+        tyyppi:       k.kenttatyyppi,
+        validointi:   k.validointi ?? {},
+        oletukset:    k.oletukset ?? {},
+        kaannokset:   v?.kaannokset ?? {},
+      }
+    }
+  }
+
+  const { lomakepohja_versiot: _, ...pohjaIlmanVersioita } = pohjaRivi
+  return { pohja: pohjaIlmanVersioita, rakenne, kentat, virhe: null }
+}

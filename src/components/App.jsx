@@ -5,11 +5,13 @@ import Login from './Login'
 import Settings from './Settings'
 import Asiakasrekisteri from './Asiakasrekisteri'
 import Asiakastietolomake from './Asiakastietolomake'
+import LomakeRenderoijaTesti from './LomakeRenderoijaTesti' // TILAPÄINEN — Pala 1:n testaus
 
 const ylaNav = [
   { id: 'rekisteri',    nimi: 'Asiakasrekisteri', ikoni: '👥' },
   { id: 'uusi-kaynti', nimi: 'Uusi käynti',       ikoni: '➕' },
   { id: 'asetukset',   nimi: 'Asetukset',          ikoni: '⚙️' },
+  { id: 'renderoija-testi', nimi: 'Renderöijä-testi', ikoni: '🧪' }, // TILAPÄINEN
 ]
 
 export default function App() {
@@ -152,6 +154,11 @@ export default function App() {
         {/* ASETUKSET */}
         {nakyma === 'asetukset' && (
           <Settings hoitajaId={hoitajaId} />
+        )}
+
+        {/* TILAPÄINEN — Pala 1:n testaus */}
+        {nakyma === 'renderoija-testi' && (
+          <LomakeRenderoijaTesti />
         )}
 
       </main>
