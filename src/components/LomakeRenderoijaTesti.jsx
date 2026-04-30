@@ -1,13 +1,14 @@
 // TILAPÄINEN — renderöijän testaus. Poistetaan kun renderöijä korvaa Asiakastietolomakkeen.
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
+import { tallennaRenderoijastaLomake } from '../lib/db'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
 
 export default function LomakeRenderoijaTesti() {
   const [pohjat,     setPohjat]     = useState([])
   const [pohjaId,    setPohjaId]    = useState(null)
   const [vastaukset, setVastaukset] = useState({})
-  const [lahetetty,  setLahetetty]  = useState(null)
+  const [tallennus,  setTallennus]  = useState(null) // null | 'tallentaa' | { onnistui: bool, viesti, asiakasId, lomakeVersioId, versioNro }
   const [lataa,      setLataa]      = useState(true)
   const [virhe,      setVirhe]      = useState(null)
 
@@ -36,7 +37,27 @@ export default function LomakeRenderoijaTesti() {
 
   function tyhjenna() {
     setVastaukset({})
-    setLahetetty(null)
+    setTallennus(null)
+  }
+
+  async function tallenna(arvot) {
+    setTallennus('tallentaa')
+    try {
+      const tulos = await tallennaRenderoijastaLomake({ vastaukset: arvot })
+      if (tulos.virhe) {
+        setTallennus({ onnistui: false, viesti: tulos.virhe })
+        return
+      }
+      setTallennus({
+        onnistui:       true,
+        viesti:         'Lomake tallennettu',
+        asiakasId:      tulos.asiakasId,
+        lomakeVersioId: tulos.lomakeVersioId,
+        versioNro:      tulos.versioNro,
+      })
+    } catch (e) {
+      setTallennus({ onnistui: false, viesti: e.message ?? 'Tuntematon virhe' })
+    }
   }
 
   if (lataa) return <div style={{ padding: '24px', color: '#6b7280' }}>Ladataan pohjia…</div>
@@ -49,9 +70,9 @@ export default function LomakeRenderoijaTesti() {
       <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '12px', padding: '12px 16px', fontSize: '13px', color: '#78350f' }}>
         <strong>🧪 Tilapäinen testinäkymä</strong>
         <p style={{ margin: '4px 0 0 0', lineHeight: 1.5 }}>
-          Kaikki 22 kenttätyyppiä ovat nyt tuettuja: tekstirivi, tekstikentta, sähköposti, puhelin, päivämäärä,
-          numero, checkbox, liukusäädin, checkbox_lista, kehonkartta ja allekirjoitus.
-          Kaikki kolme näyttötyyliä toimivat: <code>yksi_sivu</code>, <code>c</code> (osio kerrallaan), <code>accordion</code>.
+          22 kenttätyyppiä, 3 näyttötyyliä, validointi ja tallennus tietokantaan toimivat.
+          LÄHETÄ-painike tallentaa asiakkaaksi <code>asiakkaat</code>-tauluun + lomakeversion <code>asiakastietolomake_versiot</code>-tauluun
+          (tunnistamattomat kentät <code>lisakentat</code>-jsonb:in) + sairaudet <code>lomake_sairaudet</code>-tauluun.
         </p>
       </div>
 
@@ -85,14 +106,26 @@ export default function LomakeRenderoijaTesti() {
         </button>
       </div>
 
-      {/* Lähetyksen jälkeinen ilmoitus */}
-      {lahetetty && (
+      {/* Tallennuksen tila */}
+      {tallennus === 'tallentaa' && (
+        <div style={{ background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: '12px', padding: '12px 16px', fontSize: '13px', color: '#1e3a8a' }}>
+          Tallennetaan…
+        </div>
+      )}
+      {tallennus && tallennus !== 'tallentaa' && tallennus.onnistui && (
         <div style={{ background: '#ecfdf5', border: '1px solid #6ee7b7', borderRadius: '12px', padding: '12px 16px', fontSize: '13px', color: '#065f46' }}>
-          <strong>✓ Lomake lähetetty (testitila)</strong>
-          <p style={{ margin: '4px 0 0 0', lineHeight: 1.5 }}>
-            Vastauksia ei tallennettu tietokantaan — Pala 3:n testi jättää tallennuksen myöhempään palaan.
-            Lähetetyt arvot näkyvät debug-paneelissa alla.
+          <strong>✓ {tallennus.viesti}</strong>
+          <p style={{ margin: '4px 0 0 0', lineHeight: 1.5, fontFamily: 'monospace', fontSize: '12px' }}>
+            asiakas_id: {tallennus.asiakasId}<br />
+            lomake_versio_id: {tallennus.lomakeVersioId}<br />
+            versio_nro: {tallennus.versioNro ?? '—'}
           </p>
+        </div>
+      )}
+      {tallennus && tallennus !== 'tallentaa' && !tallennus.onnistui && (
+        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', fontSize: '13px', color: '#991b1b' }}>
+          <strong>✗ Tallennus epäonnistui</strong>
+          <p style={{ margin: '4px 0 0 0', lineHeight: 1.5 }}>{tallennus.viesti}</p>
         </div>
       )}
 
@@ -101,28 +134,17 @@ export default function LomakeRenderoijaTesti() {
         pohjaId={pohjaId}
         vastaukset={vastaukset}
         onMuutos={setVastaukset}
-        onLahetys={(arvot) => setLahetetty(arvot)}
+        onLahetys={tallenna}
       />
 
-      {/* Debug — vastaukset live + lähetetty */}
+      {/* Debug — vastaukset live */}
       <details style={{ background: '#1f2937', color: '#d1d5db', borderRadius: '12px', padding: '12px 16px', fontSize: '12px', fontFamily: 'monospace' }}>
         <summary style={{ cursor: 'pointer', color: '#9ca3af', fontFamily: 'inherit' }}>
-          Debug — nykyiset vastaukset {lahetetty ? '+ viimeisin lähetys' : ''}
+          Debug — nykyiset vastaukset
         </summary>
-        <div style={{ margin: '8px 0 0 0' }}>
-          <p style={{ margin: '0 0 4px 0', color: '#9ca3af' }}>vastaukset:</p>
-          <pre style={{ margin: 0, overflow: 'auto' }}>
+        <pre style={{ margin: '8px 0 0 0', overflow: 'auto' }}>
 {JSON.stringify(vastaukset, null, 2)}
-          </pre>
-          {lahetetty && (
-            <>
-              <p style={{ margin: '12px 0 4px 0', color: '#6ee7b7' }}>viimeisin lähetys:</p>
-              <pre style={{ margin: 0, overflow: 'auto' }}>
-{JSON.stringify(lahetetty, null, 2)}
-              </pre>
-            </>
-          )}
-        </div>
+        </pre>
       </details>
 
     </div>

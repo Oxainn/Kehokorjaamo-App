@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { jaaVastaukset } from './lomakeTallennus'
 
 export const tallennaAsiakas = async (data) => {
   const { data: { user } } = await supabase.auth.getUser()
@@ -409,4 +410,90 @@ export const haeLomakepohja = async (pohjaId) => {
 
   const { lomakepohja_versiot: _, ...pohjaIlmanVersioita } = pohjaRivi
   return { pohja: pohjaIlmanVersioita, rakenne, kentat, virhe: null }
+}
+
+// Tallentaa lomakerenderöijän vastaukset asiakkaaksi + lomakeversioksi.
+// Asiakas: upsert (uusi tai päivitys olemassaolevaan, jos asiakasIdJosOlemassa annettu).
+// Lomakeversio: aiemmat suljetaan (voimassa_asti=now()), uusi luodaan.
+// Sairaudet: rivit lomake_sairaudet-tauluun.
+// Lisäkentät: jsonb-sarakkeeseen asiakastietolomake_versiot.lisakentat.
+export const tallennaRenderoijastaLomake = async ({ vastaukset, asiakasIdJosOlemassa = null, muokkaajaRooli = 'hoitaja' }) => {
+  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
+  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
+
+  const jaettu = jaaVastaukset(vastaukset)
+
+  // 1. Asiakas — upsert
+  const asiakasRivi = {
+    ...jaettu.asiakas,
+    hoitaja_id: user.id,
+    paivitetty: new Date().toISOString(),
+  }
+  if (asiakasIdJosOlemassa) asiakasRivi.id = asiakasIdJosOlemassa
+
+  const { data: asiakas, error: asiakasVirhe } = await supabase
+    .from('asiakkaat')
+    .upsert(asiakasRivi)
+    .select('id')
+    .single()
+
+  if (asiakasVirhe) {
+    console.error('Asiakkaan tallennus epäonnistui:', asiakasVirhe)
+    return { virhe: `Asiakkaan tallennus: ${asiakasVirhe.message}` }
+  }
+
+  // 2. Sulje aiemmat lomakeversiot
+  const { error: sulkuVirhe } = await supabase
+    .from('asiakastietolomake_versiot')
+    .update({ voimassa_asti: new Date().toISOString() })
+    .eq('asiakas_id', asiakas.id)
+    .is('voimassa_asti', null)
+
+  if (sulkuVirhe) {
+    console.error('Vanhojen versioiden sulku epäonnistui:', sulkuVirhe)
+    return { virhe: `Vanhojen versioiden sulku: ${sulkuVirhe.message}`, asiakasId: asiakas.id }
+  }
+
+  // 3. Luo uusi lomakeversio
+  const { data: versio, error: versioVirhe } = await supabase
+    .from('asiakastietolomake_versiot')
+    .insert({
+      asiakas_id:      asiakas.id,
+      ...jaettu.lomake,
+      lisakentat:      jaettu.lisakentat,
+      muokkaaja_id:    user.id,
+      muokkaaja_rooli: muokkaajaRooli,
+    })
+    .select('id, versio_nro')
+    .single()
+
+  if (versioVirhe) {
+    console.error('Lomakeversion tallennus epäonnistui:', versioVirhe)
+    return { virhe: `Lomakeversion tallennus: ${versioVirhe.message}`, asiakasId: asiakas.id }
+  }
+
+  // 4. Sairaudet → lomake_sairaudet
+  if (jaettu.sairaudet.length > 0) {
+    const rivit = jaettu.sairaudet.map((sairausTyyppiId) => ({
+      lomake_versio_id:  versio.id,
+      sairaus_tyyppi_id: sairausTyyppiId,
+      on_voimassa:       true,
+    }))
+    const { error: sairaudetVirhe } = await supabase.from('lomake_sairaudet').insert(rivit)
+    if (sairaudetVirhe) {
+      console.error('Sairauksien tallennus epäonnistui:', sairaudetVirhe)
+      return {
+        virhe:          `Sairauksien tallennus: ${sairaudetVirhe.message}`,
+        asiakasId:      asiakas.id,
+        lomakeVersioId: versio.id,
+      }
+    }
+  }
+
+  return {
+    asiakasId:      asiakas.id,
+    lomakeVersioId: versio.id,
+    versioNro:      versio.versio_nro,
+    virhe:          null,
+  }
 }
