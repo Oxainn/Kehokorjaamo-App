@@ -3,8 +3,8 @@ import { useSwipeable } from 'react-swipeable'
 import Osio from '../Osio'
 
 const pisteTyyli = (aktiivinen, sisaltaaVirheen, valmis) => ({
-  width:        '24px',
-  height:       '24px',
+  width:        '28px',
+  height:       '28px',
   borderRadius: '50%',
   border:       sisaltaaVirheen
                   ? '2px solid #EF4444'
@@ -30,8 +30,8 @@ const pisteTyyli = (aktiivinen, sisaltaaVirheen, valmis) => ({
 })
 
 const sisapilkkuTyyli = {
-  width:        '7px',
-  height:       '7px',
+  width:        '8px',
+  height:       '8px',
   borderRadius: '50%',
   background:   'white',
 }
@@ -51,24 +51,48 @@ const alaotsikkoTyyli = {
   margin:   0,
 }
 
-const nappiPohja = {
-  minHeight:    '44px',
-  padding:      '0 14px',
-  borderRadius: '10px',
-  fontSize:     '13px',
-  fontWeight:   '600',
-  cursor:       'pointer',
-  transition:   'all 0.15s',
-  whiteSpace:   'nowrap',
-}
+// Pyöreä nuolinappi — 44x44 + ympärillä margin antaa ≥48px kosketusalueen.
+const nuoliNappiTyyli = (piilossa) => ({
+  width:          '44px',
+  height:         '44px',
+  borderRadius:   '50%',
+  border:         '2px solid #e2e8f0',
+  background:     'white',
+  color:          '#374151',
+  fontSize:       '20px',
+  fontWeight:     '500',
+  cursor:         piilossa ? 'default' : 'pointer',
+  display:        'flex',
+  alignItems:     'center',
+  justifyContent: 'center',
+  visibility:     piilossa ? 'hidden' : 'visible',
+  flexShrink:     0,
+  padding:        0,
+  margin:         '0 2px',
+  transition:     'all 0.15s',
+  lineHeight:     1,
+})
 
-const alapalkkiTyyli = {
+const ylanavTyyli = {
   display:        'flex',
   alignItems:     'center',
   justifyContent: 'space-between',
-  gap:            '8px',
-  paddingTop:     '8px',
-  flexWrap:       'wrap',
+  gap:            '12px',
+  paddingBottom:  '4px',
+}
+
+const lahetaTyyli = {
+  width:        '100%',
+  minHeight:    '52px',
+  borderRadius: '12px',
+  border:       'none',
+  background:   '#1D9E75',
+  color:        'white',
+  fontSize:     '15px',
+  fontWeight:   '700',
+  letterSpacing: '0.03em',
+  cursor:       'pointer',
+  marginTop:    '4px',
 }
 
 export default function NayttoCKerrallaan({ rakenne, kentat, vastaukset, virheet, onKenttamuutos, onLahetys }) {
@@ -127,8 +151,51 @@ export default function NayttoCKerrallaan({ rakenne, kentat, vastaukset, virheet
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-      {/* Yläosa: alaotsikko + iso otsikko */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', paddingBottom: '4px' }}>
+      {/* Ylänavigaatio: edellinen | pisteet | seuraava */}
+      <div style={ylanavTyyli}>
+        <button
+          type="button"
+          onClick={edellinen}
+          disabled={ekassa}
+          aria-label="Edellinen osio"
+          style={nuoliNappiTyyli(ekassa)}
+        >
+          ←
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {osiot.map((o, i) => {
+            const aktiivinen = i === nykyinen
+            const sisaltaaVirheen = osionVirhe.has(i)
+            const valmis = i < nykyinen && !sisaltaaVirheen
+            const otsikkoNayttoon = typeof o.otsikko === 'object' ? (o.otsikko.fi ?? o.id) : (o.otsikko ?? o.id)
+            return (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => setNykyinen(i)}
+                aria-label={`Osio ${i + 1}: ${otsikkoNayttoon}`}
+                style={pisteTyyli(aktiivinen, sisaltaaVirheen, valmis)}
+              >
+                {aktiivinen && <div style={sisapilkkuTyyli} />}
+              </button>
+            )
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={seuraava}
+          disabled={viimeisessa}
+          aria-label="Seuraava osio"
+          style={nuoliNappiTyyli(viimeisessa)}
+        >
+          →
+        </button>
+      </div>
+
+      {/* Otsikko keskitettynä */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
         <p style={alaotsikkoTyyli}>Osio {nykyinen + 1}/{osiot.length}</p>
         <h2 style={otsikkoTyyli}>{otsikko.toUpperCase()}</h2>
       </div>
@@ -156,76 +223,12 @@ export default function NayttoCKerrallaan({ rakenne, kentat, vastaukset, virheet
         />
       </div>
 
-      {/* Alapalkki: edellinen | pisteet | seuraava/lähetä */}
-      <div style={alapalkkiTyyli}>
-        <button
-          type="button"
-          onClick={edellinen}
-          disabled={ekassa}
-          style={{
-            ...nappiPohja,
-            border:     '2px solid #e2e8f0',
-            background: 'white',
-            color:      '#374151',
-            opacity:    ekassa ? 0.4 : 1,
-            cursor:     ekassa ? 'default' : 'pointer',
-          }}
-        >
-          ◄ EDELLINEN
+      {/* Lähetys-painike vain viimeisellä osiolla, sisällön alapuolella */}
+      {viimeisessa && onLahetys && (
+        <button type="button" onClick={onLahetys} style={lahetaTyyli}>
+          LÄHETÄ LOMAKE ✓
         </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {osiot.map((o, i) => {
-            const aktiivinen = i === nykyinen
-            const sisaltaaVirheen = osionVirhe.has(i)
-            const valmis = i < nykyinen && !sisaltaaVirheen
-            const otsikkoNayttoon = typeof o.otsikko === 'object' ? (o.otsikko.fi ?? o.id) : (o.otsikko ?? o.id)
-            return (
-              <button
-                key={o.id}
-                type="button"
-                onClick={() => setNykyinen(i)}
-                aria-label={`Osio ${i + 1}: ${otsikkoNayttoon}`}
-                style={pisteTyyli(aktiivinen, sisaltaaVirheen, valmis)}
-              >
-                {aktiivinen && <div style={sisapilkkuTyyli} />}
-              </button>
-            )
-          })}
-        </div>
-
-        {viimeisessa && onLahetys ? (
-          <button
-            type="button"
-            onClick={onLahetys}
-            style={{
-              ...nappiPohja,
-              border:     'none',
-              background: '#1D9E75',
-              color:      'white',
-            }}
-          >
-            LÄHETÄ ✓
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={seuraava}
-            disabled={viimeisessa}
-            style={{
-              ...nappiPohja,
-              border:     '2px solid transparent',
-              background: viimeisessa ? 'white' : '#1D9E75',
-              borderColor: viimeisessa ? '#e2e8f0' : 'transparent',
-              color:      viimeisessa ? '#374151' : 'white',
-              opacity:    viimeisessa ? 0.4 : 1,
-              cursor:     viimeisessa ? 'default' : 'pointer',
-            }}
-          >
-            SEURAAVA ►
-          </button>
-        )}
-      </div>
+      )}
     </div>
   )
 }
