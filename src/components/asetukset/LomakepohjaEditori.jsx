@@ -4,8 +4,9 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../services/supabase'
-import { haeKenttakirjasto } from '../../lib/db'
+import { haeKenttakirjasto, haePalveluLinkitPohjalle, paivitaPalveluLinkit } from '../../lib/db'
 import LisaaKenttaModaali from './LisaaKenttaModaali'
+import LiitaPalveluihinModaali from './LiitaPalveluihinModaali'
 import LomakeRenderoija from '../lomake/runtime/LomakeRenderoija'
 
 const luoTunniste = () => {
@@ -61,13 +62,22 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
   const [lisayksenKohde, setLisayksenKohde] = useState(null) // null tai osio.id
   const [esikatselu,     setEsikatselu]     = useState({ auki: false, vastaukset: {} })
 
+  // Palvelu-linkit pohjalle: [{ palvelu_id, palvelu_nimi, on_oletus }]
+  const [palveluLinkit,        setPalveluLinkit]        = useState([])
+  const [palveluModaaliAuki,   setPalveluModaaliAuki]   = useState(false)
+
   useEffect(() => {
     let peruttu = false
     haeKenttakirjasto().then((kentat) => {
       if (!peruttu) setKenttakirjasto(kentat)
     })
+    if (pohja?.id) {
+      haePalveluLinkitPohjalle(pohja.id).then((linkit) => {
+        if (!peruttu) setPalveluLinkit(linkit)
+      })
+    }
     return () => { peruttu = true }
-  }, [])
+  }, [pohja?.id])
 
   // Indeksi: tunniste → kenttäkirjaston rivi (otsikon ja tyypin näyttöä varten)
   const kenttaIndex = useMemo(() => {
@@ -323,6 +333,18 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
         throw insertVirhe
       }
 
+      // 4. Päivitä palvelu-linkit (jos muuttuneet — yksinkertaisuuden vuoksi
+      //    tallennetaan aina version tallennuksen yhteydessä)
+      const linkitTallennukseen = palveluLinkit.map((l) => ({
+        palvelu_id: l.palvelu_id,
+        on_oletus:  l.on_oletus,
+      }))
+      const linkkiTulos = await paivitaPalveluLinkit(pohja.id, linkitTallennukseen)
+      if (linkkiTulos.virhe) {
+        console.error('[LomakepohjaEditori] Palvelu-linkkien tallennus epäonnistui:', linkkiTulos.virhe)
+        throw new Error(linkkiTulos.virhe)
+      }
+
       console.log('[LomakepohjaEditori] Versio', seuraavaVersio, 'tallennettu onnistuneesti')
       setTallennettu(true)
       // Scrollaa onnistumisilmoitus näkyviin + viive jotta käyttäjä näkee sen ennen palaamista
@@ -428,6 +450,40 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
             <option value="yksi_sivu">Kaikki osiot allekkain</option>
             <option value="accordion">Accordion-tyyli</option>
           </select>
+        </div>
+
+        {/* Liitetyt palvelut */}
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+            Liitetyt palvelut
+          </label>
+          <div className="flex items-center gap-2 flex-wrap min-h-[40px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+            {palveluLinkit.length === 0 ? (
+              <span className="text-sm text-gray-400 italic">Ei liitettyjä palveluita</span>
+            ) : (
+              palveluLinkit.map((l) => (
+                <span
+                  key={l.palvelu_id}
+                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
+                    l.on_oletus ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-brand-50 text-brand-700 border border-brand-200'
+                  }`}
+                >
+                  {l.on_oletus && <span>⭐</span>}
+                  {l.palvelu_nimi || '(nimetön)'}
+                </span>
+              ))
+            )}
+            <button
+              type="button"
+              onClick={() => setPalveluModaaliAuki(true)}
+              className="ml-auto px-3 py-1 text-xs font-medium text-brand-700 bg-white hover:bg-brand-50 border border-brand-200 rounded-md transition-colors whitespace-nowrap"
+            >
+              Hallitse
+            </button>
+          </div>
+          {palveluLinkit.some((l) => l.on_oletus) && (
+            <p className="text-xs text-gray-500">⭐ = pohja näkyy oletuksena tällä palvelulla</p>
+          )}
         </div>
 
         {virhe && (
@@ -603,6 +659,28 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
           onValitse={(tunniste) => lisaaKenttaOsioon(lisayksenKohde, tunniste)}
           onUusiKenttaLuotu={(tunniste) => uusiKenttaLuotu(lisayksenKohde, tunniste)}
           onSulje={() => setLisayksenKohde(null)}
+        />
+      )}
+
+      {/* Liitä palveluihin -modaali */}
+      {palveluModaaliAuki && (
+        <LiitaPalveluihinModaali
+          alkuLinkit={palveluLinkit.map((l) => ({ palvelu_id: l.palvelu_id, on_oletus: l.on_oletus }))}
+          onTallenna={async (uudet) => {
+            // Päivitä tila näytöllä — tallennus tapahtuu vasta kun lomakepohja
+            // tallennetaan. Haetaan palvelujen nimet uudelle tilalle.
+            const { data: palvelutData } = await supabase
+              .from('palvelut')
+              .select('id, nimi')
+              .in('id', uudet.map((u) => u.palvelu_id))
+            const nimiMap = new Map((palvelutData ?? []).map((p) => [p.id, p.nimi]))
+            setPalveluLinkit(uudet.map((u) => ({
+              palvelu_id:   u.palvelu_id,
+              palvelu_nimi: nimiMap.get(u.palvelu_id) ?? '',
+              on_oletus:    u.on_oletus,
+            })))
+          }}
+          onSulje={() => setPalveluModaaliAuki(false)}
         />
       )}
 

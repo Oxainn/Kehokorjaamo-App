@@ -68,8 +68,8 @@ Kehokorjaamo-App on **täysi alustatuote** joka korvaa kaiken hoitohuoneen pyör
 
 - 🟢 **Runtime-renderöijä** — geneerinen pohjasta lomakkeen renderöivä komponentti (22 kenttätyyppiä, 3 näyttötyyliä, validointi, tallennus). Korvaa vanhan Asiakastietolomakkeen tuotannossa. Valmis 30.4.2026.
 - 🟢 **Editori (ROADMAPin nykyinen 3C) loppuun viety** — palvelukohtaisten lomakepohjien luonti rasti ruutuun -tyyliin. Osioiden + kenttien hallinta, esikatselu, uuden kentän luonti kenttäkirjastoon. Valmis 30.4.2026.
-- ⚪ Palvelu-linkitys (ROADMAPin lykätty 3 B+) — lomake + palvelu pari toimii. **Nostettu ydintehtäväksi.**
-- ⚪ Palvelukohtaiset variantit (jäsenkorjaus, klassinen hieronta, tantrahieronta, energiahoito ensin — muiden lisäys onnistuu editorista jatkossa)
+- 🟢 **Palvelu-linkitys (ROADMAPin lykätty 3 B+)** — lomake + palvelu pari toimii N:M-suhteella. Hoitaja luo palvelut Asetuksissa (Asetukset → Palvelut), liittää lomakepohjia palveluihin editorin yläpalkista, voi merkitä yhden pohjan oletukseksi per palvelu. Valmis 30.4.2026.
+- ⚪ Palvelukohtaiset variantit (jäsenkorjaus, klassinen hieronta, tantrahieronta, energiahoito ensin — muiden lisäys onnistuu editorista jatkossa). **Hoitaja luo palvelut itse Asetuksissa** — alkuperäinen "migraatio luo 4 oletuspalvelua" hylätty (2026-04-30 päätös: pidetään tyhjä alku jotta hoitajan vapaus säilyy).
 - ⚪ Sähköpostitunnistautuminen lomakkeessa (sähköposti = tunniste, tulee toimimaan myös portaalin kirjautumisessa)
 - ⚪ Asiakkaan automaattinen rekisteröityminen lomakkeen täytön yhteydessä
 - ⚪ "Kiitos" + Vello-linkki ohjautuminen lomakkeen jälkeen

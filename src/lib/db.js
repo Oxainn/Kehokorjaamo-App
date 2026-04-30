@@ -344,6 +344,133 @@ export const haeAsiakkaanSairaudet = async (asiakasId) => {
   return data ?? []
 }
 
+// ─── Palvelut ─────────────────────────────────────────────────────────
+
+export const haePalvelut = async () => {
+  const { data, error } = await supabase
+    .from('palvelut')
+    .select('id, nimi, kuvaus, kesto_min, hinta_eur, jarjestys, aktiivinen, luotu, paivitetty')
+    .order('jarjestys', { ascending: true })
+    .order('nimi', { ascending: true })
+
+  if (error) {
+    console.error('Palveluiden haku epäonnistui:', error)
+    return []
+  }
+  return data ?? []
+}
+
+export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eur = null }) => {
+  if (!nimi?.trim()) return { virhe: 'Nimi puuttuu' }
+  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
+  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
+
+  const { data, error } = await supabase
+    .from('palvelut')
+    .insert({
+      hoitaja_id: user.id,
+      nimi:       nimi.trim(),
+      kuvaus:     kuvaus?.trim() || null,
+      kesto_min:  kesto_min ?? null,
+      hinta_eur:  hinta_eur ?? null,
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Palvelun luonti epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { id: data.id, virhe: null }
+}
+
+export const paivitaPalvelu = async (id, { nimi, kuvaus, kesto_min, hinta_eur, jarjestys, aktiivinen }) => {
+  const muutokset = { paivitetty: new Date().toISOString() }
+  if (nimi !== undefined)       muutokset.nimi = nimi.trim()
+  if (kuvaus !== undefined)     muutokset.kuvaus = kuvaus?.trim() || null
+  if (kesto_min !== undefined)  muutokset.kesto_min = kesto_min
+  if (hinta_eur !== undefined)  muutokset.hinta_eur = hinta_eur
+  if (jarjestys !== undefined)  muutokset.jarjestys = jarjestys
+  if (aktiivinen !== undefined) muutokset.aktiivinen = aktiivinen
+
+  const { error } = await supabase
+    .from('palvelut')
+    .update(muutokset)
+    .eq('id', id)
+
+  if (error) {
+    console.error('Palvelun päivitys epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { virhe: null }
+}
+
+export const poistaPalvelu = async (id) => {
+  const { error } = await supabase
+    .from('palvelut')
+    .delete()
+    .eq('id', id)
+
+  if (error) {
+    console.error('Palvelun poisto epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { virhe: null }
+}
+
+// Linkit pohjasta palveluihin: palauttaa [{ palvelu_id, palvelu_nimi, on_oletus }]
+export const haePalveluLinkitPohjalle = async (pohjaId) => {
+  const { data, error } = await supabase
+    .from('palvelu_lomake_linkit')
+    .select('palvelu_id, on_oletus, palvelut(id, nimi, aktiivinen)')
+    .eq('pohja_id', pohjaId)
+
+  if (error) {
+    console.error('Palvelu-linkkien haku epäonnistui:', error)
+    return []
+  }
+  return (data ?? []).map((l) => ({
+    palvelu_id: l.palvelu_id,
+    palvelu_nimi: l.palvelut?.nimi ?? '',
+    aktiivinen: l.palvelut?.aktiivinen ?? false,
+    on_oletus: l.on_oletus,
+  }))
+}
+
+// Korvaa pohjan palvelulinkit annetulla listalla.
+// uudetLinkit: [{ palvelu_id, on_oletus }]
+export const paivitaPalveluLinkit = async (pohjaId, uudetLinkit) => {
+  // 1. Poista vanhat linkit
+  const { error: poistoVirhe } = await supabase
+    .from('palvelu_lomake_linkit')
+    .delete()
+    .eq('pohja_id', pohjaId)
+
+  if (poistoVirhe) {
+    console.error('Vanhojen linkkien poisto epäonnistui:', poistoVirhe)
+    return { virhe: poistoVirhe.message }
+  }
+
+  // 2. Lisää uudet
+  if (uudetLinkit.length === 0) return { virhe: null }
+
+  const rivit = uudetLinkit.map((l) => ({
+    pohja_id:   pohjaId,
+    palvelu_id: l.palvelu_id,
+    on_oletus:  !!l.on_oletus,
+  }))
+
+  const { error: lisaysVirhe } = await supabase
+    .from('palvelu_lomake_linkit')
+    .insert(rivit)
+
+  if (lisaysVirhe) {
+    console.error('Uusien linkkien lisäys epäonnistui:', lisaysVirhe)
+    return { virhe: lisaysVirhe.message }
+  }
+  return { virhe: null }
+}
+
 // Luo uuden kentän kenttäkirjastoon (rivit kenttakirjasto + kentan_versiot).
 // Tunniste on uniikki per hoitaja — tarkistus tietokannan UNIQUE-rajoituksen kautta.
 export const luoUusiKentta = async ({

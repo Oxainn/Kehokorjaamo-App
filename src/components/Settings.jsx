@@ -4,6 +4,7 @@ import { supabase } from '../services/supabase'
 import ProductBoard from './ProductBoard'
 import KehonkarttaKalibrointi from './asetukset/KehonkarttaKalibrointi'
 import LomakeKirjasto from './asetukset/LomakeKirjasto'
+import PalveluKirjasto from './asetukset/PalveluKirjasto'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
 
@@ -437,13 +438,19 @@ export default function Settings({ hoitajaId }) {
         }
       />
 
-      {/* ── 4: Palvelut ──────────────────────────────────────────────────── */}
+      {/* ── 4: Palvelut (Supabase-pohjainen) ─────────────────────────────── */}
       <AccordionOsio
         id="palvelut" otsikko="Palvelut" ikoni="🏥"
         auki={aukiOsio === 'palvelut'} onToggle={toggle}
-        lapset={
-          <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
+        lapset={<PalveluKirjasto />}
+      />
 
+      {/* TILAPÄINEN: vanha localStorage-pohjainen Palvelut-koodi piilotettu jotta
+          datat eivät ole päällekkäin. Koodi ja apufunktiot jäävät vielä
+          komponenttiin myöhempää siivousta varten. */}
+      {false && (
+        <div style={{ display: 'none' }}>
+          <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>
             {palvelut.map(p => (
               <div key={p.id} style={{
                 border:'1px solid #e2e8f0',borderRadius:'8px',padding:'12px',
@@ -760,8 +767,8 @@ export default function Settings({ hoitajaId }) {
             </div>
 
           </div>
-        }
-      />
+        </div>
+      )}
 
       {/* ── Integraatiot (Käyttäjähallinta, viimeisenä) ─────────────────── */}
       <AccordionOsio
