@@ -301,6 +301,24 @@ function VaihdaLomakeModaali({ palvelu, nykyinenPohjaId, onTallennettu, onSulje 
 
 function PalveluKortti({ palvelu, onMuokkaa, onPoista, onToggleAktiivinen, onVaihdaLomake }) {
   const lomake = palvelu.lomakepohja
+  const [kopiointiTila, setKopiointiTila] = useState(null) // null | 'ok' | 'virhe'
+
+  // Asiakaslinkki on aina nykyisen alkuperäosoitteen pohjalta — kun deployataan
+  // uuteen domainiin, linkki seuraa automaattisesti.
+  const asiakasLinkki = typeof window !== 'undefined'
+    ? `${window.location.origin}/?palvelu=${palvelu.id}`
+    : `/?palvelu=${palvelu.id}`
+
+  async function kopioiLinkki() {
+    try {
+      await navigator.clipboard.writeText(asiakasLinkki)
+      setKopiointiTila('ok')
+    } catch {
+      setKopiointiTila('virhe')
+    }
+    setTimeout(() => setKopiointiTila(null), 2000)
+  }
+
   return (
     <div className={`bg-white rounded-xl border ${palvelu.aktiivinen ? 'border-gray-100' : 'border-gray-200 bg-gray-50'} shadow-sm p-4 flex flex-col gap-3`}>
       {/* Otsikko */}
@@ -340,6 +358,41 @@ function PalveluKortti({ palvelu, onMuokkaa, onPoista, onToggleAktiivinen, onVai
         >
           {lomake ? 'Vaihda' : 'Valitse'}
         </button>
+      </div>
+
+      {/* Asiakaslinkki — luettava ja kopioitava */}
+      <div className="ml-7 flex flex-col gap-1">
+        <p className="text-xs font-medium text-gray-500">Asiakaslinkki:</p>
+        <div className="flex items-stretch gap-2 flex-wrap">
+          <input
+            type="text"
+            value={asiakasLinkki}
+            readOnly
+            onFocus={(e) => e.target.select()}
+            className="flex-1 min-w-[200px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-xs font-mono text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white"
+            aria-label="Asiakkaalle jaettava linkki tähän palveluun"
+          />
+          <button
+            type="button"
+            onClick={kopioiLinkki}
+            className={`px-3 py-2 text-xs font-medium rounded-lg border transition-colors whitespace-nowrap flex items-center gap-1.5 ${
+              kopiointiTila === 'ok'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : kopiointiTila === 'virhe'
+                ? 'bg-red-50 border-red-200 text-red-700'
+                : 'bg-white border-gray-200 text-gray-700 hover:border-brand-500 hover:text-brand-700'
+            }`}
+            aria-live="polite"
+          >
+            {kopiointiTila === 'ok' ? (
+              <><span>✓</span><span>Kopioitu!</span></>
+            ) : kopiointiTila === 'virhe' ? (
+              <><span>⚠</span><span>Ei onnistunut</span></>
+            ) : (
+              <><span>📋</span><span>Kopioi</span></>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Varauslinkki */}
