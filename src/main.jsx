@@ -8,7 +8,10 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<App />} />
+        {/* Catch-all → App. App.jsx tarkistaa itse pathname:n ja URL-parametrit
+            ja renderöi oikean näkymän (Login / Asiakasrekisteri / PalveluValinta /
+            JulkinenLomake). Tämä pitää reititysrakenteen yhdessä paikassa. */}
+        <Route path="/*" element={<App />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,
