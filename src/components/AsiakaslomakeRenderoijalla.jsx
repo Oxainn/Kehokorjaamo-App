@@ -9,7 +9,7 @@
 // tyhjällä versiolla — siksi App.jsx ohjaa nyt vahvistamattomat suoraan
 // UudenAsiakkaanTarkistus:een.
 import { useState, useEffect, useMemo } from 'react'
-import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, haeAsiakkaanViimeisinLomake, haeKayntienPaivamaarat, haeLomakeversio, haeAsiakkaanKontraindikaatiot } from '../lib/db'
+import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, haeAsiakkaanViimeisinLomake, haeKayntienPaivamaarat, haeLomakeversio, haeAsiakkaanKontraindikaatiot, haeAsiakkaanKayntienMaara, haeHoitosarjanPituus } from '../lib/db'
 import { kokoaVastaukset } from '../lib/lomakeTallennus'
 import { useLomakepohja } from '../hooks/useLomakepohja'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
@@ -82,6 +82,20 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
     let peruttu = false
     haeAsiakkaanKontraindikaatiot(asiakasId).then((lista) => {
       if (!peruttu) setKontraindikaatiot(lista)
+    })
+    return () => { peruttu = true }
+  }, [asiakasId])
+
+  // Pala B6.5: sarjan etenemis-indikaattori "Sarja: N/M hoitokertaa tehty"
+  const [sarjaTila, setSarjaTila] = useState({ tehty: 0, pituus: null })
+  useEffect(() => {
+    if (!asiakasId) { setSarjaTila({ tehty: 0, pituus: null }); return }
+    let peruttu = false
+    Promise.all([
+      haeAsiakkaanKayntienMaara(asiakasId),
+      haeHoitosarjanPituus(),
+    ]).then(([tehty, pituus]) => {
+      if (!peruttu) setSarjaTila({ tehty, pituus })
     })
     return () => { peruttu = true }
   }, [asiakasId])
@@ -209,6 +223,31 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Pala B6.5 — sarjan etenemis-indikaattori asiakaskortin yläosassa */}
+      {sarjaTila.tehty > 0 && (
+        <div style={{
+          background:    sarjaTila.pituus && sarjaTila.tehty >= sarjaTila.pituus ? '#fffbeb' : '#f0fdf4',
+          border:        sarjaTila.pituus && sarjaTila.tehty >= sarjaTila.pituus ? '1px solid #fcd34d' : '1px solid #bbf7d0',
+          borderRadius:  '10px',
+          padding:       '8px 14px',
+          fontSize:      '13px',
+          color:         '#374151',
+          display:       'flex',
+          alignItems:    'center',
+          gap:           '6px',
+        }}>
+          <span>📊</span>
+          <span>
+            <strong>Sarja:</strong>{' '}
+            {sarjaTila.pituus
+              ? (sarjaTila.tehty > sarjaTila.pituus
+                  ? `${sarjaTila.pituus}/${sarjaTila.pituus} sarja päättynyt + ${sarjaTila.tehty - sarjaTila.pituus} ylläpitokäyntiä`
+                  : `${sarjaTila.tehty}/${sarjaTila.pituus} hoitokertaa tehty`)
+              : `${sarjaTila.tehty} hoitokerta${sarjaTila.tehty === 1 ? '' : 'a'} tehty`}
+          </span>
+        </div>
+      )}
+
       {/* Pala B2 — kontraindikaatio-varoitus yläosassa, punaisella jos asiakkaalla
           on rastittu yksi tai useampi sairaus jolla on kontraindikaatio=true. */}
       {kontraindikaatiot.length > 0 && (

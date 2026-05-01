@@ -120,22 +120,29 @@ export const haeKontraindikaatiotAsiakkaille = async (asiakasIdt) => {
 // rajoitus: jos annettu (esim. 4), palautetaan korkeintaan N uusinta.
 // Käytetään Asiakasrekisterin pillerinäkymässä jossa näytetään 4 uusinta.
 // Käyntihistoria-listalla rajoitus jätetään null:ksi → kaikki käynnit.
+//
+// Pala B6.5: jokainen rivi sisältää kayntinumero-kentän — N/M-laskenta
+// koko historian järjestyksessä (vanhin = 1).
 export const haeKayntienPaivamaarat = async (asiakasId, rajoitus = null) => {
   if (!asiakasId) return []
-  let query = supabase
+  // Hae KAIKKI suljetut versiot ensin laskeaksemme käyntinumerot oikein
+  // (vanhin = käynti 1). Sitten rajoitettu joukko palautetaan.
+  const { data: kaikki, error } = await supabase
     .from('asiakastietolomake_versiot')
     .select('id, voimassa_alkaen, otsikko')
     .eq('asiakas_id', asiakasId)
     .not('voimassa_asti', 'is', null)
-    .order('voimassa_alkaen', { ascending: false })
-  if (typeof rajoitus === 'number' && rajoitus > 0) query = query.limit(rajoitus)
-
-  const { data, error } = await query
+    .order('voimassa_alkaen', { ascending: true })
   if (error) {
     console.error('Käyntien päivämäärien haku epäonnistui:', error)
     return []
   }
-  return data ?? []
+  const kaikkiNumeroidut = (kaikki ?? []).map((r, i) => ({ ...r, kayntinumero: i + 1 }))
+  // Käännä uusimmasta vanhimpaan + sovella rajoitusta
+  const uusimmat = [...kaikkiNumeroidut].reverse()
+  return typeof rajoitus === 'number' && rajoitus > 0
+    ? uusimmat.slice(0, rajoitus)
+    : uusimmat
 }
 
 // Hakee yksittäisen lomakeversion täydet tiedot + sairaudet — käytetään
@@ -387,17 +394,41 @@ export const aloitaUusiKaynti = async (asiakasId) => {
 
 // Hoitokäyntien lukumäärä asiakkaalle — käytetään hoitokirjaus-näkymän
 // "Käynti X / Y" -laskurissa.
+//
+// Pala B6.5: laskuri sulkee pois 'odottaa_kayntia'-rivit (tyhjät B-lomakkeet
+// jotka odottavat ensimmäistä käyntiä). N = tehdyt käynnit + nykyinen
+// luonnos = todellinen käyntinumero kun käyttäjä on hoitokirjauksessa.
 export const haeAsiakkaanKayntienMaara = async (asiakasId) => {
   if (!asiakasId) return 0
   const { count, error } = await supabase
     .from('hoitokaynnit')
     .select('*', { count: 'exact', head: true })
     .eq('asiakas_id', asiakasId)
+    .neq('tila', 'odottaa_kayntia')
   if (error) {
     console.error('Käyntien laskeminen epäonnistui:', error)
     return 0
   }
   return count ?? 0
+}
+
+// Hakee hoitajan aktiivisten palvelujen ensimmäisen hoitosarjan_pituuden.
+// Yksinkertaistus: yhden hoitajan tuotteissa oletamme yhden pääpalvelun.
+// Pala B6.5 — käytetään käyntinumeron M-osana ("Käynti N/M").
+export const haeHoitosarjanPituus = async () => {
+  const { data, error } = await supabase
+    .from('palvelut')
+    .select('hoitosarjan_pituus')
+    .eq('aktiivinen', true)
+    .not('hoitosarjan_pituus', 'is', null)
+    .order('jarjestys', { ascending: true, nullsFirst: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('Hoitosarjan pituuden haku epäonnistui:', error)
+    return null
+  }
+  return data?.hoitosarjan_pituus ?? null
 }
 
 // Tallentaa hoitokirjauksen tiedot. Pala B2:ssa laajennettu kattamaan
@@ -418,6 +449,8 @@ export const tallennaHoitokirjaus = async (hoitokayntiId, tiedot) => {
     'jalkapituus_ero_cm',
     'navicular_drop_vasen_mm', 'navicular_drop_oikea_mm',
     'akillesjanteen_kulma_vasen_aste', 'akillesjanteen_kulma_oikea_aste',
+    // Pala B6.5 — jatkohoitosuunnitelma
+    'seuraava_kaynti_pvm',
   ]
   for (const k of sallitut) {
     if (tiedot[k] !== undefined) muutokset[k] = tiedot[k] === '' ? null : tiedot[k]
@@ -1096,7 +1129,7 @@ export const haeAsiakkaanSairaudet = async (asiakasId) => {
 export const haePalvelut = async () => {
   const { data, error } = await supabase
     .from('palvelut')
-    .select('id, nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, jarjestys, aktiivinen, lomakepohja_id, luotu, paivitetty, lomakepohjat:lomakepohja_id(id, nimi, aktiivinen)')
+    .select('id, nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, jarjestys, aktiivinen, lomakepohja_id, hoitosarjan_pituus, luotu, paivitetty, lomakepohjat:lomakepohja_id(id, nimi, aktiivinen)')
     .order('jarjestys', { ascending: true })
     .order('nimi', { ascending: true })
 
@@ -1110,7 +1143,7 @@ export const haePalvelut = async () => {
   }))
 }
 
-export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eur = null, varauslinkki_url = '', lomakepohja_id = null }) => {
+export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eur = null, varauslinkki_url = '', lomakepohja_id = null, hoitosarjan_pituus = null }) => {
   if (!nimi?.trim()) return { virhe: 'Nimi puuttuu' }
   const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
   if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
@@ -1118,13 +1151,14 @@ export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eu
   const { data, error } = await supabase
     .from('palvelut')
     .insert({
-      hoitaja_id:       user.id,
-      nimi:             nimi.trim(),
-      kuvaus:           kuvaus?.trim() || null,
-      kesto_min:        kesto_min ?? null,
-      hinta_eur:        hinta_eur ?? null,
-      varauslinkki_url: varauslinkki_url?.trim() || null,
-      lomakepohja_id:   lomakepohja_id ?? null,
+      hoitaja_id:         user.id,
+      nimi:               nimi.trim(),
+      kuvaus:             kuvaus?.trim() || null,
+      kesto_min:          kesto_min ?? null,
+      hinta_eur:          hinta_eur ?? null,
+      varauslinkki_url:   varauslinkki_url?.trim() || null,
+      lomakepohja_id:     lomakepohja_id ?? null,
+      hoitosarjan_pituus: hoitosarjan_pituus ?? null,
     })
     .select('id')
     .single()
@@ -1136,16 +1170,17 @@ export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eu
   return { id: data.id, virhe: null }
 }
 
-export const paivitaPalvelu = async (id, { nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, jarjestys, aktiivinen, lomakepohja_id }) => {
+export const paivitaPalvelu = async (id, { nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, jarjestys, aktiivinen, lomakepohja_id, hoitosarjan_pituus }) => {
   const muutokset = { paivitetty: new Date().toISOString() }
-  if (nimi !== undefined)             muutokset.nimi = nimi.trim()
-  if (kuvaus !== undefined)           muutokset.kuvaus = kuvaus?.trim() || null
-  if (kesto_min !== undefined)        muutokset.kesto_min = kesto_min
-  if (hinta_eur !== undefined)        muutokset.hinta_eur = hinta_eur
-  if (varauslinkki_url !== undefined) muutokset.varauslinkki_url = varauslinkki_url?.trim() || null
-  if (jarjestys !== undefined)        muutokset.jarjestys = jarjestys
-  if (aktiivinen !== undefined)       muutokset.aktiivinen = aktiivinen
-  if (lomakepohja_id !== undefined)   muutokset.lomakepohja_id = lomakepohja_id
+  if (nimi !== undefined)               muutokset.nimi = nimi.trim()
+  if (kuvaus !== undefined)             muutokset.kuvaus = kuvaus?.trim() || null
+  if (kesto_min !== undefined)          muutokset.kesto_min = kesto_min
+  if (hinta_eur !== undefined)          muutokset.hinta_eur = hinta_eur
+  if (varauslinkki_url !== undefined)   muutokset.varauslinkki_url = varauslinkki_url?.trim() || null
+  if (jarjestys !== undefined)          muutokset.jarjestys = jarjestys
+  if (aktiivinen !== undefined)         muutokset.aktiivinen = aktiivinen
+  if (lomakepohja_id !== undefined)     muutokset.lomakepohja_id = lomakepohja_id
+  if (hoitosarjan_pituus !== undefined) muutokset.hoitosarjan_pituus = hoitosarjan_pituus
 
   const { error } = await supabase
     .from('palvelut')
