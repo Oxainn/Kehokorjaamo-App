@@ -45,6 +45,38 @@ export const haeAsiakkaat = async () => {
   return data
 }
 
+// Hakee asiakkaan viimeisimmän lomakeversion + sairaudet — käytetään
+// "Uuden asiakkaan tarkistus" -näkymässä jossa hoitaja näkee asiakkaan
+// julkisen lomakkeen kautta täyttämät tiedot ennen vahvistusta.
+// Palauttaa { versio, sairaudet } tai { versio: null, sairaudet: [] }.
+export const haeAsiakkaanViimeisinLomake = async (asiakasId) => {
+  if (!asiakasId) return { versio: null, sairaudet: [] }
+
+  const { data: versio } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('id, hoitoon_syy, kipu_taso, laakitys, diagnosoidut_sairaudet, vammat_huomiot, harrastukset, lisakentat, muokkaaja_rooli, luotu')
+    .eq('asiakas_id', asiakasId)
+    .is('voimassa_asti', null)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (!versio) return { versio: null, sairaudet: [] }
+
+  const { data: sairaudet } = await supabase
+    .from('lomake_sairaudet')
+    .select(`
+      sairaus_tyyppi:sairaus_tyypit (id, nimi, kontraindikaatio)
+    `)
+    .eq('lomake_versio_id', versio.id)
+    .eq('on_voimassa', true)
+
+  return {
+    versio,
+    sairaudet: (sairaudet ?? []).map((s) => s.sairaus_tyyppi).filter(Boolean),
+  }
+}
+
 // Vahvistaa julkisen lomakkeen kautta tulleen asiakkaan — siirtää hänet
 // Asiakasrekisterin "Uudet asiakkaat" -osiosta normaaliin asiakaslistaan.
 export const vahvistaAsiakas = async (asiakasId) => {

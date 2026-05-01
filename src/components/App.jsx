@@ -8,6 +8,7 @@ import Asiakasrekisteri from './Asiakasrekisteri'
 // eslint-disable-next-line no-unused-vars
 import Asiakastietolomake from './Asiakastietolomake' // ROLLBACK — vanha lomake, ei käytössä
 import AsiakaslomakeRenderoijalla from './AsiakaslomakeRenderoijalla'
+import UudenAsiakkaanTarkistus from './UudenAsiakkaanTarkistus'
 import JulkinenLomake from './JulkinenLomake'
 import PalveluValinta from './PalveluValinta'
 
@@ -227,10 +228,19 @@ export default function App() {
                 {asiakas.nimi}
               </span>
             </div>
-            <AsiakaslomakeRenderoijalla
-              asiakas={asiakas}
-              onValmis={() => setNakyma('rekisteri')}
-            />
+            {asiakas.vahvistettu === false ? (
+              // Vahvistamaton asiakas → tarkistusnäkymä joka EI muokkaa lomakeversiota
+              <UudenAsiakkaanTarkistus
+                asiakas={asiakas}
+                onValmis={() => setNakyma('rekisteri')}
+              />
+            ) : (
+              // Vahvistettu asiakas → normaali hoitokerran lomake (luo uuden version)
+              <AsiakaslomakeRenderoijalla
+                asiakas={asiakas}
+                onValmis={() => setNakyma('rekisteri')}
+              />
+            )}
           </div>
         )}
 
