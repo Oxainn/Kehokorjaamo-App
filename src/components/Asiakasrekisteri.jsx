@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas } from '../lib/db'
-import { muotoilePvm, muodostaCSV, lataaTiedosto } from '../lib/muotoilu'
+import { muotoilePvm, muodostaCSV, lataaTiedosto, jaaNimi } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
 
 // Asiakasrekisteri jakautuu kahteen osioon:
@@ -50,7 +50,7 @@ export default function Asiakasrekisteri({
       // jotta saadaan vahvistettu-sarake mukaan.
       const { data, error } = await supabase
         .from('asiakkaat')
-        .select('id, nimi, sahkoposti, puhelin, syntymaaika, luotu, vahvistettu, lahiosoite, postinumero, postitoimipaikka, ammatti, pituus, paino, suostumus_tietojen_sailytys, suostumus_tietojen_luovutus, arkistoitu')
+        .select('id, nimi, sahkoposti, puhelin, syntymaaika, luotu, paivitetty, vahvistettu, lahiosoite, postinumero, postitoimipaikka, ammatti, pituus, paino, suostumus_tietojen_sailytys, suostumus_tietojen_luovutus, arkistoitu')
         .eq('hoitaja_id', hoitajaId)
         .eq('arkistoitu', arkistoTila)
         .order('luotu', { ascending: false })
@@ -105,24 +105,38 @@ export default function Asiakasrekisteri({
     nimi?.trim()?.[0]?.toUpperCase() ?? '?'
 
   function vieCSV() {
+    // Asiakasrekisteri-näkymä näyttää jo aktiiviset (arkistoitu = false), joten
+    // suoraan käytettävä asiakkaat-state sisältää vain ne joita halutaan viedä.
     if (asiakkaat.length === 0) return
-    const otsikot = ['Nimi','Sähköposti','Puhelin','Syntymäaika','Osoite','Postinumero','Postitoimipaikka','Ammatti','Pituus (cm)','Paino (kg)','Lisätty']
-    const rivit = asiakkaat.map((a) => [
-      a.nimi ?? '',
-      a.sahkoposti ?? '',
-      a.puhelin ?? '',
-      a.syntymaaika ?? '',
-      a.lahiosoite ?? '',
-      a.postinumero ?? '',
-      a.postitoimipaikka ?? '',
-      a.ammatti ?? '',
-      a.pituus ?? '',
-      a.paino ?? '',
-      muotoilePvm(a.luotu) ?? '',
-    ])
-    const csv = muodostaCSV(otsikot, rivit)
-    const pvm = new Date().toISOString().slice(0, 10)
-    lataaTiedosto(csv, `kehokorjaamo-asiakkaat-${pvm}.csv`)
+    const otsikot = [
+      'Etunimi', 'Sukunimi', 'Sähköposti', 'Puhelin', 'Syntymäaika',
+      'Lähiosoite', 'Postinumero', 'Postitoimipaikka', 'Ammatti',
+      'Pituus', 'Paino', 'Luotu', 'Päivitetty',
+    ]
+    const rivit = asiakkaat.map((a) => {
+      const [etunimi, sukunimi] = jaaNimi(a.nimi)
+      return [
+        etunimi,
+        sukunimi,
+        a.sahkoposti ?? '',
+        a.puhelin ?? '',
+        muotoilePvm(a.syntymaaika) ?? '',
+        a.lahiosoite ?? '',
+        a.postinumero ?? '',
+        a.postitoimipaikka ?? '',
+        a.ammatti ?? '',
+        a.pituus ?? '',
+        a.paino ?? '',
+        muotoilePvm(a.luotu) ?? '',
+        muotoilePvm(a.paivitetty) ?? '',
+      ]
+    })
+    // Erotin ; — Excel suomalaisessa lokaalissa avaa oikein ilman
+    // manuaalista import-ohjattua. UTF-8 BOM tarjoaa skandit oikein.
+    const csv = muodostaCSV(otsikot, rivit, ';')
+    const d = new Date()
+    const pvm = `${String(d.getDate()).padStart(2, '0')}-${String(d.getMonth() + 1).padStart(2, '0')}-${d.getFullYear()}`
+    lataaTiedosto(csv, `asiakkaat-${pvm}.csv`)
   }
 
   if (lataa) return (
