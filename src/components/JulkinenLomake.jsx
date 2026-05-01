@@ -157,7 +157,15 @@ export default function JulkinenLomake({ palveluId }) {
       }, KIITOS_MS)
     } catch (e) {
       console.error('[JulkinenLomake] Lähetys epäonnistui:', e)
-      setVirhe(e.message ?? 'Lähetys epäonnistui')
+      // Tunnista offline-tila tai muu verkkovirhe — fetch heittää TypeErrorin
+      // ("Failed to fetch") jos yhteyttä ei ole. Näytä selkeä viesti ja pidä
+      // lomakkeen sisältö ennallaan jotta käyttäjä voi yrittää uudestaan.
+      const onVerkkovirhe =
+        (typeof navigator !== 'undefined' && navigator.onLine === false) ||
+        e instanceof TypeError
+      setVirhe(onVerkkovirhe
+        ? 'Verkkoyhteys puuttuu. Tarkista yhteys ja yritä uudestaan — lomakkeen tietoja ei vielä tallennettu.'
+        : (e.message ?? 'Lähetys epäonnistui'))
       setTila('virhe')
     }
   }

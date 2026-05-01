@@ -110,7 +110,15 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
       setTimeout(onValmis, 1200)
     } catch (e) {
       setTila(TILA.EPAONNISTUI)
-      setVirheviesti(e.message ?? 'Tuntematon virhe')
+      // Verkkovirhe: TypeError ("Failed to fetch") tai navigator.onLine = false.
+      // Lomakkeen tila säilyy state:ssa, käyttäjä voi yrittää uudestaan kun
+      // yhteys palaa.
+      const onVerkkovirhe =
+        (typeof navigator !== 'undefined' && navigator.onLine === false) ||
+        e instanceof TypeError
+      setVirheviesti(onVerkkovirhe
+        ? 'Verkkoyhteys puuttuu. Tarkista yhteys ja yritä uudestaan — lomakkeen tietoja ei vielä tallennettu.'
+        : (e.message ?? 'Tuntematon virhe'))
     }
   }
 
