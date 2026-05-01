@@ -5,6 +5,7 @@ import ProductBoard from './ProductBoard'
 import KehonkarttaKalibrointi from './asetukset/KehonkarttaKalibrointi'
 import KotisivunLinkit from './asetukset/KotisivunLinkit'
 import PalvelutJaLomakkeet from './asetukset/PalvelutJaLomakkeet'
+import ItsehoitoKirjasto from './asetukset/ItsehoitoKirjasto'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
 
@@ -333,6 +334,13 @@ export default function Settings({ hoitajaId }) {
         id="palvelut_lomakkeet" otsikko="Palvelut & lomakkeet" ikoni="🩺"
         auki={aukiOsio === 'palvelut_lomakkeet'} onToggle={toggle}
         lapset={<PalvelutJaLomakkeet />}
+      />
+
+      {/* ── Itsehoito-kirjasto (Vaihe B Pala B5) ──────────────────────────── */}
+      <AccordionOsio
+        id="itsehoito_kirjasto" otsikko="Itsehoito-kirjasto" ikoni="🧘"
+        auki={aukiOsio === 'itsehoito_kirjasto'} onToggle={toggle}
+        lapset={<ItsehoitoKirjasto />}
       />
 
       {/* ── 3: Brändäys ──────────────────────────────────────────────────── */}
