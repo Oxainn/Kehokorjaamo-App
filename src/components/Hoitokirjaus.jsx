@@ -297,7 +297,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         <button
           type="button"
           onClick={onPeru}
-          style={{ fontSize: '13px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#1D9E75', fontWeight: 500, padding: '4px 0' }}
+          style={{ fontSize: '14px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#1D9E75', fontWeight: 500, padding: '10px 8px', minHeight: '44px' }}
         >
           ← Rekisteri
         </button>

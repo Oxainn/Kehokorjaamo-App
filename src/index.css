@@ -18,13 +18,75 @@
   animation: lataauspulse 1.4s ease-in-out infinite;
 }
 
-/* iOS Safari autozoomaa input-kenttiin jos fonttikoko on < 16 px focus-tilassa.
-   Pakota kaikki input/textarea/select käyttämään 16 px (mediakysely vain
-   mobile-leveydellä jotta desktopin tiheämpi 14 px -tyyli säilyy). */
-@media (max-width: 640px) {
+/* iOS Safari ja Android Chrome autozoomaa input-kenttiin jos fonttikoko
+   on < 16 px focus-tilassa. Pakota inputit 16px:iin myös tabletilla
+   (max-width: 1024px) jottei zoom häiritse hoitokirjausta hoitohuoneessa. */
+@media (max-width: 1024px) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
   textarea,
   select {
     font-size: 16px !important;
+  }
+}
+
+/* ── Pala B9a: tablet/kosketus-optimointi ──────────────────────────────────
+   Hoitaja käyttää sovellusta hoitohuoneessa tabletilla. Kosketuskäytössä:
+   - hover-tilat eivät triggeröidy → vältä toiminnallisia hover-efektejä,
+     pelkkä tyyli on ok
+   - tap-target ≥ 44 px (Apple HIG) / 48 dp (Material) sormella
+   - 300 ms double-tap-zoom -viive: poistuu touch-action: manipulation:lla
+   - native range-slider thumb on noin 14 px — liian pieni sormelle */
+
+/* Kaikille interaktiivisille elementeille: nopea kosketus, ei tuplaklikkauksen
+   zoomaa. Säilytä tekstinvalinta inputeissa. */
+button, a, [role="button"], input[type="range"], select {
+  touch-action: manipulation;
+}
+
+/* Range-sliderin thumb iso 24 px, hover-rinki 44 px tabletilla — sormi osuu
+   helposti vaikka liukusäädin itse on ohut. WebKit + Firefox erikseen. */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #1D9E75;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #1D9E75;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+}
+@media (pointer: coarse) {
+  input[type="range"]::-webkit-slider-thumb {
+    width: 28px;
+    height: 28px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 28px;
+    height: 28px;
+  }
+  /* Range-radan korkeus isompi tabletilla — nähtävä paremmin */
+  input[type="range"] {
+    height: 44px;
+  }
+}
+
+/* Modaalit täysruutu mobiililla & tablet-portrait — jätä tyhjää reunoille
+   tabletille ennemmin kuin isolle nappikölille. Toteutus: dialog-roolin
+   omaava div [role="dialog"] saa pienemmillä leveyksillä margin: 0. */
+@media (max-width: 768px) {
+  [role="dialog"] > div {
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 12px 12px 0 0 !important;
   }
 }

@@ -51,6 +51,9 @@ function tyhjäLöydös(alue) {
 }
 
 function KirjausKenttä({ kirjaus, arvo, onChange }) {
+  // Tablet-optimoitu (Pala B9a): py-3 + min-h-11 → ≥44 px korkea, riittävä
+  // sormikosketukseen. Hover-tyylit säilytetty mutta eivät triggeröi
+  // toimintoa kosketuksessa.
   return (
     <div className="mb-4">
       <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
@@ -59,7 +62,7 @@ function KirjausKenttä({ kirjaus, arvo, onChange }) {
       <div className="flex flex-wrap gap-2">
         <button
           onClick={() => onChange(kirjaus.id, null)}
-          className={`px-3 py-1.5 text-sm rounded-lg border font-medium transition-colors
+          className={`px-4 py-3 min-h-[44px] text-sm rounded-lg border font-medium transition-colors
             ${arvo === null
               ? 'bg-gray-400 text-white border-gray-400'
               : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
@@ -71,7 +74,7 @@ function KirjausKenttä({ kirjaus, arvo, onChange }) {
           <button
             key={v}
             onClick={() => onChange(kirjaus.id, v)}
-            className={`px-3 py-1.5 text-sm rounded-lg border font-medium transition-colors
+            className={`px-4 py-3 min-h-[44px] text-sm rounded-lg border font-medium transition-colors
               ${arvo === v
                 ? 'bg-brand-600 text-white border-brand-600'
                 : 'bg-white text-gray-600 border-gray-200 hover:border-brand-600 hover:text-brand-700'
@@ -193,7 +196,7 @@ export default function BodyMap({ onAnalyze, onChange, initialFindings, piilotaA
                     <button
                       key={alue.id}
                       onClick={() => klikkaaAlue(alue.id)}
-                      className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-all
+                      className={`px-4 py-3 min-h-[44px] rounded-lg text-sm font-medium border-2 transition-all
                         ${isActive
                           ? 'bg-gray-800 text-white border-gray-800'
                           : löydös
@@ -261,7 +264,7 @@ export default function BodyMap({ onAnalyze, onChange, initialFindings, piilotaA
                     <button
                       key={i}
                       onClick={() => päivitäKipu(i)}
-                      className={`flex-1 py-1.5 text-xs font-semibold rounded border transition-colors ${cls}`}
+                      className={`flex-1 py-3 min-h-[44px] text-sm font-semibold rounded border transition-colors ${cls}`}
                     >
                       {i}
                     </button>
@@ -299,7 +302,7 @@ export default function BodyMap({ onAnalyze, onChange, initialFindings, piilotaA
                   <li
                     key={alue.id}
                     onClick={() => setValittu(alue.id)}
-                    className={`flex items-center justify-between px-2 py-2.5 rounded-lg cursor-pointer transition-colors
+                    className={`flex items-center justify-between px-3 py-3 min-h-[44px] rounded-lg cursor-pointer transition-colors
                       ${isActive ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
                   >
                     <div className="flex items-center gap-2 min-w-0">

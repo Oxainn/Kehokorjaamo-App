@@ -296,7 +296,7 @@ export default function App() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 0 12px', borderBottom: '1px solid #e2e8f0', marginBottom: '16px' }}>
               <button
                 onClick={paluuRekisteriin}
-                style={{ fontSize: '13px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#1D9E75', fontWeight: '500', padding: '4px 0' }}
+                style={{ fontSize: '14px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#1D9E75', fontWeight: '500', padding: '10px 8px', minHeight: '44px' }}
               >
                 ← Rekisteri
               </button>

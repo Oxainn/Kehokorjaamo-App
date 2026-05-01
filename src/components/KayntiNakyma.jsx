@@ -52,8 +52,8 @@ const headerTyyli = {
 }
 
 const sulkeTyyli = {
-  width:        '32px',
-  height:       '32px',
+  width:        '44px',
+  height:       '44px',
   display:      'flex',
   alignItems:   'center',
   justifyContent: 'center',
@@ -62,7 +62,7 @@ const sulkeTyyli = {
   background:   'transparent',
   color:        '#6b7280',
   cursor:       'pointer',
-  fontSize:     '18px',
+  fontSize:     '20px',
 }
 
 const sisaltoTyyli = {
