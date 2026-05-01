@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { KIRJAUSRAKENNE } from '../data/findings-structure.js'
 
 const RYHMÄT = [
@@ -85,9 +85,32 @@ function KirjausKenttä({ kirjaus, arvo, onChange }) {
   )
 }
 
-export default function BodyMap({ onAnalyze }) {
-  const [löydökset, setLöydökset] = useState({})
+// Props:
+// - onAnalyze: callback Analysoi löydökset -napista (vanha käyttö)
+// - onChange: callback aina kun löydökset muuttuvat (Pala B2 — reaaliaikainen
+//             tallennus Hoitokirjaus-näkymässä). Saa parametriksi taulukon
+//             { alueId, alueNimi, tyyppi, kipu, kirjaukset }.
+// - initialFindings: { [alueId]: { tyyppi, kipu, kirjaukset } } esitäyttöä varten
+// - piilotaAnalysoi: jos true, piilottaa Analysoi-napin (käytössä Hoitokirjauksen
+//             yhteydessä jossa tallennus tehdään hoitokirjauksen Tallenna-napilla)
+export default function BodyMap({ onAnalyze, onChange, initialFindings, piilotaAnalysoi = false }) {
+  const [löydökset, setLöydökset] = useState(initialFindings ?? {})
   const [valittu, setValittu]     = useState(null)
+
+  // Lähetä päivitetty löydösrakenne parentille aina kun se muuttuu.
+  // Sopii Hoitokirjaus-näkymään jossa löydökset osa B-lomakkeen
+  // tallennusta — ei tarvitse erillistä Analysoi-klikkausta.
+  useEffect(() => {
+    if (!onChange) return
+    const findings = Object.entries(löydökset).map(([id, data]) => ({
+      alueId:     id,
+      alueNimi:   KIRJAUSRAKENNE.find(a => a.id === id)?.nimi ?? id,
+      tyyppi:     data.tyyppi,
+      kipu:       data.kipu,
+      kirjaukset: data.kirjaukset,
+    }))
+    onChange(findings)
+  }, [löydökset, onChange])
 
   const klikkaaAlue = (id) => {
     setValittu(id)
@@ -257,7 +280,7 @@ export default function BodyMap({ onAnalyze }) {
           </div>
         )}
 
-        {/* Löydöslista + Analysoi */}
+        {/* Löydöslista (+ Analysoi paitsi piilotettuna) */}
         {löydösMäärä > 0 && (
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
             <h3 className="font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -302,12 +325,14 @@ export default function BodyMap({ onAnalyze }) {
                 )
               })}
             </ul>
-            <button
-              onClick={analysoi}
-              className="w-full py-3 bg-brand-600 hover:bg-brand-700 active:bg-brand-900 text-white font-semibold rounded-xl transition-colors shadow-sm"
-            >
-              Analysoi löydökset →
-            </button>
+            {!piilotaAnalysoi && (
+              <button
+                onClick={analysoi}
+                className="w-full py-3 bg-brand-600 hover:bg-brand-700 active:bg-brand-900 text-white font-semibold rounded-xl transition-colors shadow-sm"
+              >
+                Analysoi löydökset →
+              </button>
+            )}
           </div>
         )}
       </div>

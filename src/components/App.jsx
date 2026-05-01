@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../services/supabase'
 import { normalisoiAsiakas } from '../utils/asiakas'
-import { haeUusienAsiakkaidenMaara, aloitaUusiKaynti } from '../lib/db'
+import { haeUusienAsiakkaidenMaara, aloitaUusiKaynti, haeAsiakkaanKontraindikaatiot } from '../lib/db'
 import Login from './Login'
 import Settings from './Settings'
 import Asiakasrekisteri from './Asiakasrekisteri'
@@ -120,6 +120,17 @@ export default function App() {
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [vahvistusAuki])
+
+  // Hae kontraindikaatiot kun vahvistusmodaali avataan (Pala B2)
+  const [vahvistusKontra, setVahvistusKontra] = useState([])
+  useEffect(() => {
+    if (!vahvistusAuki || !asiakas?.id) { setVahvistusKontra([]); return }
+    let peruttu = false
+    haeAsiakkaanKontraindikaatiot(asiakas.id).then((lista) => {
+      if (!peruttu) setVahvistusKontra(lista)
+    })
+    return () => { peruttu = true }
+  }, [vahvistusAuki, asiakas?.id])
 
   // Pollaa uusien asiakkaiden määrä 30 s välein + heti kun näkymä vaihtuu
   // rekisteriin (esim. "Tallenna asiakas" -klikkauksen jälkeen).
@@ -375,6 +386,25 @@ export default function App() {
                         <p style={{ fontSize: '13px', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
                           Nykyinen lomake lukittuu käyntihistoriaan eikä sitä voi enää muokata.
                         </p>
+                        {/* Pala B2: kontraindikaatio-varoitus ennen hoitokirjauksen avautumista */}
+                        {vahvistusKontra.length > 0 && (
+                          <div style={{
+                            marginTop:    '12px',
+                            background:   '#fef2f2',
+                            border:       '1.5px solid #dc2626',
+                            borderRadius: '10px',
+                            padding:      '10px 14px',
+                            fontSize:     '13px',
+                            color:        '#7f1d1d',
+                            lineHeight:   1.5,
+                          }}>
+                            <strong style={{ color: '#991b1b' }}>⚠️ Kontraindikaatio:</strong>{' '}
+                            {vahvistusKontra.join(' · ')}
+                            <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#991b1b' }}>
+                              Harkitse hoidon soveltuvuutta ennen aloitusta.
+                            </p>
+                          </div>
+                        )}
                       </div>
 
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>

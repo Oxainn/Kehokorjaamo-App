@@ -1,25 +1,27 @@
-// Vaihe B — Pala B1: Hoitokirjaus-näkymän pohja (B-lomakkeen täyttö)
+// Vaihe B — Pala B1+B2: Hoitokirjaus-näkymä (B-lomakkeen täyttö)
+//
+// Pala B1: perustiedot (otsikko, mitä hoidettiin, hoitajan kommentit)
+// Pala B2: BodyMap-havainnot + hoitoraportti (kesto, lähtötilanne, kulku,
+//          muista ensi kerralla) + edellisen käynnin "muista"-nosto
 //
 // Avautuu kun "+ Uusi käynti" suoritettiin (App.jsx setNakyma 'hoitokirjaus').
 // hoitokayntiId: id B-lomakkeesta (hoitokaynnit-rivistä) joka aiemmin
 // luotiin tyhjänä asiakkaan vahvistuksen yhteydessä, tai juuri luotu
-// uudelle hoitokerralle. B-lomake on linkattu A-lomakkeen (asiakastieto-
-// lomake_versiot) suljettuun versioon snapshot-malliksi.
-//
-// Tähän palaan kuuluu vain perustiedot:
-//   - Otsikko (sama 50 merkin rajoitus kuin lomakeversion otsikolla)
-//   - "Mitä hoidettiin" (vapaamuotoinen, auto-grow textarea)
-//   - "Hoitajan kommentit" (sama)
-//   - Tallenna / Peru -napit
-//
-// Tablet-ystävällinen: kortit isoja, hit-areat ≥48 px.
-// Tulevat palat: BodyMap (B2), mittarit (B3), vertailu (B4),
-// itsehoito-kirjasto (B5–B6).
+// uudelle hoitokerralle. B-lomake on linkattu A-lomakkeen suljettuun
+// versioon snapshot-malliksi.
 
-import { useState, useEffect } from 'react'
-import { tallennaHoitokirjaus, haeHoitokaynti, haeAsiakkaanKayntienMaara } from '../lib/db'
+import { useState, useEffect, useMemo, useCallback } from 'react'
+import {
+  tallennaHoitokirjaus,
+  haeHoitokaynti,
+  haeAsiakkaanKayntienMaara,
+  tallennaHavainnot,
+  haeHavainnot,
+  haeEdellinenValmiisKaynti,
+} from '../lib/db'
 import { useAutoResize } from '../hooks/useAutoResize'
 import { muotoilePvm } from '../lib/muotoilu'
+import BodyMap from './BodyMap'
 
 const inputTyyli = {
   width:        '100%',
@@ -60,6 +62,17 @@ const ryhmaTyyli = {
   gap:           '14px',
 }
 
+const ryhmaOtsikko = {
+  fontSize:      '12px',
+  fontWeight:    700,
+  color:         '#374151',
+  margin:        '0 0 6px',
+  textTransform: 'uppercase',
+  letterSpacing: '0.05em',
+  paddingBottom: '8px',
+  borderBottom:  '1px solid #f3f4f6',
+}
+
 const ilmoitusTyyli = (sävy) => ({
   background:   sävy === 'onnistui' ? '#ecfdf5' : sävy === 'tieto' ? '#eff6ff' : '#fef2f2',
   border:       sävy === 'onnistui' ? '1px solid #6ee7b7' : sävy === 'tieto' ? '1px solid #93c5fd' : '1px solid #fecaca',
@@ -71,9 +84,20 @@ const ilmoitusTyyli = (sävy) => ({
 })
 
 export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru }) {
+  // Pala B1 — perustiedot
   const [otsikko,            setOtsikko]            = useState('')
   const [mitaHoidettiin,     setMitaHoidettiin]     = useState('')
   const [hoitajanKommentit,  setHoitajanKommentit]  = useState('')
+  // Pala B2 — hoitoraportti
+  const [kesto,              setKesto]              = useState('')
+  const [lahtotilanne,       setLahtotilanne]       = useState('')
+  const [muistaEnsiKerralla, setMuistaEnsiKerralla] = useState('')
+  // Havainnot (BodyMap-löydökset)
+  const [havainnot,          setHavainnot]          = useState([])
+  const [havainnotEsitayte,  setHavainnotEsitayte]  = useState(null)
+  // Edellisen käynnin nosto
+  const [edellisenMuista,    setEdellisenMuista]    = useState(null)
+  // Meta
   const [pvm,                setPvm]                = useState(null)
   const [kayntinumero,       setKayntinumero]       = useState(null)
   const [yhteensa,           setYhteensa]           = useState(null)
@@ -81,26 +105,55 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   const [tila,               setTila]               = useState('idle') // idle | tallentaa | onnistui | virhe
   const [virhe,              setVirhe]              = useState(null)
 
-  const mitaHoidettiinRef    = useAutoResize(mitaHoidettiin)
-  const hoitajanKommentitRef = useAutoResize(hoitajanKommentit)
+  const mitaHoidettiinRef     = useAutoResize(mitaHoidettiin)
+  const hoitajanKommentitRef  = useAutoResize(hoitajanKommentit)
+  const lahtotilanneRef       = useAutoResize(lahtotilanne)
+  const muistaEnsiKerrallaRef = useAutoResize(muistaEnsiKerralla)
 
   useEffect(() => {
     if (!hoitokayntiId || !asiakas?.id) { setLataa(false); return }
     let peruttu = false
+
     Promise.all([
       haeHoitokaynti(hoitokayntiId),
       haeAsiakkaanKayntienMaara(asiakas.id),
-    ]).then(([kaynti, kpl]) => {
+      haeHavainnot(hoitokayntiId),
+      haeEdellinenValmiisKaynti(asiakas.id, hoitokayntiId),
+    ]).then(([kaynti, kpl, havRivit, edellinen]) => {
       if (peruttu) return
       if (kaynti) {
         setOtsikko(kaynti.otsikko ?? '')
         setMitaHoidettiin(kaynti.hoidon_kulku ?? '')
         setHoitajanKommentit(kaynti.hoitajan_kommentit ?? '')
+        setKesto(kaynti.kesto_min ?? '')
+        setLahtotilanne(kaynti.lahtotilanne ?? '')
+        setMuistaEnsiKerralla(kaynti.muista_ensi_kerralla ?? '')
         setPvm(kaynti.pvm)
       }
       setYhteensa(kpl)
-      // Tämä käynti on uusin (juuri luotu) → numero = kpl
       setKayntinumero(kpl)
+      // Esitäyttö havainnoille — muunna DB-rivit BodyMap:n initialFindings-muotoon
+      if (havRivit && havRivit.length > 0) {
+        const initial = {}
+        for (const r of havRivit) {
+          const alueId = r.lisakentat?.alueId
+          if (!alueId) continue
+          initial[alueId] = {
+            tyyppi:     r.lisakentat?.tyyppi ?? null,
+            kipu:       r.voimakkuus ?? 0,
+            kirjaukset: r.lisakentat?.kirjaukset ?? {},
+          }
+        }
+        setHavainnotEsitayte(initial)
+      }
+      // Edellisen käynnin "muista ensi kerralla" -nosto
+      if (edellinen && edellinen.muista_ensi_kerralla) {
+        setEdellisenMuista({
+          teksti: edellinen.muista_ensi_kerralla,
+          pvm:    edellinen.pvm,
+          otsikko: edellinen.otsikko,
+        })
+      }
       setLataa(false)
     }).catch((e) => {
       if (peruttu) return
@@ -110,17 +163,33 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
     return () => { peruttu = true }
   }, [hoitokayntiId, asiakas?.id])
 
+  // BodyMap kutsuu tämän jokaisesta löydösten muutoksesta
+  const onHavainnotMuutos = useCallback((findings) => {
+    setHavainnot(findings)
+  }, [])
+
   async function tallenna() {
     setTila('tallentaa')
     setVirhe(null)
-    const tulos = await tallennaHoitokirjaus(hoitokayntiId, {
-      otsikko:            otsikko.trim() || null,
-      hoidon_kulku:       mitaHoidettiin.trim() || null,
-      hoitajan_kommentit: hoitajanKommentit.trim() || null,
-      tila:               'valmis',
+    // Tallenna hoitokirjauksen kentät
+    const kayntiTulos = await tallennaHoitokirjaus(hoitokayntiId, {
+      otsikko:              otsikko.trim() || null,
+      hoidon_kulku:         mitaHoidettiin.trim() || null,
+      hoitajan_kommentit:   hoitajanKommentit.trim() || null,
+      kesto_min:            kesto === '' ? null : Number(kesto),
+      lahtotilanne:         lahtotilanne.trim() || null,
+      muista_ensi_kerralla: muistaEnsiKerralla.trim() || null,
+      tila:                 'valmis',
     })
-    if (tulos.virhe) {
-      setVirhe(tulos.virhe)
+    if (kayntiTulos.virhe) {
+      setVirhe(kayntiTulos.virhe)
+      setTila('virhe')
+      return
+    }
+    // Tallenna havainnot
+    const havTulos = await tallennaHavainnot(hoitokayntiId, havainnot)
+    if (havTulos.virhe) {
+      setVirhe('Hoitokirjaus tallennettu mutta havaintojen tallennus epäonnistui: ' + havTulos.virhe)
       setTila('virhe')
       return
     }
@@ -143,7 +212,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Otsikkorivi */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
         <button
           type="button"
           onClick={onPeru}
@@ -161,6 +230,27 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         )}
       </div>
 
+      {/* Edellisen käynnin "Muista ensi kerralla" -nosto (B2) */}
+      {edellisenMuista && (
+        <div style={{
+          background:    '#fffbeb',
+          border:        '1.5px solid #f59e0b',
+          borderRadius:  '12px',
+          padding:       '14px 18px',
+          display:       'flex',
+          flexDirection: 'column',
+          gap:           '4px',
+        }}>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#92400e', margin: 0 }}>
+            🔔 Edelliseltä käynniltä {edellisenMuista.pvm ? `(${muotoilePvm(edellisenMuista.pvm)})` : ''}
+            {edellisenMuista.otsikko ? ` — ${edellisenMuista.otsikko}` : ''}
+          </p>
+          <p style={{ fontSize: '14px', color: '#78350f', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+            {edellisenMuista.teksti}
+          </p>
+        </div>
+      )}
+
       {tila === 'onnistui' && (
         <div style={ilmoitusTyyli('onnistui')}>
           <strong>✓ Hoitokirjaus tallennettu.</strong> Palataan rekisteriin…
@@ -173,8 +263,10 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         </div>
       )}
 
-      {/* Sisältöryhmät */}
+      {/* Perustiedot — Pala B1 */}
       <div style={ryhmaTyyli}>
+        <h3 style={ryhmaOtsikko}>Käynnin perustiedot</h3>
+
         <div>
           <label style={labelTyyli}>
             Käynnin otsikko
@@ -209,6 +301,65 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
             onChange={(e) => setHoitajanKommentit(e.target.value)}
             placeholder="Omat huomiot tästä käynnistä…"
             style={textareaTyyli}
+          />
+        </div>
+      </div>
+
+      {/* Havainnot — Pala B2 BodyMap */}
+      <div style={ryhmaTyyli}>
+        <h3 style={ryhmaOtsikko}>Havainnot</h3>
+        <BodyMap
+          piilotaAnalysoi
+          initialFindings={havainnotEsitayte ?? undefined}
+          onChange={onHavainnotMuutos}
+        />
+      </div>
+
+      {/* Hoitoraportti — Pala B2 */}
+      <div style={ryhmaTyyli}>
+        <h3 style={ryhmaOtsikko}>Hoitoraportti</h3>
+
+        <div>
+          <label style={labelTyyli}>Hoidon kesto (min)</label>
+          <input
+            type="number"
+            inputMode="numeric"
+            min="0"
+            max="600"
+            value={kesto}
+            onChange={(e) => setKesto(e.target.value)}
+            placeholder="esim. 60"
+            style={{ ...inputTyyli, maxWidth: '160px' }}
+          />
+        </div>
+
+        <div>
+          <label style={labelTyyli}>Lähtötilanne</label>
+          <textarea
+            ref={lahtotilanneRef}
+            value={lahtotilanne}
+            onChange={(e) => setLahtotilanne(e.target.value)}
+            placeholder="Asiakkaan tilanne hoidon alkaessa…"
+            style={textareaTyyli}
+          />
+        </div>
+
+        {/* Muista ensi kerralla — korostettu reunus jotta erottuu */}
+        <div>
+          <label style={{ ...labelTyyli, color: '#92400e' }}>
+            🔔 Muista ensi kerralla
+            <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: '6px' }}>(näkyy seuraavan käynnin yläosassa)</span>
+          </label>
+          <textarea
+            ref={muistaEnsiKerrallaRef}
+            value={muistaEnsiKerralla}
+            onChange={(e) => setMuistaEnsiKerralla(e.target.value)}
+            placeholder="Mitä haluat muistaa kun asiakas tulee seuraavan kerran?"
+            style={{
+              ...textareaTyyli,
+              border: '1.5px solid #fcd34d',
+              background: '#fffbeb',
+            }}
           />
         </div>
       </div>
@@ -261,7 +412,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
 
       {/* Esikatselu Vaihe B:n tulevista paloista */}
       <div style={{ marginTop: '12px', fontSize: '12px', color: '#9ca3af', textAlign: 'center', fontStyle: 'italic' }}>
-        Tulossa myöhemmissä paloissa: kehonkartta-merkinnät · mittaustulokset · vertailu edelliseen · itsehoito-ohjeet
+        Tulossa myöhemmissä paloissa: mittaustulokset (B3) · vertailu edelliseen (B4) · itsehoito-ohjeet (B5–B6)
       </div>
     </div>
   )

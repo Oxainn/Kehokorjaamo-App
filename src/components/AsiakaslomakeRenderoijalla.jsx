@@ -9,7 +9,7 @@
 // tyhjällä versiolla — siksi App.jsx ohjaa nyt vahvistamattomat suoraan
 // UudenAsiakkaanTarkistus:een.
 import { useState, useEffect, useMemo } from 'react'
-import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, haeAsiakkaanViimeisinLomake, haeKayntienPaivamaarat, haeLomakeversio } from '../lib/db'
+import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, haeAsiakkaanViimeisinLomake, haeKayntienPaivamaarat, haeLomakeversio, haeAsiakkaanKontraindikaatiot } from '../lib/db'
 import { kokoaVastaukset } from '../lib/lomakeTallennus'
 import { useLomakepohja } from '../hooks/useLomakepohja'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
@@ -74,6 +74,17 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
   // renderöijän kentät. Tämä mahdollistaa lomakkeen päivittämisen ajan
   // mittaan eikä joka tallennus tyhjästä.
   const asiakasId = asiakas?.id ?? asiakas?.supabase_id ?? null
+
+  // Pala B2: kontraindikaatio-varoitus asiakaskortin yläosaan
+  const [kontraindikaatiot, setKontraindikaatiot] = useState([])
+  useEffect(() => {
+    if (!asiakasId) { setKontraindikaatiot([]); return }
+    let peruttu = false
+    haeAsiakkaanKontraindikaatiot(asiakasId).then((lista) => {
+      if (!peruttu) setKontraindikaatiot(lista)
+    })
+    return () => { peruttu = true }
+  }, [asiakasId])
   useEffect(() => {
     if (!asiakasId) {
       setVastaukset({})
@@ -198,6 +209,27 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Pala B2 — kontraindikaatio-varoitus yläosassa, punaisella jos asiakkaalla
+          on rastittu yksi tai useampi sairaus jolla on kontraindikaatio=true. */}
+      {kontraindikaatiot.length > 0 && (
+        <div style={{
+          background:    '#fef2f2',
+          border:        '1.5px solid #dc2626',
+          borderRadius:  '12px',
+          padding:       '14px 18px',
+          display:       'flex',
+          flexDirection: 'column',
+          gap:           '4px',
+        }}>
+          <p style={{ fontSize: '13px', fontWeight: 700, color: '#991b1b', margin: 0 }}>
+            ⚠️ Kontraindikaatio — harkitse hoidon soveltuvuutta
+          </p>
+          <p style={{ fontSize: '14px', color: '#7f1d1d', margin: 0, lineHeight: 1.5 }}>
+            {kontraindikaatiot.join(' · ')}
+          </p>
+        </div>
+      )}
+
       {tila === TILA.TALLENTAA && (
         <div style={ilmoitusTyyli('tieto')}>Tallennetaan…</div>
       )}

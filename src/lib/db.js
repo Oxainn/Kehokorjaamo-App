@@ -61,6 +61,15 @@ export const haeAsiakkaat = async () => {
   return data
 }
 
+// Hakee yksittäisen asiakkaan kontraindikaatio-sairaudet. Palauttaa pelkän
+// nimi-taulukon. Tyhjä jos ei kontraindikaatioita.
+// Käytetään asiakaskortin yläosan punaisessa varoituslaatikossa (Pala B2).
+export const haeAsiakkaanKontraindikaatiot = async (asiakasId) => {
+  if (!asiakasId) return []
+  const map = await haeKontraindikaatiotAsiakkaille([asiakasId])
+  return map.get(asiakasId) ?? []
+}
+
 // Hakee mitkä asiakkaat ovat rastittaneet vähintään yhden kontraindikaatio-
 // sairauden voimassa olevassa lomakkeessaan. Käytetään Asiakasrekisterin
 // kortin oranssin varoitusreunan näyttämiseen — hoitajan pitää nähdä yhdellä
@@ -391,13 +400,15 @@ export const haeAsiakkaanKayntienMaara = async (asiakasId) => {
   return count ?? 0
 }
 
-// Tallentaa hoitokirjauksen tiedot — otsikko, mitä hoidettiin, hoitajan
-// kommentit. Vaihe B Pala B1:n minimi; mittarit, vertailu ja itsehoito-
-// kirjasto tulevat myöhemmin.
+// Tallentaa hoitokirjauksen tiedot. Pala B2:ssa laajennettu kattamaan
+// hoitoraportti-osion kentät (kesto_min, lahtotilanne, muista_ensi_kerralla).
 export const tallennaHoitokirjaus = async (hoitokayntiId, tiedot) => {
   if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
   const muutokset = { paivitetty: new Date().toISOString() }
-  const sallitut = ['otsikko', 'hoidon_kulku', 'hoitajan_kommentit', 'tila']
+  const sallitut = [
+    'otsikko', 'hoidon_kulku', 'hoitajan_kommentit', 'tila',
+    'kesto_min', 'lahtotilanne', 'muista_ensi_kerralla',
+  ]
   for (const k of sallitut) {
     if (tiedot[k] !== undefined) muutokset[k] = tiedot[k] === '' ? null : tiedot[k]
   }
@@ -410,6 +421,82 @@ export const tallennaHoitokirjaus = async (hoitokayntiId, tiedot) => {
     return { virhe: error.message }
   }
   return { virhe: null }
+}
+
+// Tallentaa hoitokäynnin BodyMap-löydökset havainnot-tauluun.
+// Pala B2: yksinkertainen delete-then-insert. Yksi havainto-rivi per löydetty
+// alue (lantio, polvi, jne.). Tarkka rakenne (kipu, kirjaukset) tallentuu
+// lisakentat-jsonbiin koska BodyMap:n KIRJAUSRAKENNE evolvoi nopeammin
+// kuin DB:n strukturoitu malli.
+export const tallennaHavainnot = async (hoitokayntiId, loydokset) => {
+  if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
+
+  // 1. Poista vanhat havainnot
+  const { error: poistoVirhe } = await supabase
+    .from('havainnot')
+    .delete()
+    .eq('hoitokaynti_id', hoitokayntiId)
+  if (poistoVirhe) {
+    console.error('Vanhojen havaintojen poisto epäonnistui:', poistoVirhe)
+    return { virhe: poistoVirhe.message }
+  }
+
+  if (!loydokset || loydokset.length === 0) return { virhe: null }
+
+  // 2. Lisää uudet
+  const rivit = loydokset.map((l) => ({
+    hoitokaynti_id: hoitokayntiId,
+    tyyppi:         'asentomuutos',  // BodyMap on pohjimmiltaan asentomuutosten kirjaus
+    voimakkuus:     l.kipu ?? null,
+    kuvaus:         l.alueNimi,
+    lisakentat:     {
+      alueId:     l.alueId,
+      tyyppi:     l.tyyppi,
+      kirjaukset: l.kirjaukset,
+    },
+  }))
+  const { error: lisaysVirhe } = await supabase.from('havainnot').insert(rivit)
+  if (lisaysVirhe) {
+    console.error('Havaintojen tallennus epäonnistui:', lisaysVirhe)
+    return { virhe: lisaysVirhe.message }
+  }
+  return { virhe: null }
+}
+
+// Hakee hoitokäyntiin liittyvät havainnot — esitäyttöä varten.
+export const haeHavainnot = async (hoitokayntiId) => {
+  if (!hoitokayntiId) return []
+  const { data, error } = await supabase
+    .from('havainnot')
+    .select('id, voimakkuus, kuvaus, lisakentat')
+    .eq('hoitokaynti_id', hoitokayntiId)
+  if (error) {
+    console.error('Havaintojen haku epäonnistui:', error)
+    return []
+  }
+  return data ?? []
+}
+
+// Hakee asiakkaan edellisen valmiiksi merkityn B-lomakkeen — käytetään
+// "Muista ensi kerralla" -nostoon Hoitokirjaus-näkymän yläosassa.
+// paitsiId: rajaa pois nykyinen hoitokäynti (jos se on jo tila='valmis'-tilassa).
+export const haeEdellinenValmiisKaynti = async (asiakasId, paitsiId = null) => {
+  if (!asiakasId) return null
+  let query = supabase
+    .from('hoitokaynnit')
+    .select('id, pvm, otsikko, muista_ensi_kerralla, hoidon_kulku')
+    .eq('asiakas_id', asiakasId)
+    .eq('tila', 'valmis')
+    .not('pvm', 'is', null)
+    .order('pvm', { ascending: false })
+    .limit(1)
+  if (paitsiId) query = query.neq('id', paitsiId)
+  const { data, error } = await query.maybeSingle()
+  if (error) {
+    console.error('Edellisen käynnin haku epäonnistui:', error)
+    return null
+  }
+  return data
 }
 
 // Hakee yksittäisen hoitokäynnin tiedot — käytetään Hoitokirjaus-näkymässä
