@@ -127,8 +127,13 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   const [kayntinumero,       setKayntinumero]       = useState(null)
   const [yhteensa,           setYhteensa]           = useState(null)
   const [lataa,              setLataa]              = useState(true)
-  const [tila,               setTila]               = useState('idle') // idle | tallentaa | onnistui | virhe | jonossa
+  const [tila,               setTila]               = useState('idle') // idle | tallentaa | onnistui | virhe | jonossa | osittainen
   const [virhe,              setVirhe]              = useState(null)
+  // VB1 — per-osio-tila kun tallennus jakautuu kolmeen kutsuun (käynti,
+  // havainnot, itsehoito). Onnistumiset ja epäonnistumiset näytetään
+  // erikseen ja vain epäonnistuneet voi yrittää uudelleen.
+  // Tilat: 'idle' | 'tehty' | 'epaonnistui' | 'jonossa'
+  const [osiot, setOsiot] = useState({ kaynti: 'idle', havainnot: 'idle', itsehoito: 'idle' })
   // Pala B9b — selain raportoi onko verkkoa
   const online = useOnline()
 
@@ -268,57 +273,76 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       ...mittarit,
     }
 
-    // Pala B9b — jos offline, tallenna kaikki kolme operaatiota IndexedDB-
-    // jonoon ja merkitse käynti "jonossa"-tilaan. Jono synkkaa kun yhteys
-    // palaa (App.jsx → synkronoiJono).
-    //
-    // Tarkistus-bugi: kolme erillistä lisaaJonoon-kutsua → jos kesken
-    // epäonnistuu, jonossa on osittainen päivitys. Käytetään Promise.all
-    // jotta epäonnistuessa nähdään ettei mikään niistä tuonut tulosta.
-    // (Natiivi IndexedDB-rajapintaamme ei tue cross-store transactioneja
-    // tässä helposti — riski on hyvin pieni koska kaikki kolme menevät
-    // samaan storeen samalla istunnolla.)
-    if (!online) {
-      try {
-        await Promise.all([
-          lisaaJonoon({ op: 'tallennaHoitokirjaus',     args: [hoitokayntiId, hoitokirjausPayload] }),
-          lisaaJonoon({ op: 'tallennaHavainnot',        args: [hoitokayntiId, havainnot] }),
-          lisaaJonoon({ op: 'tallennaKaynninItsehoito', args: [hoitokayntiId, itsehoito] }),
-        ])
-        setTila('jonossa')
-        setTimeout(onValmis, 1800)
+    // Tallennuksen alkuperäinen tila — jos osa on jo aiemmin onnistunut
+    // (retry), käytä sitä lähtökohtana eikä yritä uudestaan.
+    const lahto = osiot
+    const uusiTila = { ...lahto }
+    const virheet = []
+
+    // Pala B9b: offline → kaikki epäonnistuneet osiot jonoon, ei kutsuja.
+    // VB1: säilytetään aiemmin onnistuneet osiot ('tehty') — niitä ei
+    // jonoteta uudestaan.
+    async function aja(osio, kutsu, jonoOp, jonoArgs) {
+      if (lahto[osio] === 'tehty') return  // jo onnistui aiemmin
+      if (!online) {
+        try {
+          await lisaaJonoon({ op: jonoOp, args: jonoArgs })
+          uusiTila[osio] = 'jonossa'
+        } catch (e) {
+          uusiTila[osio] = 'epaonnistui'
+          virheet.push(`${osio}: offline-jonotus epäonnistui (${e.message ?? 'tuntematon'})`)
+        }
         return
-      } catch (e) {
-        setVirhe('Offline-tallennus epäonnistui: ' + (e.message ?? 'tuntematon virhe'))
-        setTila('virhe')
-        return
+      }
+      const tulos = await kutsu()
+      if (tulos?.virhe) {
+        // VB1: epäonnistunut online-kutsu → siirry offline-jonoon
+        // taustalle, jotta yhteyden palatessa retry tapahtuu automaattisesti.
+        try {
+          await lisaaJonoon({ op: jonoOp, args: jonoArgs })
+          uusiTila[osio] = 'jonossa'
+        } catch {
+          uusiTila[osio] = 'epaonnistui'
+        }
+        virheet.push(`${osioNimi(osio)}: ${tulos.virhe}`)
+      } else {
+        uusiTila[osio] = 'tehty'
       }
     }
 
-    // Tallenna hoitokirjauksen kentät — sis. 15 mittarisaraketta (Pala B3)
-    // ja seuraavan käynnin ehdotus (Pala B6.5)
-    const kayntiTulos = await tallennaHoitokirjaus(hoitokayntiId, hoitokirjausPayload)
-    if (kayntiTulos.virhe) {
-      setVirhe(kayntiTulos.virhe)
-      setTila('virhe')
+    await aja('kaynti',    () => tallennaHoitokirjaus(hoitokayntiId, hoitokirjausPayload),
+              'tallennaHoitokirjaus',     [hoitokayntiId, hoitokirjausPayload])
+    await aja('havainnot', () => tallennaHavainnot(hoitokayntiId, havainnot),
+              'tallennaHavainnot',        [hoitokayntiId, havainnot])
+    await aja('itsehoito', () => tallennaKaynninItsehoito(hoitokayntiId, itsehoito),
+              'tallennaKaynninItsehoito', [hoitokayntiId, itsehoito])
+
+    setOsiot(uusiTila)
+
+    const epaonnistui = Object.values(uusiTila).some((s) => s === 'epaonnistui')
+    const jonossa     = Object.values(uusiTila).some((s) => s === 'jonossa')
+    const kaikkiTehty = Object.values(uusiTila).every((s) => s === 'tehty')
+
+    if (kaikkiTehty) {
+      setTila('onnistui')
+      setTimeout(onValmis, 1500)
       return
     }
-    // Tallenna havainnot
-    const havTulos = await tallennaHavainnot(hoitokayntiId, havainnot)
-    if (havTulos.virhe) {
-      setVirhe('Hoitokirjaus tallennettu mutta havaintojen tallennus epäonnistui: ' + havTulos.virhe)
-      setTila('virhe')
+    if (jonossa && !epaonnistui) {
+      setTila('jonossa')
+      setTimeout(onValmis, 1800)
       return
     }
-    // Pala B6 — tallenna itsehoito-valinnat
-    const itsehoitoTulos = await tallennaKaynninItsehoito(hoitokayntiId, itsehoito)
-    if (itsehoitoTulos.virhe) {
-      setVirhe('Hoitokirjaus tallennettu mutta itsehoito-valintojen tallennus epäonnistui: ' + itsehoitoTulos.virhe)
-      setTila('virhe')
-      return
-    }
-    setTila('onnistui')
-    setTimeout(onValmis, 1500)
+    // Osittainen onnistuminen tai virhe
+    setVirhe(virheet.length > 0 ? virheet.join('; ') : 'Tallennus epäonnistui')
+    setTila('osittainen')
+  }
+
+  function osioNimi(o) {
+    return o === 'kaynti' ? 'Käynnin perustiedot ja mittaukset'
+         : o === 'havainnot' ? 'Havainnot'
+         : o === 'itsehoito' ? 'Itsehoito-ohjelma'
+         : o
   }
 
   // Älykäs suodatus: havaintojen alueista koottu lista (Pala B6 modaalia varten)
@@ -436,6 +460,25 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       {tila === 'jonossa' && (
         <div style={ilmoitusTyyli('tieto')}>
           <strong>🛜 Tallennettu offline-jonoon.</strong> Lähetetään serverille kun yhteys palaa.
+        </div>
+      )}
+      {/* VB1 — osittainen onnistuminen: kerrotaan mikä meni läpi, mikä ei */}
+      {tila === 'osittainen' && (
+        <div style={ilmoitusTyyli('virhe')}>
+          <strong>⚠ Tallennus onnistui osittain.</strong>
+          <ul style={{ margin: '6px 0 0', paddingLeft: '20px', fontSize: '13px' }}>
+            {Object.entries(osiot).map(([o, t]) => (
+              <li key={o} style={{ color: t === 'tehty' ? '#065f46' : t === 'jonossa' ? '#1e3a8a' : '#991b1b' }}>
+                {t === 'tehty' ? '✓' : t === 'jonossa' ? '🛜' : '✗'} {osioNimi(o)}
+                {t === 'tehty' && ' — tallennettu'}
+                {t === 'jonossa' && ' — odottaa yhteyttä'}
+                {t === 'epaonnistui' && ' — yritä uudelleen'}
+              </li>
+            ))}
+          </ul>
+          <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#7f1d1d' }}>
+            Onnistuneet osiot pysyvät tallessa. Klikkaa "Tallenna hoitokirjaus" yrittääksesi vain epäonnistuneita uudelleen.
+          </p>
         </div>
       )}
       {tila === 'virhe' && virhe && (
