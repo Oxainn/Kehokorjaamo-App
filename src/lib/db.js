@@ -476,6 +476,12 @@ export const haeHoitosarjanPituus = async () => {
 
 // Tallentaa hoitokirjauksen tiedot. Pala B2:ssa laajennettu kattamaan
 // hoitoraportti-osion kentät, Pala B3:ssa 15 linjausmittaria.
+//
+// VB2 — optimistinen lukko: tiedot.versio (jos annettu) on UI:n lukema
+// hetki ennen muokkausta. Jos DB:n versio on suurempi, joku muu (esim
+// toinen välilehti) on tallentanut välissä → palauta { ristiriita: true,
+// nykyinenVersio }. Jos versio puuttuu (vanha kutsu, tai luonti) → ohita
+// tarkistus ja päivitä silti.
 export const tallennaHoitokirjaus = async (hoitokayntiId, tiedot) => {
   if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
   const muutokset = { paivitetty: new Date().toISOString() }
@@ -498,15 +504,37 @@ export const tallennaHoitokirjaus = async (hoitokayntiId, tiedot) => {
   for (const k of sallitut) {
     if (tiedot[k] !== undefined) muutokset[k] = tiedot[k] === '' ? null : tiedot[k]
   }
-  const { error } = await supabase
+
+  // VB2: optimistinen lukko — UPDATE ... WHERE id=X AND versio=Y.
+  // Jos rivi ei löydy (versio ei täsmää), saamme 0 päivitettyä riviä.
+  const odotettuVersio = typeof tiedot.versio === 'number' ? tiedot.versio : null
+  muutokset.versio = (odotettuVersio ?? 0) + 1
+
+  let kysely = supabase
     .from('hoitokaynnit')
     .update(muutokset)
     .eq('id', hoitokayntiId)
+  if (odotettuVersio !== null) kysely = kysely.eq('versio', odotettuVersio)
+
+  const { data, error } = await kysely.select('id, versio')
   if (error) {
     console.error('Hoitokirjauksen tallennus epäonnistui:', error)
     return { virhe: error.message }
   }
-  return { virhe: null }
+  if (odotettuVersio !== null && (!data || data.length === 0)) {
+    // Versio ei täsmännyt → joku muu on tallentanut välissä
+    const { data: nyk } = await supabase
+      .from('hoitokaynnit')
+      .select('versio')
+      .eq('id', hoitokayntiId)
+      .maybeSingle()
+    return {
+      virhe: 'Käynti on muokattu toisessa ikkunassa. Päivitä sivu nähdäksesi uusin tila tai peru muutokset.',
+      ristiriita: true,
+      nykyinenVersio: nyk?.versio ?? null,
+    }
+  }
+  return { virhe: null, versio: data?.[0]?.versio ?? null }
 }
 
 // Tallentaa hoitokäynnin BodyMap-löydökset havainnot-tauluun.
