@@ -56,21 +56,25 @@ Deno.serve(async (req: Request) => {
     }
 
     // ── 2. Oletuspohja palvelulle ──────────────────────────────
-    const { data: linkki, error: linkkiVirhe } = await supabase
+    // Hae kaikki linkit ja suodata aktiiviset pohjat — joinilla saadut
+    // lomakepohjat-rivit ovat null jos pohja on inaktiivinen tai poistettu.
+    const { data: linkit, error: linkkiVirhe } = await supabase
       .from("palvelu_lomake_linkit")
-      .select("pohja_id, on_oletus, lomakepohjat(id, nimi, aktiivinen)")
+      .select("pohja_id, on_oletus, lomakepohjat!inner(id, aktiivinen)")
       .eq("palvelu_id", palveluId)
-      .order("on_oletus", { ascending: false })  // Oletus ensin
-      .limit(1)
-      .maybeSingle()
+      .eq("lomakepohjat.aktiivinen", true)
+      .order("on_oletus", { ascending: false })
 
-    if (linkkiVirhe || !linkki) {
+    if (linkkiVirhe) {
+      return jsonResponse({ virhe: "Palvelu-linkkien haku epäonnistui" }, 500)
+    }
+    if (!linkit || linkit.length === 0) {
       return jsonResponse({
-        virhe: "Palvelulle ei ole liitetty lomakepohjaa. Hoitajan pitää tehdä se editorissa.",
+        virhe: "Palvelulle ei ole liitetty aktiivista lomakepohjaa. Hoitajan pitää tehdä se editorissa.",
       }, 404)
     }
 
-    const pohjaId = linkki.pohja_id
+    const pohjaId = linkit[0].pohja_id
 
     // ── 3. Pohjan uusin aktiivinen versio ──────────────────────
     const { data: versio, error: versioVirhe } = await supabase
