@@ -23,12 +23,14 @@ import {
   tallennaKaynninItsehoito,
   haeHoitosarjanPituus,
   haeAsiakkaanKehonkartta,
+  haeAsiakkaanOireet,
 } from '../lib/db'
 import { useAutoResize } from '../hooks/useAutoResize'
 import { muotoilePvm } from '../lib/muotoilu'
 import KehonkarttaVertailu from './KehonkarttaVertailu'
 import MittariSliideri from './MittariSliideri'
 import ItsehoitoValinnat from './ItsehoitoValinnat'
+import AILoydosAnalyysi from './AILoydosAnalyysi'
 import { MITTARIT } from '../data/linjausmittarit'
 
 const inputTyyli = {
@@ -105,6 +107,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   const [havainnotEsitayte,  setHavainnotEsitayte]  = useState(null)
   // Pala B6.6 — asiakkaan A-lomakkeen kehonkartta vertailutietona
   const [asiakkaanKehonkartta, setAsiakkaanKehonkartta] = useState(null)
+  // Pala B8 — asiakkaan oma "hoitoon tulon syy" AI-promptia varten
+  const [asiakkaanOireet,    setAsiakkaanOireet]    = useState(null)
   // Mittarit (Pala B3): { sarake: numero | null }
   const [mittarit,           setMittarit]           = useState({})
   // Edellisen käynnin mittarit (Pala B4) — null jos ei aiempaa käyntiä
@@ -142,7 +146,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       haeKaynninItsehoito(hoitokayntiId),
       haeHoitosarjanPituus(),
       haeAsiakkaanKehonkartta(asiakas.id),
-    ]).then(([kaynti, kpl, havRivit, edellinen, edellisetMitt, itsehoitoRivit, sarjaPit, asKehonkartta]) => {
+      haeAsiakkaanOireet(asiakas.id),
+    ]).then(([kaynti, kpl, havRivit, edellinen, edellisetMitt, itsehoitoRivit, sarjaPit, asKehonkartta, asOireet]) => {
       if (peruttu) return
       if (kaynti) {
         setOtsikko(kaynti.otsikko ?? '')
@@ -209,6 +214,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       setSarjanPituus(sarjaPit)
       // Pala B6.6 — asiakkaan A-lomakkeen kehonkartta vertailua varten
       setAsiakkaanKehonkartta(asKehonkartta ?? null)
+      // Pala B8 — asiakkaan oma "hoitoon tulon syy" AI-promptia varten
+      setAsiakkaanOireet(asOireet ?? null)
       setLataa(false)
     }).catch((e) => {
       if (peruttu) return
@@ -423,7 +430,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         </div>
       </div>
 
-      {/* Havainnot — Pala B2 BodyMap + Pala B6.6 Vertailu */}
+      {/* Havainnot — Pala B2 BodyMap + Pala B6.6 Vertailu + Pala B8 AI-analyysi */}
       <div style={ryhmaTyyli}>
         <h3 style={ryhmaOtsikko}>Havainnot</h3>
         <KehonkarttaVertailu
@@ -431,6 +438,14 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
           hoitajanHavainnotInit={havainnotEsitayte}
           hoitajanHavainnot={havainnot}
           onHavainnotMuutos={onHavainnotMuutos}
+        />
+        <AILoydosAnalyysi
+          hoitokayntiId={hoitokayntiId}
+          havainnot={havainnot}
+          mittarit={mittarit}
+          edellisetMittarit={edellisetMittarit}
+          asiakkaanKehonkartta={asiakkaanKehonkartta}
+          asiakkaanOireet={asiakkaanOireet}
         />
       </div>
 

@@ -136,6 +136,25 @@ export const haeAsiakkaanKehonkartta = async (asiakasId) => {
   return data?.lisakentat?.kehonkartta_piirros ?? null
 }
 
+// Hakee asiakkaan voimassa olevan A-lomakkeen "hoitoon tulon syy" -tekstin.
+// Käytetään Pala B8:n AI-analyysin promptin pohjana (asiakkaan oma kuvaus).
+export const haeAsiakkaanOireet = async (asiakasId) => {
+  if (!asiakasId) return null
+  const { data, error } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('hoitoon_syy')
+    .eq('asiakas_id', asiakasId)
+    .is('voimassa_asti', null)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('Asiakkaan oireiden haku epäonnistui:', error)
+    return null
+  }
+  return data?.hoitoon_syy ?? null
+}
+
 // Hakee asiakkaan menneiden hoitokäyntien päivämäärät + otsikot.
 // Palauttaa kaikki suljetut lomakeversiot (voimassa_asti IS NOT NULL)
 // uusimmasta vanhimpaan. Jokainen rivi vastaa yhtä mennyttä hoitokäyntiä;
@@ -723,6 +742,95 @@ export const tallennaKaynninItsehoito = async (hoitokayntiId, valinnat) => {
     .insert(rivit)
   if (lisaysVirhe) {
     console.error('Itsehoito-valintojen lisäys epäonnistui:', lisaysVirhe)
+    return { virhe: lisaysVirhe.message }
+  }
+  return { virhe: null }
+}
+
+// ─── Pala B8 — AI-analyysi löydöksistä ─────────────────────────────
+// Kutsuu Edge Functionia ai-analyysi-loydoksista joka kysyy Anthropic
+// Claude API:lta hoitajan löydösten analyysin. Jätä tallentamatta —
+// tallennus tapahtuu erillisellä funktiolla (tallennaAIAnalyysi) kun
+// hoitaja päättää säilyttää sen käynnillä.
+export const kutsuAIAnalyysi = async ({
+  findings,
+  mittarit = null,
+  edellisetMittarit = null,
+  asiakkaanKehonkartta = null,
+  asiakkaanOireet = null,
+}) => {
+  if (!Array.isArray(findings) || findings.length === 0) {
+    return { virhe: 'Tee ensin havaintoja BodyMap:ssa.' }
+  }
+  const { data, error } = await supabase.functions.invoke('ai-analyysi-loydoksista', {
+    body: {
+      findings,
+      mittarit,
+      edellisetMittarit,
+      asiakkaanKehonkartta,
+      asiakkaanOireet,
+    },
+  })
+  if (error) {
+    console.error('AI-analyysin kutsu epäonnistui:', error)
+    return { virhe: error.message ?? 'AI-kutsu epäonnistui' }
+  }
+  if (data?.virhe) return { virhe: data.virhe }
+  return { analyysi: data.analyysi, prompti: data.prompti, malli: data.malli, virhe: null }
+}
+
+// Hakee käynnille tallennetun AI-analyysin (tyyppi='loydosanalyysi').
+// Palauttaa { id, vastaus, prompti, malli, luotu } tai null.
+export const haeAIAnalyysi = async (hoitokayntiId) => {
+  if (!hoitokayntiId) return null
+  const { data, error } = await supabase
+    .from('ai_ehdotukset')
+    .select('id, ehdotus_alkuperainen, ehdotus_muokattu, ai_malli, ai_konteksti, luotu')
+    .eq('hoitokaynti_id', hoitokayntiId)
+    .eq('tyyppi', 'loydosanalyysi')
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('AI-analyysin haku epäonnistui:', error)
+    return null
+  }
+  if (!data) return null
+  return {
+    id:      data.id,
+    vastaus: data.ehdotus_muokattu ?? data.ehdotus_alkuperainen,
+    prompti: data.ai_konteksti?.prompti ?? null,
+    malli:   data.ai_malli,
+    luotu:   data.luotu,
+  }
+}
+
+// Tallentaa AI-analyysin käynnille. Jos käynnillä on jo analyysi, korvaa
+// vanhan (delete-then-insert), jotta cache pysyy yhtenä riviä per käynti.
+export const tallennaAIAnalyysi = async (hoitokayntiId, { vastaus, prompti, malli }) => {
+  if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
+  if (!vastaus)      return { virhe: 'Vastaus puuttuu' }
+
+  const { error: poistoVirhe } = await supabase
+    .from('ai_ehdotukset')
+    .delete()
+    .eq('hoitokaynti_id', hoitokayntiId)
+    .eq('tyyppi', 'loydosanalyysi')
+  if (poistoVirhe) {
+    console.error('Vanhan AI-analyysin poisto epäonnistui:', poistoVirhe)
+    return { virhe: poistoVirhe.message }
+  }
+  const { error: lisaysVirhe } = await supabase
+    .from('ai_ehdotukset')
+    .insert({
+      hoitokaynti_id:       hoitokayntiId,
+      tyyppi:               'loydosanalyysi',
+      ehdotus_alkuperainen: vastaus,
+      ai_malli:             malli ?? null,
+      ai_konteksti:         prompti ? { prompti } : null,
+    })
+  if (lisaysVirhe) {
+    console.error('AI-analyysin tallennus epäonnistui:', lisaysVirhe)
     return { virhe: lisaysVirhe.message }
   }
   return { virhe: null }
