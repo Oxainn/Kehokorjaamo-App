@@ -19,11 +19,14 @@ import {
   haeHavainnot,
   haeEdellinenValmiisKaynti,
   haeEdellisetMittarit,
+  haeKaynninItsehoito,
+  tallennaKaynninItsehoito,
 } from '../lib/db'
 import { useAutoResize } from '../hooks/useAutoResize'
 import { muotoilePvm } from '../lib/muotoilu'
 import BodyMap from './BodyMap'
 import MittariSliideri from './MittariSliideri'
+import ItsehoitoValinnat from './ItsehoitoValinnat'
 import { MITTARIT } from '../data/linjausmittarit'
 
 const inputTyyli = {
@@ -102,6 +105,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   const [mittarit,           setMittarit]           = useState({})
   // Edellisen käynnin mittarit (Pala B4) — null jos ei aiempaa käyntiä
   const [edellisetMittarit,  setEdellisetMittarit]  = useState(null)
+  // Itsehoito-valinnat (Pala B6): käyntikohtainen ohjelma
+  const [itsehoito,          setItsehoito]          = useState([])
   // Edellisen käynnin nosto
   const [edellisenMuista,    setEdellisenMuista]    = useState(null)
   // Meta
@@ -127,7 +132,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       haeHavainnot(hoitokayntiId),
       haeEdellinenValmiisKaynti(asiakas.id, hoitokayntiId),
       haeEdellisetMittarit(asiakas.id, hoitokayntiId),
-    ]).then(([kaynti, kpl, havRivit, edellinen, edellisetMitt]) => {
+      haeKaynninItsehoito(hoitokayntiId),
+    ]).then(([kaynti, kpl, havRivit, edellinen, edellisetMitt, itsehoitoRivit]) => {
       if (peruttu) return
       if (kaynti) {
         setOtsikko(kaynti.otsikko ?? '')
@@ -171,6 +177,14 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       // Pala B4 — edellisen käynnin mittarit (saadaan myös jos edellinen on null
       // mutta jokin luonnos-rivi sisältää mittareita)
       setEdellisetMittarit(edellisetMitt ?? null)
+      // Pala B6 — käyntikohtaiset itsehoito-valinnat
+      setItsehoito((itsehoitoRivit ?? []).map((r) => ({
+        kirjasto_harjoitus_id: r.kirjasto_harjoitus_id,
+        harjoitus:             r.harjoitus,
+        toistot_muokattu:      r.toistot_muokattu ?? '',
+        frekvenssi_muokattu:   r.frekvenssi_muokattu ?? '',
+        lisahuomautus:         r.lisahuomautus ?? '',
+      })))
       setLataa(false)
     }).catch((e) => {
       if (peruttu) return
@@ -211,9 +225,25 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       setTila('virhe')
       return
     }
+    // Pala B6 — tallenna itsehoito-valinnat
+    const itsehoitoTulos = await tallennaKaynninItsehoito(hoitokayntiId, itsehoito)
+    if (itsehoitoTulos.virhe) {
+      setVirhe('Hoitokirjaus tallennettu mutta itsehoito-valintojen tallennus epäonnistui: ' + itsehoitoTulos.virhe)
+      setTila('virhe')
+      return
+    }
     setTila('onnistui')
     setTimeout(onValmis, 1500)
   }
+
+  // Älykäs suodatus: havaintojen alueista koottu lista (Pala B6 modaalia varten)
+  const havaitutAlueet = useMemo(() => {
+    const set = new Set()
+    for (const h of havainnot) {
+      if (h.alueNimi) set.add(h.alueNimi.toLowerCase())
+    }
+    return [...set]
+  }, [havainnot])
 
   if (lataa) {
     return (
@@ -402,6 +432,20 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         </div>
       </div>
 
+      {/* Itsehoito-ohjelma — Pala B6 (HOITORAPORTTI:n jälkeen, ennen Tallenna/Peru) */}
+      <div style={ryhmaTyyli}>
+        <h3 style={ryhmaOtsikko}>Itsehoito-ohjelma</h3>
+        <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 4px', lineHeight: 1.5 }}>
+          Valitse asiakkaalle harjoituksia kirjastosta. Voit räätälöidä toistot/frekvenssin
+          tälle käynnille — kirjaston oletus säilyy ennallaan.
+        </p>
+        <ItsehoitoValinnat
+          valinnat={itsehoito}
+          onMuutos={setItsehoito}
+          havaitutAlueet={havaitutAlueet}
+        />
+      </div>
+
       {/* Tallenna / Peru */}
       <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
         <button
@@ -448,10 +492,6 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         </button>
       </div>
 
-      {/* Esikatselu Vaihe B:n tulevista paloista */}
-      <div style={{ marginTop: '12px', fontSize: '12px', color: '#9ca3af', textAlign: 'center', fontStyle: 'italic' }}>
-        Tulossa myöhemmissä paloissa: vertailu edelliseen (B4) · itsehoito-ohjeet (B5–B6)
-      </div>
     </div>
   )
 }

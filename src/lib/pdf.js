@@ -227,6 +227,37 @@ function rakennaKayntiOsio(versio, sairausNimet, otsikkoTeksti) {
   `
 }
 
+// Pala B6: itsehoito-ohjelma -osio. valinnat: [{ harjoitus,
+// toistot_muokattu, frekvenssi_muokattu, lisahuomautus }]
+function rakennaItsehoitoOsio(valinnat) {
+  if (!valinnat || valinnat.length === 0) return ''
+  const rivit = valinnat.map((v) => {
+    const h = v.harjoitus
+    if (!h) return ''
+    const toistot = (v.toistot_muokattu ?? '').trim() || h.toistot || ''
+    const frekvenssi = (v.frekvenssi_muokattu ?? '').trim() || h.frekvenssi || ''
+    const meta = [
+      h.kesto_min ? `${h.kesto_min} min` : '',
+      toistot,
+      frekvenssi,
+    ].filter(Boolean).join(' · ')
+    return `
+      <div style="margin: 12px 0; padding: 10px 14px; background: #f0fdf4; border-left: 3px solid #1D9E75; border-radius: 4px; page-break-inside: avoid;">
+        <p style="font-weight: 700; font-size: 11pt; margin: 0 0 4px; color: #065f46;">${escapeHtml(h.nimi)}</p>
+        ${h.lyhyt_kuvaus ? `<p style="margin: 0 0 6px; font-size: 10.5pt; color: #374151;">${escapeHtml(h.lyhyt_kuvaus)}</p>` : ''}
+        ${h.pitka_ohje ? `<p style="margin: 0 0 6px; font-size: 10pt; color: #1f2937; white-space: pre-wrap; line-height: 1.5;">${escapeHtml(h.pitka_ohje)}</p>` : ''}
+        ${meta ? `<p style="margin: 0 0 4px; font-size: 9.5pt; color: #4b5563;"><strong>Toteutus:</strong> ${escapeHtml(meta)}</p>` : ''}
+        ${v.lisahuomautus ? `<p style="margin: 0 0 4px; font-size: 9.5pt; color: #4b5563;"><strong>Hoitajan huom.:</strong> ${escapeHtml(v.lisahuomautus)}</p>` : ''}
+        ${h.varoitukset ? `<p style="margin: 4px 0 0; font-size: 9.5pt; color: #991b1b; background: #fef2f2; padding: 4px 8px; border-radius: 4px;">⚠ ${escapeHtml(h.varoitukset)}</p>` : ''}
+      </div>
+    `
+  }).join('')
+  return `
+    <h2>Itsehoito-ohjeet</h2>
+    ${rivit}
+  `
+}
+
 function rakennaSuostumusOsio(asiakas) {
   const sailytys = asiakas?.suostumus_tietojen_sailytys === true
   const luovutus = asiakas?.suostumus_tietojen_luovutus === true
@@ -282,8 +313,10 @@ async function tulostaPDF(html, tiedostonimi) {
   }
 }
 
-// Käyntiraportti yksittäisestä käynnistä
-export async function tulostaKaynti({ asiakas, versio, sairaudet }) {
+// Käyntiraportti yksittäisestä käynnistä.
+// itsehoitoValinnat (valinnainen): Pala B6 — käyntiin liitetyt valitut
+// itsehoito-harjoitukset näkyvät PDF:n alaosassa.
+export async function tulostaKaynti({ asiakas, versio, sairaudet, itsehoitoValinnat = [] }) {
   const sairausNimet = (sairaudet ?? []).map((s) => s.nimi).filter(Boolean)
   const pvm = versio?.voimassa_alkaen ? muotoilePvm(versio.voimassa_alkaen) : ''
   const otsikkoTeksti = [
@@ -301,6 +334,7 @@ export async function tulostaKaynti({ asiakas, versio, sairaudet }) {
     <h2>Hoitokerta</h2>
     ${rakennaKayntiOsio(versio, sairausNimet, otsikkoTeksti)}
 
+    ${rakennaItsehoitoOsio(itsehoitoValinnat)}
     ${rakennaSuostumusOsio(asiakas)}
     ${ALARIVI}
   `

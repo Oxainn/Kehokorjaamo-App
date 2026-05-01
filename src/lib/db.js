@@ -596,6 +596,81 @@ export const luoItsehoitoHarjoitus = async (tiedot) => {
   return { id: data.id, virhe: null }
 }
 
+// Hakee hoitokäynnin id:n A-lomakeversion id:n perusteella.
+// Käytetään kun käyntipillerin klikkauksesta avattu KayntiNakyma haluaa
+// hakea kyseisen käynnin itsehoito-valinnat (Pala B6) PDF:ää varten.
+// Snapshot-mallilla yksi hoitokaynti per A-lomakeversio.
+export const haeHoitokayntiVersionPerusteella = async (lomakeVersioId) => {
+  if (!lomakeVersioId) return null
+  const { data, error } = await supabase
+    .from('hoitokaynnit')
+    .select('id')
+    .eq('lomake_versio_id', lomakeVersioId)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('Hoitokäynnin haku version perusteella epäonnistui:', error)
+    return null
+  }
+  return data?.id ?? null
+}
+
+// ─── Käyntikohtaiset itsehoito-valinnat (Pala B6) ──────────────────
+// Hoitaja valitsee kirjastosta harjoituksia jokaiselle hoitokerralle.
+
+// Palauttaa käynnin valitut harjoitukset + kirjaston harjoitustiedot
+// joinilla. Järjestys: jarjestys-kenttä, sitten luotu.
+export const haeKaynninItsehoito = async (hoitokayntiId) => {
+  if (!hoitokayntiId) return []
+  const { data, error } = await supabase
+    .from('itsehoito_kaynnin_valinnat')
+    .select('id, jarjestys, toistot_muokattu, frekvenssi_muokattu, lisahuomautus, kirjasto_harjoitus_id, harjoitus:itsehoito_kirjasto!inner(id, nimi, lyhyt_kuvaus, pitka_ohje, kohdealueet, kesto_min, toistot, frekvenssi, varoitukset, kuva_url, video_url)')
+    .eq('hoitokaynti_id', hoitokayntiId)
+    .order('jarjestys', { ascending: true })
+    .order('luotu', { ascending: true })
+  if (error) {
+    console.error('Käynnin itsehoito-valintojen haku epäonnistui:', error)
+    return []
+  }
+  return data ?? []
+}
+
+// Tallentaa valitut harjoitukset käynnille — delete-then-insert.
+// valinnat: [{ kirjasto_harjoitus_id, jarjestys?, toistot_muokattu?,
+//              frekvenssi_muokattu?, lisahuomautus? }]
+export const tallennaKaynninItsehoito = async (hoitokayntiId, valinnat) => {
+  if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
+
+  const { error: poistoVirhe } = await supabase
+    .from('itsehoito_kaynnin_valinnat')
+    .delete()
+    .eq('hoitokaynti_id', hoitokayntiId)
+  if (poistoVirhe) {
+    console.error('Vanhojen valintojen poisto epäonnistui:', poistoVirhe)
+    return { virhe: poistoVirhe.message }
+  }
+
+  if (!Array.isArray(valinnat) || valinnat.length === 0) return { virhe: null }
+
+  const rivit = valinnat.map((v, i) => ({
+    hoitokaynti_id:        hoitokayntiId,
+    kirjasto_harjoitus_id: v.kirjasto_harjoitus_id,
+    jarjestys:             typeof v.jarjestys === 'number' ? v.jarjestys : i,
+    toistot_muokattu:      (v.toistot_muokattu ?? '').trim() || null,
+    frekvenssi_muokattu:   (v.frekvenssi_muokattu ?? '').trim() || null,
+    lisahuomautus:         (v.lisahuomautus ?? '').trim() || null,
+  }))
+  const { error: lisaysVirhe } = await supabase
+    .from('itsehoito_kaynnin_valinnat')
+    .insert(rivit)
+  if (lisaysVirhe) {
+    console.error('Itsehoito-valintojen lisäys epäonnistui:', lisaysVirhe)
+    return { virhe: lisaysVirhe.message }
+  }
+  return { virhe: null }
+}
+
 export const paivitaItsehoitoHarjoitus = async (id, tiedot) => {
   if (!id) return { virhe: 'Id puuttuu' }
   const muutokset = { paivitetty: new Date().toISOString() }

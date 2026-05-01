@@ -4,7 +4,7 @@
 // silloisesta tilasta. Ei muokkausmahdollisuutta.
 
 import { useEffect, useState } from 'react'
-import { haeLomakeversio } from '../lib/db'
+import { haeLomakeversio, haeHoitokayntiVersionPerusteella, haeKaynninItsehoito } from '../lib/db'
 import { muotoilePvm, muotoilePvmAika } from '../lib/muotoilu'
 
 const overlayTyyli = {
@@ -121,7 +121,15 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
       // Lazy-load: html2pdf.js + jspdf + html2canvas latautuvat vain kun
       // tulostusta oikeasti tarvitaan, eivät app-bundlessa heti alussa.
       const { tulostaKaynti } = await import('../lib/pdf')
-      await tulostaKaynti({ asiakas, versio: data.versio, sairaudet: data.sairaudet })
+      // Pala B6: hae käyntiin liitetyt itsehoito-valinnat PDF:ää varten
+      const hoitokayntiId = await haeHoitokayntiVersionPerusteella(lomakeVersioId)
+      const itsehoitoValinnat = hoitokayntiId ? await haeKaynninItsehoito(hoitokayntiId) : []
+      await tulostaKaynti({
+        asiakas,
+        versio:    data.versio,
+        sairaudet: data.sairaudet,
+        itsehoitoValinnat,
+      })
     } catch (e) {
       console.error('PDF-tulostus epäonnistui:', e)
       alert('PDF-tulostus epäonnistui: ' + (e.message ?? 'tuntematon virhe'))
