@@ -3,8 +3,7 @@ import { rakennaPbPäivitys } from '../utils/productboard'
 import { supabase } from '../services/supabase'
 import ProductBoard from './ProductBoard'
 import KehonkarttaKalibrointi from './asetukset/KehonkarttaKalibrointi'
-import LomakeKirjasto from './asetukset/LomakeKirjasto'
-import PalveluKirjasto from './asetukset/PalveluKirjasto'
+import PalvelutJaLomakkeet from './asetukset/PalvelutJaLomakkeet'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
 
@@ -321,11 +320,11 @@ export default function Settings({ hoitajaId }) {
         }
       />
 
-      {/* ── Asiakastietolomakkeet ─────────────────────────────────────────── */}
+      {/* ── Palvelut & lomakkeet (yhdistetty näkymä) ──────────────────────── */}
       <AccordionOsio
-        id="asiakastietolomakkeet" otsikko="Asiakastietolomakkeet" ikoni="📋"
-        auki={aukiOsio === 'asiakastietolomakkeet'} onToggle={toggle}
-        lapset={<LomakeKirjasto />}
+        id="palvelut_lomakkeet" otsikko="Palvelut & lomakkeet" ikoni="🩺"
+        auki={aukiOsio === 'palvelut_lomakkeet'} onToggle={toggle}
+        lapset={<PalvelutJaLomakkeet />}
       />
 
       {/* ── 3: Brändäys ──────────────────────────────────────────────────── */}
@@ -438,12 +437,7 @@ export default function Settings({ hoitajaId }) {
         }
       />
 
-      {/* ── 4: Palvelut (Supabase-pohjainen) ─────────────────────────────── */}
-      <AccordionOsio
-        id="palvelut" otsikko="Palvelut" ikoni="🏥"
-        auki={aukiOsio === 'palvelut'} onToggle={toggle}
-        lapset={<PalveluKirjasto />}
-      />
+      {/* Palvelut-näkymä on nyt yhdistetty "Palvelut & lomakkeet" -osioon yllä. */}
 
       {/* TILAPÄINEN: vanha localStorage-pohjainen Palvelut-koodi piilotettu jotta
           datat eivät ole päällekkäin. Koodi ja apufunktiot jäävät vielä
