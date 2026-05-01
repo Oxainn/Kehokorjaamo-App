@@ -4,7 +4,7 @@
 > Päivitä aina kun vaihe valmistuu tai suunnitelma muuttuu.
 > Kun aloitat uuden Claude-chatin, voit sanoa: *"Lue ROADMAP.md ja jatka vaiheesta X"*.
 
-**Viimeisin päivitys:** 2026-04-30
+**Viimeisin päivitys:** 2026-05-01
 
 ---
 
@@ -17,6 +17,8 @@ Kehokorjaamo-App on **täysi alustatuote** joka korvaa kaiken hoitohuoneen pyör
 **Lomakkeen yksilöinti** suunnitellaan rakenteellisesti yleiseksi — minkä tahansa uuden hoitomuodon lisääminen onnistuu hoitajan toimesta editorin kautta ilman koodimuutosta. Tuettavat hoitomuodot oman käytön alkuun: jäsenkorjaus, klassinen hieronta, tantrahieronta, energiahoito.
 
 **Arkkitehtuuriperiaate:** Yksi yhteinen pohjalomake (perustiedot, sairaudet, lääkitys, esteet hoidolle) + palvelukohtaiset lisäosiot päälle. Lomakepohjien rakentaminen tapahtuu rasti ruutuun -tyyliin: hoitaja valitsee editorissa mitkä osiot tähän palveluun tulevat. Asiakas täyttää valmiin lomakkeen — ei voi muuttaa rakennetta.
+
+**Palvelu↔lomake-suhde:** 1:N. Yksi palvelu käyttää aina yhtä lomaketta. Sama lomake voi olla useassa palvelussa (esim. "Jäsenkorjaus-lomake" voidaan liittää sekä "Jäsenkorjaus 1. hoitokerta" että "Jäsenkorjaus jatkohoito" -palveluihin).
 
 ---
 
@@ -68,13 +70,15 @@ Kehokorjaamo-App on **täysi alustatuote** joka korvaa kaiken hoitohuoneen pyör
 
 - 🟢 **Runtime-renderöijä** — geneerinen pohjasta lomakkeen renderöivä komponentti (22 kenttätyyppiä, 3 näyttötyyliä, validointi, tallennus). Korvaa vanhan Asiakastietolomakkeen tuotannossa. Valmis 30.4.2026.
 - 🟢 **Editori (ROADMAPin nykyinen 3C) loppuun viety** — palvelukohtaisten lomakepohjien luonti rasti ruutuun -tyyliin. Osioiden + kenttien hallinta, esikatselu, uuden kentän luonti kenttäkirjastoon. Valmis 30.4.2026.
-- 🟢 **Palvelu-linkitys (ROADMAPin lykätty 3 B+)** — lomake + palvelu pari toimii N:M-suhteella. Hoitaja luo palvelut Asetuksissa (Asetukset → Palvelut), liittää lomakepohjia palveluihin editorin yläpalkista, voi merkitä yhden pohjan oletukseksi per palvelu. Valmis 30.4.2026.
+- 🟢 **Palvelu↔lomake-suhde 1:N** — palvelut.lomakepohja_id (FK). Yksi palvelu käyttää yhtä lomaketta, sama lomake voi olla useassa palvelussa. Aiempi N:M-suhde (palvelu_lomake_linkit-välitaulu) hylätty 2026-05-01 — johti epäselvyyteen oletuspohjista. Valmis 1.5.2026.
+- 🟢 **Yhdistetty Asetukset → Palvelut & lomakkeet -näkymä** — palvelukortti näyttää lomakkeen, "Vaihda" -nappi avaa modaalin pohjan vaihtamiseen. Lomakepohjien yleishallinta avattavassa paneelissa alaosassa. Aiemmat erilliset osiot ("Asiakastietolomakkeet" ja "Palvelut") yhdistetty palvelu-keskeisesti. Valmis 1.5.2026.
 - ⚪ Palvelukohtaiset variantit (jäsenkorjaus, klassinen hieronta, tantrahieronta, energiahoito ensin — muiden lisäys onnistuu editorista jatkossa). **Hoitaja luo palvelut itse Asetuksissa** — alkuperäinen "migraatio luo 4 oletuspalvelua" hylätty (2026-04-30 päätös: pidetään tyhjä alku jotta hoitajan vapaus säilyy).
-- 🟢 **Sähköpostitunnistautuminen lomakkeessa** — sähköposti = tunniste, magic-link lähetetään lomakkeen lähetyksen yhteydessä portaaliin kirjautumista varten. Valmis 30.4.2026.
+- 🟡 **Sähköpostitunnistautuminen lomakkeessa** — magic-link toiminnallisuus rakennettu, mutta toistaiseksi pois käytöstä (2026-05-01) koska asiakasportaalia (Vaihe C) ei ole. Palautetaan kun /portaali-reitti valmistuu.
 - 🟢 **Asiakkaan automaattinen rekisteröityminen** lomakkeen täytön yhteydessä. Edge Function `tallenna-julkinen-lomake` upsert sähköpostin perusteella (saman hoitajan rekisterissä). Valmis 30.4.2026.
-- 🟢 **"Kiitos" + Vello-linkki ohjautuminen** — onnistumismodaali + Vello aukeaa uudessa välilehdessä jos `palvelut.varauslinkki_url` on asetettu. Valmis 30.4.2026.
+- 🟢 **"Kiitos" + Vello-linkki ohjautuminen** — kelluva auto-close modaali (6s, manuaalinen Sulje-nappi) + Vello aukeaa uudessa välilehdessä jos `palvelut.varauslinkki_url` on asetettu. Magic link -viesti siirretty Vaihe C:hen. Valmis 1.5.2026.
 - ⚪ Kotisivun ajanvarauspainike muutetaan: johtaa nyt ensin lomakkeeseen, sitten Velloon. **Kuuluu Vaihe D:hen** (julkinen sivusto / kalevalapaja.fi:n korvaus). Lomake on jo valmis: avautuu URL `https://kehokorjaamo-app.vercel.app/?palvelu=PALVELU_ID`.
 - 🟢 **Mobile-first asiakaskäyttöliittymä** — toimii puhelimella ensisijaisesti. Renderöijän kenttäkomponentit suunniteltu mobiili-painotteisesti. Valmis.
+- 🟢 **Migraatiotiedostot palveluille** — `palvelut`- ja aiempi `palvelu_lomake_linkit`-taulu reverse-engineerattu tuotannosta SQL-tiedostoiksi (20260501_palvelut_1n_suhde.sql). Repon kloonaaja voi rakentaa skeeman pelkillä migraatioilla. Valmis 1.5.2026.
 
 **Lopputulos:**
 Asiakkaat täyttävät lomakkeen sähköisesti — joko etukäteen kotona tai hoitohuoneessa tabletilla. Saat tiedot ennen hoitoa, voit valmistautua. Paperilomakkeesta luovutaan.
@@ -260,6 +264,8 @@ Nämä eivät ole vaiheissa, mutta on hyvä muistaa:
 - **Lapsihahmo, raskaana olevan hahmo, sukupuolineutraali hahmo** kehonkartassa
 - **Hoitaja voi lisätä asiakkaan ilman sähköpostia** (yleisötapahtumat, iäkkäät asiakkaat) — sähköposti suositeltu mutta ei pakollinen kun hoitaja täyttää
 - **Asiakas voi päivittää oiretilannetta portaalissa** (vaihe C) — hoitaja näkee päivityksen ennen seuraavaa hoitoa
+- **Päivämäärän esitysmuoto suomeksi** — `<input type="date">` käyttää selaimen lokaalia, mikä riittää useimpiin tapauksiin. Erikseen formaatin pakottaminen vaatisi custom-pickerin. Tehdään myöhemmin jos osoittautuu tarpeelliseksi (2026-05-01 päätös: ei prioriteetti Vaihe A:lle).
+- **Magic link palautus** — passwordless-kirjautuminen lomakkeen lähetyksen jälkeen palautetaan käyttöön kun Vaihe C (asiakasportaali) valmistuu
 - **Hoitaja voi pyytää lomakkeen päivitystä** sähköpostilla jos asiakkaan tiedot ovat vanhat
 - **Aikaperusteinen tarkistus** — yli 6 kk taukoa → muistutus tarkistaa tiedot, yli 2 v → koko lomake uudestaan
 - **Palvelukohtaiset erikoiskysymykset** — esim. tantrahieronnassa tietoiset suostumukset

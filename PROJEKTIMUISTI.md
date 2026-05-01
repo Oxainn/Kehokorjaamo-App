@@ -4,7 +4,7 @@
 > Roadmap kertoo mitä tehdään, projektimuisti kertoo miksi.
 > Päivitä kun teet ison päätöksen.
 
-**Viimeisin päivitys:** 2026-04-30
+**Viimeisin päivitys:** 2026-05-01
 
 ---
 
@@ -64,7 +64,7 @@
 - `lomakepohja_versiot` — pohjien JSON-rakenne, versioitu
 - `kenttakirjasto` — kenttien yhteinen kirjasto
 - `kentan_versiot` — kenttien versiot
-- `palvelu_lomake_linkit` — välitaulu palvelu↔lomakepohja (Vaihe A — nostettu lykätyltä listalta)
+- `palvelut.lomakepohja_id` — FK-sarake, 1:N-suhde (1.5.2026 lähtien). Aiempi `palvelu_lomake_linkit`-välitaulu on poistettu.
 
 ### Referenssitaulut (muokattavissa)
 
@@ -101,6 +101,36 @@
 ---
 
 ## Tehdyt päätökset
+
+### 2026-05-01 — Palvelu↔lomake-suhde 1:N (oli N:M)
+
+**Päätös:** Suhde palvelusta lomakepohjaan muutettu yksisuuntaiseksi 1:N:ksi. Yksi palvelu käyttää aina yhtä lomaketta. Sama lomake voi olla useassa palvelussa. Tekninen toteutus: `palvelut.lomakepohja_id` (FK), aiempi `palvelu_lomake_linkit`-välitaulu poistettu. `on_oletus`-konsepti hylätty (ei tarvita kun palvelulla on aina yksi lomake).
+
+**Miksi:** Aiempi N:M-suhde tuotti epäselvyyden: hoitaja saattoi vahingossa merkitä useita pohjia oletukseksi samalla palvelulla, ja `hae-julkinen-lomake` valitsi mielivaltaisesti yhden. Käyttäjäkokemus oli sotkuinen ("oletus pohja"-konsepti vaati selitystä). 1:N on luonnollisempi malli sekä käyttöliittymässä että datalla — palvelu määrittää lomakkeensa, ei toisinpäin.
+
+**Sovellettava esimerkki:** "Jäsenkorjaus-lomake" voidaan liittää sekä "Kalevalainen jäsenkorjaus 1. hoitokerta" että "Jäsenkorjaus jatkohoito" -palveluihin. Muutos toiseen lomakkeeseen tehdään palvelukohtaisesti.
+
+**Hylätty vaihtoehto:** Pitää N:M ja lisätä DB-rajoite `UNIQUE(palvelu_id) WHERE on_oletus=true`. Mutta tämä monimutkaistaisi UI:ta tarpeettomasti, kun yksi-yhteen on luonteva.
+
+### 2026-05-01 — Asetukset → Palvelut & lomakkeet yhdistetty palvelu-keskeisesti
+
+**Päätös:** Aiemmat erilliset Asetukset-osiot ("Asiakastietolomakkeet" ja "Palvelut") yhdistetty yhdeksi "Palvelut & lomakkeet" -osioksi. Pää-näkymä on palvelu-keskeinen — palvelukortti näyttää nimen, keston, hinnan ja liitetyn lomakkeen, ja "Vaihda" -nappi avaa modaalin lomakkeen vaihtamiseen. Lomakepohjien yleishallinta (luo, kopioi, muokkaa) avattavassa paneelissa alaosassa.
+
+**Miksi:** Käyttäjä artikuloi vision selkeästi: palvelu on luonnollinen alkupiste, ja lomake on sen ominaisuus. Erillinen lomakepohjakirjasto-osio oli teknillinen abstraktio joka ei vastannut hoitajan mentaalimallia ("haluan tehdä jäsenkorjaus-palvelulle uuden lomakkeen", ei "haluan luoda lomakepohjan ja sitten linkittää se").
+
+### 2026-05-01 — Magic link / portaalisähköposti pois käytöstä toistaiseksi
+
+**Päätös:** Lomakkeen lähetyksen jälkeen ei lähetetä passwordless-kirjautumislinkkiä asiakkaalle. Sen sijaan näytetään kelluva auto-close kiitos-modaali (6s, manuaalinen Sulje-nappi) tekstillä "Kiitos ennakkotiedoista! Hoitaja on sinuun tarvittaessa yhteydessä ennen hoitoaikaasi." Vello-välilehti aukeaa rinnalla kuten ennenkin.
+
+**Miksi:** Asiakasportaali (Vaihe C) ei ole vielä olemassa. Magic link johti `/portaali`-reitille jota ei käsitellä — käyttäjä päätyi 404:ään. Toiminto on rakennettu mutta odottaa Vaihe C:n valmistumista.
+
+**Vaikutus:** Sähköpostia ei enää tarvita pakollisena tunnisteena. Edge Function `tallenna-julkinen-lomake` säilyttää upsert-logiikan sähköpostin perusteella jos asiakas sen antaa, mutta ei vaadi sitä. Magic link palautetaan kun Vaihe C valmistuu.
+
+### 2026-05-01 — Migraatiotiedostot puuttuville tauluille
+
+**Päätös:** Kirjoitettu migraatio (`20260501_palvelut_1n_suhde.sql`) joka luo `palvelut`-taulun reverse-engineeratulla skeemalla, varmistaa `palvelu_lomake_linkit`-välitaulun siirtymisen ajaksi, lisää `lomakepohja_id`-sarakkeen, migroi datan (oletus-pohja → FK), ja pudottaa välitaulun. Idempotentti: voi ajaa puhtaalla DB:llä tai olemassa olevaan tuotantoon.
+
+**Miksi:** Aiemmin `palvelut`- ja `palvelu_lomake_linkit`-taulut oli luotu suoraan Supabasen UI:n kautta — ne eivät olleet repon migraatioissa. Repon kloonaaja ei voinut rakentaa skeemaa pelkillä migraatioilla. Periaate "puhdas repo → toimiva ympäristö" vaatii että kaikki taulut on määriteltävissä SQL-tiedostoista.
 
 ### 2026-04-30 — Tuotenäkemys laajeni alustatuotteeksi
 
