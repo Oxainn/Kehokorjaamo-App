@@ -511,48 +511,6 @@ export const paivitaLomakeTekstikentat = async (asiakasId, data) => {
   return true
 }
 
-export const tallennaAsiakastietolomake = async (asiakasId, lomakeData, sairaudet = []) => {
-  const { data: versio, error: versioError } = await supabase
-    .from('asiakastietolomake_versiot')
-    .insert({
-      asiakas_id:             asiakasId,
-      hoitoon_syy:            lomakeData.hoitoon_syy            || null,
-      laakitys:               lomakeData.laakitys               || null,
-      harrastukset:           lomakeData.harrastukset           || null,
-      vammat_huomiot:         lomakeData.vammat_huomiot         || null,
-      kipu_taso:              lomakeData.kipu_taso              ?? null,
-      miten_loysi:            lomakeData.miten_loysi            || null,
-      diagnosoidut_sairaudet: lomakeData.diagnosoidut_sairaudet || null,
-      muokkaaja_id:           lomakeData.muokkaaja_id           ?? null,
-      muokkaaja_rooli:        'hoitaja',
-    })
-    .select('id')
-    .single()
-
-  if (versioError) {
-    console.error('Lomakeversion tallennus:', versioError)
-    return { lomakeVersioId: null, error: versioError }
-  }
-
-  if (sairaudet.length > 0) {
-    const rivit = sairaudet.map(s => ({
-      lomake_versio_id:  versio.id,
-      sairaus_tyyppi_id: s.sairaus_tyyppi_id,
-      on_voimassa:       true,
-      tarkenne:          s.tarkenne || null,
-    }))
-    const { error: sairaudetError } = await supabase
-      .from('lomake_sairaudet')
-      .insert(rivit)
-    if (sairaudetError) {
-      console.error('Sairauksien tallennus:', sairaudetError)
-      return { lomakeVersioId: versio.id, error: sairaudetError }
-    }
-  }
-
-  return { lomakeVersioId: versio.id, error: null }
-}
-
 export const haeAsiakkaanSairaudet = async (asiakasId) => {
   // Vaihe 1: hae nykyinen versio-id (ei embed-filtteriä, toimii varmasti)
   const { data: versio } = await supabase

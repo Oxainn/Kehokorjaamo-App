@@ -5,8 +5,6 @@ import { haeUusienAsiakkaidenMaara, aloitaUusiKaynti } from '../lib/db'
 import Login from './Login'
 import Settings from './Settings'
 import Asiakasrekisteri from './Asiakasrekisteri'
-// eslint-disable-next-line no-unused-vars
-import Asiakastietolomake from './Asiakastietolomake' // ROLLBACK — vanha lomake, ei käytössä
 import AsiakaslomakeRenderoijalla from './AsiakaslomakeRenderoijalla'
 import UudenAsiakkaanTarkistus from './UudenAsiakkaanTarkistus'
 import JulkinenLomake from './JulkinenLomake'
