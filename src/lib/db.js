@@ -758,6 +758,7 @@ export const kutsuAIAnalyysi = async ({
   edellisetMittarit = null,
   asiakkaanKehonkartta = null,
   asiakkaanOireet = null,
+  hoitokayntiId = null,
 }) => {
   if (!Array.isArray(findings) || findings.length === 0) {
     return { virhe: 'Tee ensin havaintoja BodyMap:ssa.' }
@@ -769,14 +770,40 @@ export const kutsuAIAnalyysi = async ({
       edellisetMittarit,
       asiakkaanKehonkartta,
       asiakkaanOireet,
+      hoitokayntiId,
     },
   })
   if (error) {
     console.error('AI-analyysin kutsu epäonnistui:', error)
     return { virhe: error.message ?? 'AI-kutsu epäonnistui' }
   }
-  if (data?.virhe) return { virhe: data.virhe }
-  return { analyysi: data.analyysi, prompti: data.prompti, malli: data.malli, virhe: null }
+  if (data?.virhe) return { virhe: data.virhe, rate_limit: data.rate_limit ?? null }
+  return {
+    analyysi:   data.analyysi,
+    prompti:    data.prompti,
+    malli:      data.malli,
+    rate_limit: data.rate_limit ?? null,
+    virhe:      null,
+  }
+}
+
+// VB6 — hae hoitajan AI-kutsujen määrä viimeiseltä tunnilta + päivältä.
+// Käytetään UI:ssa kvoot-laskurin näyttämiseen ennen pyyntöä.
+// Palauttaa { tunnilla, paivassa } tai null jos epäonnistuu.
+export const haeAIKutsuKvoot = async () => {
+  const tunti = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+  const paiva = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const [tunnillaRes, paivassaRes] = await Promise.all([
+    supabase.from('ai_kutsu_loki').select('id', { count: 'exact', head: true }).gte('luotu', tunti),
+    supabase.from('ai_kutsu_loki').select('id', { count: 'exact', head: true }).gte('luotu', paiva),
+  ])
+  if (tunnillaRes.error || paivassaRes.error) return null
+  return {
+    tunnilla:       tunnillaRes.count ?? 0,
+    paivassa:       paivassaRes.count ?? 0,
+    tunnin_kiintio: 30,
+    paivan_kiintio: 200,
+  }
 }
 
 // Hakee käynnille tallennetun AI-analyysin (tyyppi='loydosanalyysi').

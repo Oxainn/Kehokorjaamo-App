@@ -3,24 +3,15 @@
 // Vaihe B Pala B8 — kutsuu Anthropic Claude API:a hoitajan löydösten
 // analysointiin jäsenkorjaajan näkökulmasta.
 //
+// VB6: rate-limit per hoitaja — max 30 kutsua / tunti, 200 / päivä.
+// Joka kutsu logataan ai_kutsu_loki-tauluun. Estetään kustannusten
+// karkaaminen jos UI-nappia hakkaa toistuvasti.
+//
 // verify_jwt = true: vain kirjautuneet hoitajat saavat tehdä kutsuja.
-// API-avain ANTHROPIC_API_KEY luetaan Supabase secret:eistä — ei koskaan
-// selaimen puolelta.
-//
-// Pyynnön muoto:
-//   {
-//     hoitokayntiId: uuid,
-//     findings: [{ alueId, alueNimi, tyyppi, kipu, kirjaukset }],
-//     mittarit?: { sarake: arvo },
-//     edellisetMittarit?: { sarake: arvo },
-//     asiakkaanKehonkartta?: { merkinnat: { vyohyke_id: oiretyyppi[] } },
-//     asiakkaanOireet?: string,
-//   }
-//
-// Palauttaa:
-//   { analyysi: string, prompti: string, malli: string, virhe: null }
+// API-avain ANTHROPIC_API_KEY luetaan Supabase secret:eistä.
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin":  "*",
@@ -30,6 +21,10 @@ const corsHeaders = {
 
 const MALLI = "claude-haiku-4-5-20251001"
 const MAX_TOKENS = 1000
+
+// VB6 rate-limit: 30 kutsua / tunti, 200 / päivä per hoitaja.
+const TUNNIN_KIINTIO = 30
+const PAIVAN_KIINTIO = 200
 
 type Finding = {
   alueId?: string
@@ -171,6 +166,52 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST")    return jsonResponse({ virhe: "Vain POST sallittu" }, 405)
 
   try {
+    // VB6 — autentikoi pyyntö ja selvitä hoitajan id rate-limittiä varten.
+    // verify_jwt=true → Authorization-header on aina saatavilla.
+    const supabaseUrl  = Deno.env.get("SUPABASE_URL")
+    const anonAvain    = Deno.env.get("SUPABASE_ANON_KEY")
+    const serviceAvain = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+    if (!supabaseUrl || !anonAvain || !serviceAvain) {
+      return jsonResponse({ virhe: "Palvelin on väärin konfiguroitu" }, 500)
+    }
+    const auth = req.headers.get("Authorization") ?? ""
+    const sbUser = createClient(supabaseUrl, anonAvain, {
+      global: { headers: { Authorization: auth } },
+      auth:   { autoRefreshToken: false, persistSession: false },
+    })
+    const { data: { user }, error: userVirhe } = await sbUser.auth.getUser()
+    if (userVirhe || !user) {
+      return jsonResponse({ virhe: "Kirjautuminen vaaditaan" }, 401)
+    }
+    const hoitajaId = user.id
+
+    // Service-role-client lokin lukua/kirjoitusta varten (RLS ohitetaan)
+    const sbAdmin = createClient(supabaseUrl, serviceAvain, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
+
+    // Rate-limit-tarkistus
+    const tunti = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const paiva = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const [{ count: tunnilla }, { count: paivassa }] = await Promise.all([
+      sbAdmin.from("ai_kutsu_loki").select("*", { count: "exact", head: true })
+        .eq("hoitaja_id", hoitajaId).gte("luotu", tunti),
+      sbAdmin.from("ai_kutsu_loki").select("*", { count: "exact", head: true })
+        .eq("hoitaja_id", hoitajaId).gte("luotu", paiva),
+    ])
+    if ((tunnilla ?? 0) >= TUNNIN_KIINTIO) {
+      return jsonResponse({
+        virhe: `Tunnin AI-kiintiö täynnä (${TUNNIN_KIINTIO} kutsua/h). Yritä hetken kuluttua.`,
+        rate_limit: { tunnilla, tunnin_kiintio: TUNNIN_KIINTIO, paivassa, paivan_kiintio: PAIVAN_KIINTIO },
+      }, 429)
+    }
+    if ((paivassa ?? 0) >= PAIVAN_KIINTIO) {
+      return jsonResponse({
+        virhe: `Päivän AI-kiintiö täynnä (${PAIVAN_KIINTIO} kutsua/24h). Koeta huomenna.`,
+        rate_limit: { tunnilla, tunnin_kiintio: TUNNIN_KIINTIO, paivassa, paivan_kiintio: PAIVAN_KIINTIO },
+      }, 429)
+    }
+
     const body = await req.json()
     const findings = (body?.findings ?? []) as Finding[]
     if (!Array.isArray(findings) || findings.length === 0) {
@@ -191,6 +232,7 @@ Deno.serve(async (req: Request) => {
       asiakkaanKehonkartta: body?.asiakkaanKehonkartta,
       asiakkaanOireet:      body?.asiakkaanOireet,
     })
+    const hoitokayntiId = body?.hoitokayntiId ?? null
 
     const vastaus = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -209,6 +251,14 @@ Deno.serve(async (req: Request) => {
     if (!vastaus.ok) {
       const virheteksti = await vastaus.text().catch(() => "")
       console.error("[ai-analyysi-loydoksista] Anthropic-virhe", vastaus.status, virheteksti)
+      // Logaa epäonnistunut kutsu — kuluttaa kvoota silti, jotta toistuva
+      // virhe ei johda loputtomaan retryyn.
+      await sbAdmin.from("ai_kutsu_loki").insert({
+        hoitaja_id:     hoitajaId,
+        malli:          MALLI,
+        hoitokaynti_id: hoitokayntiId,
+        onnistunut:     false,
+      }).then(() => {}).catch(() => {})
       return jsonResponse({
         virhe: `AI-palvelu palautti virheen (${vastaus.status}). ${virheteksti.slice(0, 200)}`,
       }, 502)
@@ -224,14 +274,34 @@ Deno.serve(async (req: Request) => {
       .trim()
 
     if (!teksti) {
+      await sbAdmin.from("ai_kutsu_loki").insert({
+        hoitaja_id:     hoitajaId,
+        malli:          MALLI,
+        hoitokaynti_id: hoitokayntiId,
+        onnistunut:     false,
+      }).then(() => {}).catch(() => {})
       return jsonResponse({ virhe: "AI palautti tyhjän vastauksen." }, 502)
     }
+
+    // Logaa onnistunut kutsu
+    await sbAdmin.from("ai_kutsu_loki").insert({
+      hoitaja_id:     hoitajaId,
+      malli:          MALLI,
+      hoitokaynti_id: hoitokayntiId,
+      onnistunut:     true,
+    }).then(() => {}).catch((e) => console.warn("[ai] lokin kirjoitus epäonnistui:", e))
 
     return jsonResponse({
       analyysi: teksti,
       prompti,
       malli:    MALLI,
       virhe:    null,
+      rate_limit: {
+        tunnilla:        (tunnilla ?? 0) + 1,
+        tunnin_kiintio:  TUNNIN_KIINTIO,
+        paivassa:        (paivassa ?? 0) + 1,
+        paivan_kiintio:  PAIVAN_KIINTIO,
+      },
     }, 200)
 
   } catch (e) {

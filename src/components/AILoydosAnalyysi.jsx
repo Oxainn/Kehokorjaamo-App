@@ -6,7 +6,7 @@
 // painaa "Päivitä analyysi" -nappia.
 
 import { useState, useEffect, useRef } from 'react'
-import { kutsuAIAnalyysi, tallennaAIAnalyysi, haeAIAnalyysi } from '../lib/db'
+import { kutsuAIAnalyysi, tallennaAIAnalyysi, haeAIAnalyysi, haeAIKutsuKvoot } from '../lib/db'
 import { useOnline } from '../hooks/useOnline'
 
 const lohkoTyyli = {
@@ -120,6 +120,8 @@ export default function AILoydosAnalyysi({
   const [tallentaa,   setTallentaa]   = useState(false)
   const [tallennettu, setTallennettu] = useState(false)
   const [naytaPrompti, setNaytaPrompti] = useState(false)
+  // VB6 — kvoot { tunnilla, paivassa, tunnin_kiintio, paivan_kiintio }
+  const [kvoot,       setKvoot]       = useState(null)
   // Pala B9b — AI vaatii verkkoyhteyden
   const online = useOnline()
   // Tarkistus-bugi: kahdesti klikkaaminen "Päivitä analyysi" kahdesti
@@ -140,6 +142,14 @@ export default function AILoydosAnalyysi({
     return () => { peruttu = true }
   }, [hoitokayntiId])
 
+  // VB6 — hae kvoot-tilanne kun komponentti latautuu (taustalla)
+  useEffect(() => {
+    if (!online) return
+    let peruttu = false
+    haeAIKutsuKvoot().then((k) => { if (!peruttu && k) setKvoot(k) })
+    return () => { peruttu = true }
+  }, [online])
+
   const onHavaintoja = Array.isArray(havainnot) && havainnot.length > 0
 
   async function pyydaAnalyysi() {
@@ -153,9 +163,12 @@ export default function AILoydosAnalyysi({
       edellisetMittarit,
       asiakkaanKehonkartta,
       asiakkaanOireet,
+      hoitokayntiId,
     })
     // Stale-tulos: tämän pyynnön jälkeen on tehty uusi → ohita vastaus
     if (oma !== pyyntoIdRef.current) return
+    // VB6 — päivitä kvoot riippumatta onko onnistui vai 429
+    if (tulos.rate_limit) setKvoot(tulos.rate_limit)
     if (tulos.virhe) {
       setTila('virhe')
       setVirhe(tulos.virhe)
@@ -214,6 +227,14 @@ export default function AILoydosAnalyysi({
       {onHavaintoja && !analyysi && !online && (
         <p style={{ fontSize: '12px', color: '#92400e', marginTop: '6px' }}>
           AI-analyysi vaatii verkkoyhteyden — kokeile uudelleen kun yhteys palaa.
+        </p>
+      )}
+      {/* VB6 — kvoot-laskuri */}
+      {kvoot && online && (
+        <p style={{ fontSize: '11px', color: '#6b7280', marginTop: '6px' }}>
+          Käytetty {kvoot.tunnilla}/{kvoot.tunnin_kiintio} tällä tunnilla
+          {' · '}
+          {kvoot.paivassa}/{kvoot.paivan_kiintio} 24 h aikana
         </p>
       )}
 
