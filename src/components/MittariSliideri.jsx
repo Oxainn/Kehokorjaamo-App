@@ -1,18 +1,23 @@
-// Vaihe B Pala B3 — yksittäisen linjausmittarin liukusäädin.
+// Vaihe B Pala B3+B4 — yksittäisen linjausmittarin liukusäädin.
 //
 // Props:
-//   mittari   — määritys src/data/linjausmittarit.js:stä
-//   arvo      — null tai numero (NULL = ei mitattu)
-//   onMuutos  — callback (uusiArvo: number | null) => void
+//   mittari        — määritys src/data/linjausmittarit.js:stä
+//   arvo           — null tai numero (NULL = ei mitattu)
+//   onMuutos       — callback (uusiArvo: number | null) => void
+//   edellinenArvo  — Pala B4: edellisen käynnin arvo (null jos ei ole)
+//   onAiempiKaynti — Pala B4: true jos asiakkaalla oli aiempi käynti
+//                    (näyttää "ei mittausta edell." vs. ei tekstiä lainkaan)
 //
 // UI:
 //   - Otsikkorivi: nimi + nykyinen arvo + Tyhjennä-nappi
 //   - HTML range-slider min..max askeleella step
-//   - min/max-tekstit alla
+//   - min/max-tekstit alla, normaalin kuvaus keskellä
 //   - Visuaalinen normaalialue (vihreä viiva radan päällä)
 //   - Keltainen "⚠" jos arvo on poikkeava
+//   - Pala B4: edellinen arvo + delta + parannus/heikennys-tulkinta
 
 import { arvoNormaalialueella } from '../data/linjausmittarit'
+import { laskeMuutos, muotoileDelta } from '../lib/mittaukset'
 
 const containerTyyli = (poikkeava) => ({
   background:   poikkeava ? '#fffbeb' : '#f9fafb',
@@ -107,13 +112,26 @@ function normaaliAlue(mittari) {
   return { left: `${Math.max(0, left)}%`, width: `${Math.min(100 - left, width)}%` }
 }
 
-export default function MittariSliideri({ mittari, arvo, onMuutos }) {
+export default function MittariSliideri({ mittari, arvo, onMuutos, edellinenArvo = null, onAiempiKaynti = false }) {
   const onMitattu = arvo !== null && arvo !== undefined
   const poikkeava = onMitattu && !arvoNormaalialueella(mittari, arvo)
   const normaaliKuv = normaaliKuvaus(mittari)
   const alue = normaaliAlue(mittari)
   // Keskellä rataa visualisoinnin lähtökohta jos arvoa ei vielä ole
   const sliderArvo = onMitattu ? arvo : (mittari.min + mittari.max) / 2
+
+  // Pala B4 — vertailu edelliseen
+  const onEdellinen = edellinenArvo !== null && edellinenArvo !== undefined
+  const muutos = onMitattu && onEdellinen
+    ? laskeMuutos(arvo, edellinenArvo, mittari.sarake)
+    : null
+  const muutosVari = muutos?.parannus === 'parannus' ? '#15803d'
+                  :  muutos?.parannus === 'heikennys' ? '#b91c1c'
+                  :  '#6b7280'
+  const muutosTeksti = muutos?.parannus === 'parannus' ? 'parannus 🟢'
+                    :  muutos?.parannus === 'heikennys' ? 'heikennys 🔴'
+                    :  muutos?.parannus === 'ennallaan' ? 'ei muutosta'
+                    :  null
 
   return (
     <div style={containerTyyli(poikkeava)}>
@@ -173,6 +191,35 @@ export default function MittariSliideri({ mittari, arvo, onMuutos }) {
         )}
         <span>{mittari.max} {mittari.yksikko}</span>
       </div>
+
+      {/* Pala B4 — edellisen käynnin arvo + delta-tulkinta */}
+      {(onEdellinen || onAiempiKaynti) && (
+        <div style={{
+          fontSize:    '12px',
+          color:       '#6b7280',
+          marginTop:   '4px',
+          paddingTop:  '8px',
+          borderTop:   '1px dashed #e5e7eb',
+          display:     'flex',
+          alignItems:  'center',
+          gap:         '8px',
+          flexWrap:    'wrap',
+        }}>
+          {onEdellinen ? (
+            <>
+              <span>edell. <strong style={{ color: '#374151' }}>{edellinenArvo} {mittari.yksikko}</strong></span>
+              {muutos && (
+                <span style={{ color: muutosVari, fontWeight: 600 }}>
+                  → {muotoileDelta(muutos.delta, mittari.yksikko)}
+                  {muutosTeksti && <span style={{ marginLeft: '4px', fontWeight: 500 }}>{muutosTeksti}</span>}
+                </span>
+              )}
+            </>
+          ) : (
+            <span style={{ fontStyle: 'italic' }}>ei mittausta edell.</span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

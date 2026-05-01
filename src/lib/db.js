@@ -487,6 +487,30 @@ export const haeHavainnot = async (hoitokayntiId) => {
   return data ?? []
 }
 
+// Hakee asiakkaan edellisen valmiin käynnin mittausarvot — käytetään
+// Pala B4:n vertailussa (kunkin liukusäätimen alle "edell. -5°" + delta).
+// Palauttaa { sarake: arvo | null } -objektin tai null jos ei aiempaa käyntiä.
+// Kelpuuttaa myös 'luonnos'-tilan rivit jotta kesken jätetyltä käynniltä
+// tehdyt mittaukset näkyvät seuraavassa, jos hoitaja palaa siihen.
+export const haeEdellisetMittarit = async (asiakasId, paitsiId = null) => {
+  if (!asiakasId) return null
+  let query = supabase
+    .from('hoitokaynnit')
+    .select('lantion_kallistus_aste, lantion_sivuttainen_aste, lantion_kierto_aste, olkapaiden_korkeusero_cm, paan_eteen_tyontyminen_cm, q_kulma_vasen_aste, q_kulma_oikea_aste, skolioosin_kierto_aste, niskan_kaannos_vasen_aste, niskan_kaannos_oikea_aste, jalkapituus_ero_cm, navicular_drop_vasen_mm, navicular_drop_oikea_mm, akillesjanteen_kulma_vasen_aste, akillesjanteen_kulma_oikea_aste, pvm')
+    .eq('asiakas_id', asiakasId)
+    .neq('tila', 'odottaa_kayntia')
+    .not('pvm', 'is', null)
+    .order('luotu', { ascending: false })
+    .limit(1)
+  if (paitsiId) query = query.neq('id', paitsiId)
+  const { data, error } = await query.maybeSingle()
+  if (error) {
+    console.error('Edellisten mittarien haku epäonnistui:', error)
+    return null
+  }
+  return data
+}
+
 // Hakee asiakkaan edellisen valmiiksi merkityn B-lomakkeen — käytetään
 // "Muista ensi kerralla" -nostoon Hoitokirjaus-näkymän yläosassa.
 // paitsiId: rajaa pois nykyinen hoitokäynti (jos se on jo tila='valmis'-tilassa).

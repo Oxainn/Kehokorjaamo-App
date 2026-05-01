@@ -18,6 +18,7 @@ import {
   tallennaHavainnot,
   haeHavainnot,
   haeEdellinenValmiisKaynti,
+  haeEdellisetMittarit,
 } from '../lib/db'
 import { useAutoResize } from '../hooks/useAutoResize'
 import { muotoilePvm } from '../lib/muotoilu'
@@ -99,6 +100,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   const [havainnotEsitayte,  setHavainnotEsitayte]  = useState(null)
   // Mittarit (Pala B3): { sarake: numero | null }
   const [mittarit,           setMittarit]           = useState({})
+  // Edellisen käynnin mittarit (Pala B4) — null jos ei aiempaa käyntiä
+  const [edellisetMittarit,  setEdellisetMittarit]  = useState(null)
   // Edellisen käynnin nosto
   const [edellisenMuista,    setEdellisenMuista]    = useState(null)
   // Meta
@@ -123,7 +126,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       haeAsiakkaanKayntienMaara(asiakas.id),
       haeHavainnot(hoitokayntiId),
       haeEdellinenValmiisKaynti(asiakas.id, hoitokayntiId),
-    ]).then(([kaynti, kpl, havRivit, edellinen]) => {
+      haeEdellisetMittarit(asiakas.id, hoitokayntiId),
+    ]).then(([kaynti, kpl, havRivit, edellinen, edellisetMitt]) => {
       if (peruttu) return
       if (kaynti) {
         setOtsikko(kaynti.otsikko ?? '')
@@ -164,6 +168,9 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
           otsikko: edellinen.otsikko,
         })
       }
+      // Pala B4 — edellisen käynnin mittarit (saadaan myös jos edellinen on null
+      // mutta jokin luonnos-rivi sisältää mittareita)
+      setEdellisetMittarit(edellisetMitt ?? null)
       setLataa(false)
     }).catch((e) => {
       if (peruttu) return
@@ -339,6 +346,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
               mittari={m}
               arvo={mittarit[m.sarake] ?? null}
               onMuutos={(uusi) => setMittarit((prev) => ({ ...prev, [m.sarake]: uusi }))}
+              edellinenArvo={edellisetMittarit?.[m.sarake] ?? null}
+              onAiempiKaynti={!!edellisetMittarit}
             />
           ))}
         </div>
