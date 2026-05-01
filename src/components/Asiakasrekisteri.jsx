@@ -3,6 +3,7 @@ import { supabase } from '../services/supabase'
 import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas } from '../lib/db'
 import { muotoilePvm, muodostaCSV, lataaTiedosto, jaaNimi } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
+import PikamuokkausModaali from './PikamuokkausModaali'
 
 // Asiakasrekisteri jakautuu kahteen osioon:
 //   - "Uudet asiakkaat" (vahvistettu = false) — ylhäällä, korostettuna oranssilla
@@ -35,6 +36,8 @@ export default function Asiakasrekisteri({
   const [kontraindikaatiotMap, setKontraindikaatiotMap] = useState(new Map())
   // Avattu käynti-modaali — { lomakeVersioId, asiakas } tai null
   const [avoinKaynti,   setAvoinKaynti]   = useState(null)
+  // Avattu pikamuokkaus-modaali — asiakas-objekti tai null
+  const [pikamuokattava, setPikamuokattava] = useState(null)
   // Arkistoitujen asiakkaiden määrä (näkyy normaalin näkymän "🗄 Arkisto (X)" -linkissä)
   const [arkistoMaara, setArkistoMaara] = useState(0)
   // Lokaali "refresh" arkistotilassa kun palautus muuttaa listan
@@ -200,6 +203,24 @@ export default function Asiakasrekisteri({
             )}
           </div>
 
+          {/* Pikamuokkaus vain vahvistetuille (ei vahvistamattomille eikä arkistossa) */}
+          {!arkistoTila && !korostettu && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setPikamuokattava(a) }}
+              title="Muokkaa yhteystietoja"
+              aria-label="Muokkaa yhteystietoja"
+              style={{
+                width: '32px', height: '32px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '8px', border: '1px solid #e2e8f0',
+                background: 'white', color: '#6b7280', fontSize: '14px',
+                cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              ✎
+            </button>
+          )}
           <button
             onClick={() => arkistoTila ? palauta(a) : onValitseAsiakas?.(a)}
             style={{
@@ -374,6 +395,18 @@ export default function Asiakasrekisteri({
           lomakeVersioId={avoinKaynti.lomakeVersioId}
           asiakas={avoinKaynti.asiakas}
           onSulje={() => setAvoinKaynti(null)}
+        />
+      )}
+
+      {/* Pikamuokkaus — avautuu kynä-ikonin klikkauksesta */}
+      {pikamuokattava && (
+        <PikamuokkausModaali
+          asiakas={pikamuokattava}
+          onSulje={() => setPikamuokattava(null)}
+          onTallennettu={() => {
+            setPikamuokattava(null)
+            setPaikallinenRefresh((n) => n + 1)
+          }}
         />
       )}
     </section>

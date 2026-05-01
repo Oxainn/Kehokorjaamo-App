@@ -302,6 +302,29 @@ export const aloitaUusiKaynti = async (asiakasId) => {
   return { lomakeVersioId: uusi.id, virhe: null }
 }
 
+// Päivittää asiakkaan perustiedot — käytetään pikamuokkaus-modaalissa
+// jossa hoitaja päivittää nopeasti yhteystiedot (puhelin, sähköposti,
+// osoite) ilman että avaa koko lomakkeen. EI muokkaa lomakeversioita
+// eikä sairauksia.
+export const paivitaAsiakkaanPerustiedot = async (asiakasId, tiedot) => {
+  if (!asiakasId) return { virhe: 'Asiakas-id puuttuu' }
+  const muutokset = { paivitetty: new Date().toISOString() }
+  // Vain sallitut kentät — älä päästä mielivaltaisia avaimia DB:hen
+  const sallitut = ['nimi', 'sahkoposti', 'puhelin', 'lahiosoite', 'postinumero', 'postitoimipaikka']
+  for (const k of sallitut) {
+    if (tiedot[k] !== undefined) muutokset[k] = tiedot[k] === '' ? null : tiedot[k]
+  }
+  const { error } = await supabase
+    .from('asiakkaat')
+    .update(muutokset)
+    .eq('id', asiakasId)
+  if (error) {
+    console.error('Asiakkaan perustietojen päivitys epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { virhe: null }
+}
+
 // Pehmeä poisto: piilottaa asiakkaan normaalista listasta mutta säilyttää
 // kaikki tiedot DB:ssä (lakisääteinen 6 v säilytysaika hoitoasiakirjoille).
 // Asiakas näkyy "Arkisto"-näkymässä josta voi palauttaa.
