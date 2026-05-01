@@ -4,7 +4,16 @@
 // silloisesta tilasta. Ei muokkausmahdollisuutta.
 
 import { useEffect, useState } from 'react'
-import { haeLomakeversio, haeHoitokayntiVersionPerusteella, haeKaynninItsehoito } from '../lib/db'
+import {
+  haeLomakeversio,
+  haeHoitokayntiVersionPerusteella,
+  haeKaynninItsehoito,
+  haeHoitokaynti,
+  haeHavainnot,
+  haeEdellisetMittarit,
+  haeKayntienPaivamaarat,
+  haeHoitosarjanPituus,
+} from '../lib/db'
 import { muotoilePvm, muotoilePvmAika } from '../lib/muotoilu'
 
 const overlayTyyli = {
@@ -121,14 +130,31 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
       // Lazy-load: html2pdf.js + jspdf + html2canvas latautuvat vain kun
       // tulostusta oikeasti tarvitaan, eivät app-bundlessa heti alussa.
       const { tulostaKaynti } = await import('../lib/pdf')
-      // Pala B6: hae käyntiin liitetyt itsehoito-valinnat PDF:ää varten
+      // Pala B6 + B7: hae käyntiin liitetyt itsehoito-valinnat ja
+      // B-lomakkeen täydet tiedot (havainnot, mittarit, hoitoraportti).
       const hoitokayntiId = await haeHoitokayntiVersionPerusteella(lomakeVersioId)
-      const itsehoitoValinnat = hoitokayntiId ? await haeKaynninItsehoito(hoitokayntiId) : []
+      const [itsehoitoValinnat, hoitokaynti, havainnot, edellisetMittarit, historia, sarjanPituus] = hoitokayntiId
+        ? await Promise.all([
+            haeKaynninItsehoito(hoitokayntiId),
+            haeHoitokaynti(hoitokayntiId),
+            haeHavainnot(hoitokayntiId),
+            haeEdellisetMittarit(asiakas?.id, hoitokayntiId),
+            haeKayntienPaivamaarat(asiakas?.id),
+            haeHoitosarjanPituus(),
+          ])
+        : [[], null, [], null, [], null]
+      // Tämän käynnin kayntinumero — etsi historian listalta version id:llä
+      const kayntinumero = (historia ?? []).find((h) => h.id === lomakeVersioId)?.kayntinumero ?? null
       await tulostaKaynti({
         asiakas,
         versio:    data.versio,
         sairaudet: data.sairaudet,
+        hoitokaynti,
+        havainnot,
+        edellisetMittarit,
         itsehoitoValinnat,
+        kayntinumero,
+        sarjanPituus,
       })
     } catch (e) {
       console.error('PDF-tulostus epäonnistui:', e)

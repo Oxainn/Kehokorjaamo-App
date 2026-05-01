@@ -9,7 +9,20 @@
 // tyhjällä versiolla — siksi App.jsx ohjaa nyt vahvistamattomat suoraan
 // UudenAsiakkaanTarkistus:een.
 import { useState, useEffect, useMemo } from 'react'
-import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, haeAsiakkaanViimeisinLomake, haeKayntienPaivamaarat, haeLomakeversio, haeAsiakkaanKontraindikaatiot, haeAsiakkaanKayntienMaara, haeHoitosarjanPituus } from '../lib/db'
+import {
+  haeOletusLomakepohjaId,
+  tallennaRenderoijastaLomake,
+  haeAsiakkaanViimeisinLomake,
+  haeKayntienPaivamaarat,
+  haeLomakeversio,
+  haeAsiakkaanKontraindikaatiot,
+  haeAsiakkaanKayntienMaara,
+  haeHoitosarjanPituus,
+  haeHoitokayntiVersionPerusteella,
+  haeHoitokaynti,
+  haeHavainnot,
+  haeKaynninItsehoito,
+} from '../lib/db'
 import { kokoaVastaukset } from '../lib/lomakeTallennus'
 import { useLomakepohja } from '../hooks/useLomakepohja'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
@@ -166,9 +179,10 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
       const { tulostaTietopaketti } = await import('../lib/pdf')
       // Hae KAIKKI asiakkaan käynnit — voimassa olevat + suljetut.
       // Käytetään kahta erillistä kyselyä: nykyinen + historia.
-      const [nykyinenTulos, historia] = await Promise.all([
+      const [nykyinenTulos, historia, sarjanPituus] = await Promise.all([
         haeAsiakkaanViimeisinLomake(asiakas.id),
         haeKayntienPaivamaarat(asiakas.id),
+        haeHoitosarjanPituus(),
       ])
       const kaikkiVersiot = []
       if (nykyinenTulos?.versio) {
@@ -192,7 +206,56 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
         return bd.localeCompare(ad)
       })
 
-      await tulostaTietopaketti({ asiakas, kaynnit: kaikkiVersiot })
+      // Pala B7 — hae jokaiselle versiolle B-lomakkeen tiedot (havainnot,
+      // mittarit, hoitoraportti, itsehoitovalinnat). Etsitään hoitokaynti
+      // lomake_versio_id:llä; rinnakkaisesti.
+      const bDatat = await Promise.all(kaikkiVersiot.map(async (v) => {
+        const hkId = await haeHoitokayntiVersionPerusteella(v.versio.id)
+        if (!hkId) return { hoitokaynti: null, havainnot: [], itsehoitoValinnat: [] }
+        const [hoitokaynti, havainnot, itsehoitoValinnat] = await Promise.all([
+          haeHoitokaynti(hkId),
+          haeHavainnot(hkId),
+          haeKaynninItsehoito(hkId),
+        ])
+        return { hoitokaynti, havainnot, itsehoitoValinnat }
+      }))
+      // Yhdistä versiot + B-data
+      for (let i = 0; i < kaikkiVersiot.length; i++) {
+        Object.assign(kaikkiVersiot[i], bDatat[i])
+      }
+      // Mittarivertailu: laske kullekin käynnille edellisen käynnin
+      // mittariarvot. Käännä lista vanhin→uusin, walk pareittain, palauta
+      // takaisin uusin ensin. kayntinumero per closed-versio tulee
+      // historia-listalta; voimassa oleva versio = N + 1 (jos sellainen on).
+      const numerointi = new Map((historia ?? []).map((h) => [h.id, h.kayntinumero]))
+      const totalSuljetut = (historia ?? []).length
+      const vanhinEnsin = [...kaikkiVersiot].reverse()
+      for (let i = 0; i < vanhinEnsin.length; i++) {
+        const edell = i > 0 ? vanhinEnsin[i - 1].hoitokaynti : null
+        if (edell) {
+          // Pala B7 — kerää edellisen käynnin mittariarvot { sarake: arvo }
+          const mittariSarakkeet = [
+            'lantion_kallistus_aste','lantion_sivuttainen_aste','lantion_kierto_aste',
+            'olkapaiden_korkeusero_cm','paan_eteen_tyontyminen_cm',
+            'q_kulma_vasen_aste','q_kulma_oikea_aste','skolioosin_kierto_aste',
+            'niskan_kaannos_vasen_aste','niskan_kaannos_oikea_aste',
+            'jalkapituus_ero_cm','navicular_drop_vasen_mm','navicular_drop_oikea_mm',
+            'akillesjanteen_kulma_vasen_aste','akillesjanteen_kulma_oikea_aste',
+          ]
+          const edellMitt = {}
+          for (const s of mittariSarakkeet) edellMitt[s] = edell[s] ?? null
+          vanhinEnsin[i].edellisetMittarit = edellMitt
+        }
+        const versioId = vanhinEnsin[i].versio?.id
+        if (numerointi.has(versioId)) {
+          vanhinEnsin[i].kayntinumero = numerointi.get(versioId)
+        } else {
+          // voimassa oleva versio: ei vielä historiassa → seuraava numero
+          vanhinEnsin[i].kayntinumero = totalSuljetut + 1
+        }
+      }
+
+      await tulostaTietopaketti({ asiakas, kaynnit: kaikkiVersiot, sarjanPituus })
     } catch (e) {
       console.error('Tietopaketin luonti epäonnistui:', e)
       alert('Tietopaketin luonti epäonnistui: ' + (e.message ?? 'tuntematon virhe'))

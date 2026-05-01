@@ -5,9 +5,20 @@
 //
 // Käyttää html2pdf.js:ää joka yhdistää html2canvas + jspdf. Rakennetaan
 // HTML-elementti DOM:iin, muunnetaan ja siivotaan.
+//
+// Pala B7: PDF laajennettu B-lomakkeen tiedoilla:
+//   - Hoitajan havainnot (BodyMap-merkinnät ryhmiteltynä alueittain)
+//   - Mittaustulokset (15 mittaria + vertailu edelliseen)
+//   - Hoitoraportti (lähtötilanne, hoidon kulku, "muista ensi kerralla"
+//     vain hoitajan tulostuksissa, jätetään pois GDPR-tietopaketista)
+//   - Itsehoito-ohjelma (B6, jo olemassa)
+//   - Jatkohoitosuunnitelma (seuraava käynti, sarjan tila, kommentti)
 
 import html2pdf from 'html2pdf.js'
 import { muotoilePvm } from './muotoilu'
+import { KIRJAUSRAKENNE } from '../data/findings-structure'
+import { MITTARIT } from '../data/linjausmittarit'
+import { laskeMuutos, muotoileDelta } from './mittaukset'
 
 // Hoitavan toimijan tiedot — kovakoodattu toistaiseksi yhden hoitajan
 // käyttöön. Multi-tenant-vaiheessa (Vaihe G) luetaan hoitaja-tiedoista
@@ -54,7 +65,15 @@ const TYYLIT = `
       margin: 12px 0 4px;
       color: #374151;
     }
+    .pdf-juuri h4 {
+      font-size: 10.5pt;
+      font-weight: 600;
+      margin: 10px 0 2px;
+      color: #4b5563;
+    }
     .pdf-juuri p { margin: 4px 0; }
+    .pdf-juuri ul { margin: 4px 0 8px 18px; padding: 0; }
+    .pdf-juuri li { margin: 2px 0; }
     .pdf-juuri .meta { font-size: 10pt; color: #6b7280; margin-bottom: 16px; }
     .pdf-juuri .saate {
       background: #f0fdf4;
@@ -87,7 +106,6 @@ const TYYLIT = `
       white-space: nowrap;
     }
     .pdf-juuri .kaynti {
-      page-break-inside: avoid;
       margin: 16px 0;
       padding: 12px 16px;
       background: #f9fafb;
@@ -99,6 +117,54 @@ const TYYLIT = `
       font-size: 12pt;
       margin-bottom: 8px;
       color: #1f2937;
+    }
+    .pdf-juuri .havainto-alue {
+      margin: 6px 0;
+      page-break-inside: avoid;
+    }
+    .pdf-juuri .havainto-alue strong {
+      color: #1f2937;
+    }
+    .pdf-juuri table.mittaukset {
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .pdf-juuri table.mittaukset thead td {
+      background: #f3f4f6;
+      font-weight: 700;
+      font-size: 10pt;
+      color: #374151;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .pdf-juuri table.mittaukset tbody td {
+      border-bottom: 1px solid #f3f4f6;
+      font-size: 10.5pt;
+    }
+    .pdf-juuri table.mittaukset td.muutos-parannus { color: #065f46; font-weight: 600; }
+    .pdf-juuri table.mittaukset td.muutos-heikennys { color: #991b1b; font-weight: 600; }
+    .pdf-juuri table.mittaukset td.muutos-ennallaan { color: #6b7280; }
+    .pdf-juuri .tekstilohko {
+      margin: 8px 0;
+      padding: 8px 12px;
+      background: #ffffff;
+      border-left: 3px solid #d1d5db;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      font-size: 10.5pt;
+      page-break-inside: avoid;
+    }
+    .pdf-juuri .muista-lohko {
+      border-left-color: #fcd34d;
+      background: #fffbeb;
+    }
+    .pdf-juuri .jatko-rivi {
+      margin: 4px 0;
+      font-size: 10.5pt;
+    }
+    .pdf-juuri .jatko-tieto {
+      color: #6b7280;
+      font-style: italic;
     }
     .pdf-juuri .allekirjoitus img {
       max-width: 280px;
@@ -118,6 +184,7 @@ const TYYLIT = `
       color: #6b7280;
       line-height: 1.4;
     }
+    .pdf-juuri .uusi-sivu { page-break-before: always; }
   </style>
 `
 
@@ -150,7 +217,7 @@ function rakennaSaate(asiakkaanNimi) {
       <strong>${escapeHtml(HOITAJA.nimi)}</strong>:n hoidossa. Sinulla on oikeus
       näihin tietoihin EU:n tietosuoja-asetuksen (GDPR) art. 15 mukaisesti.</p>
       <p style="margin-top: 8px;"><strong>Mitä tässä on:</strong></p>
-      <ul style="margin: 4px 0 0 18px; padding: 0;">
+      <ul>
         <li>Yhteystietosi ja perustietosi</li>
         <li>Antamasi terveyshistoria</li>
         <li>Allekirjoittamasi suostumukset</li>
@@ -197,10 +264,192 @@ function rakennaAsiakasOsio(asiakas) {
   `
 }
 
-function rakennaKayntiOsio(versio, sairausNimet, otsikkoTeksti) {
+// Pala B7 — Havainnot ryhmiteltyinä anatomisten alueiden alle.
+// havainnot: havainnot-taulun rivit { voimakkuus, kuvaus, lisakentat:
+//   { alueId, tyyppi, kirjaukset } }. Näytä vain alueet joista löytyi
+//   havaintoja.
+function rakennaHavainnotOsio(havainnot) {
+  if (!havainnot || havainnot.length === 0) return ''
+  // Indeksoi KIRJAUSRAKENNE id:llä
+  const alueIndeksi = new Map(KIRJAUSRAKENNE.map((a) => [a.id, a]))
+
+  const lohkot = havainnot.map((h) => {
+    const alueId = h?.lisakentat?.alueId
+    const alue = alueIndeksi.get(alueId)
+    if (!alue) return ''
+    const kirjaukset = h?.lisakentat?.kirjaukset ?? {}
+    const kipu = h?.voimakkuus
+    // Käytä KIRJAUSRAKENNE:n nimet (kallistus → "Kallistunut alaspäin")
+    const rivit = []
+    for (const k of alue.kirjaukset) {
+      const arvo = kirjaukset[k.id]
+      if (arvo === null || arvo === undefined || arvo === '') continue
+      rivit.push(`<li>${escapeHtml(k.nimi)}: ${escapeHtml(arvo)}</li>`)
+    }
+    if (rivit.length === 0 && (kipu === null || kipu === undefined || kipu === 0)) return ''
+    return `
+      <div class="havainto-alue">
+        <strong>${escapeHtml(alue.nimi)}:</strong>
+        <ul>
+          ${rivit.join('')}
+          ${kipu ? `<li>Kipu: ${kipu} / 10</li>` : ''}
+        </ul>
+      </div>
+    `
+  }).filter(Boolean).join('')
+
+  if (!lohkot) return ''
+  return `
+    <h3>Hoitajan havainnot</h3>
+    ${lohkot}
+  `
+}
+
+// Pala B7 — Mittaustaulukko: Mittari | Tämä käynti | Edellinen | Muutos.
+// hoitokaynti: hoitokaynnit-rivi (sis. 15 mittarisaraketta)
+// edellisetMittarit: { sarake: arvo } | null
+function rakennaMittauksetOsio(hoitokaynti, edellisetMittarit) {
+  if (!hoitokaynti) return ''
+  const muotoileArvo = (arvo, yksikko) =>
+    arvo === null || arvo === undefined ? '' :
+    `${String(arvo).replace('.', ',')} ${yksikko}`
+
+  const rivit = MITTARIT.map((m) => {
+    const arvo = hoitokaynti[m.sarake]
+    if (arvo === null || arvo === undefined) return ''
+    const edell = edellisetMittarit?.[m.sarake] ?? null
+    const muutos = laskeMuutos(arvo, edell, m.sarake)
+    let muutosTeksti = ''
+    let muutosLuokka = 'muutos-ennallaan'
+    if (muutos) {
+      muutosTeksti = muotoileDelta(muutos.delta, m.yksikko)
+      if (muutos.parannus === 'parannus') {
+        muutosLuokka = 'muutos-parannus'
+        muutosTeksti += ' (parannus)'
+      } else if (muutos.parannus === 'heikennys') {
+        muutosLuokka = 'muutos-heikennys'
+        muutosTeksti += ' (heikennys)'
+      } else {
+        muutosTeksti += ' (ennallaan)'
+      }
+    }
+    return `
+      <tr>
+        <td>${escapeHtml(m.nimi)}</td>
+        <td>${escapeHtml(muotoileArvo(arvo, m.yksikko))}</td>
+        <td>${escapeHtml(edell !== null ? muotoileArvo(edell, m.yksikko) : '—')}</td>
+        <td class="${muutosLuokka}">${escapeHtml(muutosTeksti || '—')}</td>
+      </tr>
+    `
+  }).filter(Boolean).join('')
+
+  if (!rivit) return ''
+  return `
+    <h3>Mittaustulokset</h3>
+    <table class="mittaukset">
+      <thead>
+        <tr>
+          <td style="width: 45%;">Mittari</td>
+          <td style="width: 18%;">Tämä käynti</td>
+          <td style="width: 17%;">Edellinen</td>
+          <td style="width: 20%;">Muutos</td>
+        </tr>
+      </thead>
+      <tbody>
+        ${rivit}
+      </tbody>
+    </table>
+  `
+}
+
+// Pala B7 — Hoitoraportti: kesto, lähtötilanne, hoidon kulku, "muista
+// ensi kerralla". naytaMuistaEnsiKerralla=false jättää pois Muista-tekstin
+// (käytetään GDPR-tietopaketissa, hoitajan oma muistiinpano).
+function rakennaHoitoraporttiOsio(hoitokaynti, naytaMuistaEnsiKerralla) {
+  if (!hoitokaynti) return ''
+  const lt = hoitokaynti.lahtotilanne
+  const hk = hoitokaynti.hoidon_kulku
+  const me = hoitokaynti.muista_ensi_kerralla
+  const ke = hoitokaynti.kesto_min
+
+  if (!lt && !hk && (!naytaMuistaEnsiKerralla || !me) && !ke) return ''
+
+  const ositkin = []
+  if (ke) {
+    ositkin.push(`<p class="jatko-rivi"><strong>Hoidon kesto:</strong> ${escapeHtml(ke)} min</p>`)
+  }
+  if (lt) {
+    ositkin.push(`
+      <h4>Hoidon lähtötilanne</h4>
+      <div class="tekstilohko">${escapeHtml(lt)}</div>
+    `)
+  }
+  if (hk) {
+    ositkin.push(`
+      <h4>Hoidon kulku ja lopputulos</h4>
+      <div class="tekstilohko">${escapeHtml(hk)}</div>
+    `)
+  }
+  if (naytaMuistaEnsiKerralla && me) {
+    ositkin.push(`
+      <h4>Muista ensi kerralla</h4>
+      <div class="tekstilohko muista-lohko">${escapeHtml(me)}</div>
+    `)
+  }
+  return `
+    <h3>Hoitoraportti</h3>
+    ${ositkin.join('')}
+  `
+}
+
+// Pala B7 — Jatkohoitosuunnitelma: seuraava käynti + sarjan tila +
+// hoitajan kommentit.
+function rakennaJatkohoitoOsio(hoitokaynti, kayntinumero, sarjanPituus) {
+  if (!hoitokaynti) return ''
+  const seur = hoitokaynti.seuraava_kaynti_pvm
+  const kom  = hoitokaynti.hoitajan_kommentit
+  if (!seur && !kom && kayntinumero == null) return ''
+
+  let sarjaTeksti = ''
+  if (kayntinumero != null) {
+    if (sarjanPituus && kayntinumero > sarjanPituus) {
+      sarjaTeksti = `Sarja päättynyt — ylläpitohoito (käynti ${kayntinumero})`
+    } else if (sarjanPituus) {
+      sarjaTeksti = `Käynti ${kayntinumero} / ${sarjanPituus}`
+    } else {
+      sarjaTeksti = `Käynti ${kayntinumero}`
+    }
+  }
+
+  return `
+    <h3>Jatkohoitosuunnitelma</h3>
+    ${seur ? `<p class="jatko-rivi"><strong>Seuraava käynti:</strong> ${escapeHtml(muotoilePvm(seur))}</p>` : ''}
+    ${sarjaTeksti ? `<p class="jatko-rivi"><strong>Sarjan tila:</strong> ${escapeHtml(sarjaTeksti)}</p>` : ''}
+    ${kom ? `
+      <h4>Hoitajan kommentti</h4>
+      <div class="tekstilohko">${escapeHtml(kom)}</div>
+    ` : ''}
+  `
+}
+
+// Pala B7 — yhdistää A-lomakkeen tiedot + B-lomakkeen tiedot yhteen
+// käyntilohkoon. naytaMuistaEnsiKerralla: false GDPR-tietopaketissa.
+function rakennaKayntiOsio({
+  versio,
+  sairausNimet,
+  otsikkoTeksti,
+  hoitokaynti = null,
+  havainnot = [],
+  edellisetMittarit = null,
+  itsehoitoValinnat = [],
+  kayntinumero = null,
+  sarjanPituus = null,
+  naytaMuistaEnsiKerralla = true,
+}) {
   const v = versio
   const allekirjoitus = v?.lisakentat?.allekirjoitus
   const onAllekirjoitusKuva = typeof allekirjoitus === 'string' && allekirjoitus.startsWith('data:image')
+
   return `
     <div class="kaynti">
       <p class="kaynti-otsikko">${escapeHtml(otsikkoTeksti)}</p>
@@ -216,6 +465,12 @@ function rakennaKayntiOsio(versio, sairausNimet, otsikkoTeksti) {
         ${(sairausNimet?.length > 0) ? rivi('Sairaudet (rastittu)', sairausNimet.join(', ')) : ''}
       </table>
 
+      ${rakennaHavainnotOsio(havainnot)}
+      ${rakennaMittauksetOsio(hoitokaynti, edellisetMittarit)}
+      ${rakennaHoitoraporttiOsio(hoitokaynti, naytaMuistaEnsiKerralla)}
+      ${rakennaItsehoitoLohko(itsehoitoValinnat)}
+      ${rakennaJatkohoitoOsio(hoitokaynti, kayntinumero, sarjanPituus)}
+
       ${onAllekirjoitusKuva ? `
         <h3>Allekirjoitus</h3>
         <div class="allekirjoitus">
@@ -227,9 +482,10 @@ function rakennaKayntiOsio(versio, sairausNimet, otsikkoTeksti) {
   `
 }
 
-// Pala B6: itsehoito-ohjelma -osio. valinnat: [{ harjoitus,
+// Pala B6: itsehoito-ohjelma -lohko käyntilohkon sisällä. Otsikko on h3
+// (ei h2) jotta sopii käyntilohkoon. valinnat: [{ harjoitus,
 // toistot_muokattu, frekvenssi_muokattu, lisahuomautus }]
-function rakennaItsehoitoOsio(valinnat) {
+function rakennaItsehoitoLohko(valinnat) {
   if (!valinnat || valinnat.length === 0) return ''
   const rivit = valinnat.map((v) => {
     const h = v.harjoitus
@@ -242,7 +498,7 @@ function rakennaItsehoitoOsio(valinnat) {
       frekvenssi,
     ].filter(Boolean).join(' · ')
     return `
-      <div style="margin: 12px 0; padding: 10px 14px; background: #f0fdf4; border-left: 3px solid #1D9E75; border-radius: 4px; page-break-inside: avoid;">
+      <div style="margin: 8px 0; padding: 10px 14px; background: #f0fdf4; border-left: 3px solid #1D9E75; border-radius: 4px; page-break-inside: avoid;">
         <p style="font-weight: 700; font-size: 11pt; margin: 0 0 4px; color: #065f46;">${escapeHtml(h.nimi)}</p>
         ${h.lyhyt_kuvaus ? `<p style="margin: 0 0 6px; font-size: 10.5pt; color: #374151;">${escapeHtml(h.lyhyt_kuvaus)}</p>` : ''}
         ${h.pitka_ohje ? `<p style="margin: 0 0 6px; font-size: 10pt; color: #1f2937; white-space: pre-wrap; line-height: 1.5;">${escapeHtml(h.pitka_ohje)}</p>` : ''}
@@ -253,7 +509,7 @@ function rakennaItsehoitoOsio(valinnat) {
     `
   }).join('')
   return `
-    <h2>Itsehoito-ohjeet</h2>
+    <h3>Itsehoito-ohjelma</h3>
     ${rivit}
   `
 }
@@ -274,9 +530,7 @@ function rakennaSuostumusOsio(asiakas) {
 
 const ALARIVI = `
   <div class="alarivi">
-    Tämä on asiakkaan itse täyttämä esitietolomake. Hoidon yksityiskohdat ja
-    jatkosuositukset käsitellään suullisesti hoitokerralla.<br />
-    Asiakirja sisältää terveystietoja — käsittele luottamuksellisesti.
+    Tämä asiakirja sisältää terveystietoja — käsittele luottamuksellisesti.
   </div>
 `
 
@@ -304,7 +558,10 @@ async function tulostaPDF(html, tiedostonimi) {
         image: { type: 'jpeg', quality: 0.92 },
         html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all', 'css'] },
+        // 'css' kunnioittaa page-break-before/inside-arvoja, 'legacy'
+        // arvioi pituuden — yhdessä toimii sekä luonnollinen ylivuoto
+        // että käyntien välinen pakotettu sivunvaihto (.uusi-sivu).
+        pagebreak: { mode: ['css', 'legacy'] },
       })
       .from(container)
       .save()
@@ -313,10 +570,28 @@ async function tulostaPDF(html, tiedostonimi) {
   }
 }
 
-// Käyntiraportti yksittäisestä käynnistä.
-// itsehoitoValinnat (valinnainen): Pala B6 — käyntiin liitetyt valitut
-// itsehoito-harjoitukset näkyvät PDF:n alaosassa.
-export async function tulostaKaynti({ asiakas, versio, sairaudet, itsehoitoValinnat = [] }) {
+// Käyntiraportti yksittäisestä käynnistä — hoitajan tulostus, näyttää
+// kaikki tiedot mukaan lukien "Muista ensi kerralla". Sopii myös asiakkaan
+// haluamaksi käyntiraportiksi.
+//
+// Pala B7: laajennettu B-lomakkeen tiedoilla.
+//   hoitokaynti:       hoitokaynnit-rivi (sis. mittarit, hoitoraportin)
+//   havainnot:         havainnot-taulun rivit
+//   edellisetMittarit: { sarake: arvo } | null
+//   itsehoitoValinnat: B6 — käyntiin liitetyt itsehoitovalinnat
+//   kayntinumero:      N (monesko käynti tämä on)
+//   sarjanPituus:      M (palvelun hoitosarjan pituus)
+export async function tulostaKaynti({
+  asiakas,
+  versio,
+  sairaudet,
+  hoitokaynti = null,
+  havainnot = [],
+  edellisetMittarit = null,
+  itsehoitoValinnat = [],
+  kayntinumero = null,
+  sarjanPituus = null,
+}) {
   const sairausNimet = (sairaudet ?? []).map((s) => s.nimi).filter(Boolean)
   const pvm = versio?.voimassa_alkaen ? muotoilePvm(versio.voimassa_alkaen) : ''
   const otsikkoTeksti = [
@@ -332,9 +607,19 @@ export async function tulostaKaynti({ asiakas, versio, sairaudet, itsehoitoValin
     ${rakennaAsiakasOsio(asiakas)}
 
     <h2>Hoitokerta</h2>
-    ${rakennaKayntiOsio(versio, sairausNimet, otsikkoTeksti)}
+    ${rakennaKayntiOsio({
+      versio,
+      sairausNimet,
+      otsikkoTeksti,
+      hoitokaynti,
+      havainnot,
+      edellisetMittarit,
+      itsehoitoValinnat,
+      kayntinumero,
+      sarjanPituus,
+      naytaMuistaEnsiKerralla: true,
+    })}
 
-    ${rakennaItsehoitoOsio(itsehoitoValinnat)}
     ${rakennaSuostumusOsio(asiakas)}
     ${ALARIVI}
   `
@@ -344,18 +629,39 @@ export async function tulostaKaynti({ asiakas, versio, sairaudet, itsehoitoValin
   await tulostaPDF(html, `hoitokertomus-${nimiOsa}-${pvmOsa}.pdf`)
 }
 
-// GDPR-tietopaketti — koko historia
-export async function tulostaTietopaketti({ asiakas, kaynnit }) {
-  // kaynnit: lista [{ versio, sairaudet }] uusin ensin
+// GDPR-tietopaketti — koko historia.
+// Pala B7: jokaiselle käynnille mukana B-lomakkeen tiedot, mutta
+// "Muista ensi kerralla" -teksti jätetään pois (hoitajan oma muistiinpano).
+//
+// kaynnit: lista uusin ensin, jokainen elementti:
+//   { versio, sairaudet, hoitokaynti?, havainnot?, edellisetMittarit?,
+//     itsehoitoValinnat?, kayntinumero? }
+export async function tulostaTietopaketti({ asiakas, kaynnit, sarjanPituus = null }) {
   const tanaan = new Date().toLocaleDateString('fi-FI').replace(/\./g, '-')
-  const kaynnitHtml = (kaynnit ?? []).map(({ versio, sairaudet }) => {
-    const sairausNimet = (sairaudet ?? []).map((s) => s.nimi).filter(Boolean)
-    const pvm = versio?.voimassa_alkaen ? muotoilePvm(versio.voimassa_alkaen) : ''
+  const kaynnitHtml = (kaynnit ?? []).map((k, indeksi) => {
+    const sairausNimet = (k.sairaudet ?? []).map((s) => s.nimi).filter(Boolean)
+    const pvm = k.versio?.voimassa_alkaen ? muotoilePvm(k.versio.voimassa_alkaen) : ''
     const otsikkoTeksti = [
       pvm ? `Päivä: ${pvm}` : '',
-      versio?.otsikko ? `Otsikko: ${versio.otsikko}` : '',
+      k.versio?.otsikko ? `Otsikko: ${k.versio.otsikko}` : '',
     ].filter(Boolean).join(' · ') || 'Hoitokerta'
-    return rakennaKayntiOsio(versio, sairausNimet, otsikkoTeksti)
+    // Ensimmäinen käynti samalle sivulle Asiakkaan ja Hoitavan toimijan
+    // kanssa, sitä seuraavat käynnit alkavat omalta sivultaan jotta
+    // pitkä historia pysyy luettavana.
+    const wrapper = indeksi > 0 ? '<div class="uusi-sivu"></div>' : ''
+    return wrapper + rakennaKayntiOsio({
+      versio:            k.versio,
+      sairausNimet,
+      otsikkoTeksti,
+      hoitokaynti:       k.hoitokaynti ?? null,
+      havainnot:         k.havainnot ?? [],
+      edellisetMittarit: k.edellisetMittarit ?? null,
+      itsehoitoValinnat: k.itsehoitoValinnat ?? [],
+      kayntinumero:      k.kayntinumero ?? null,
+      sarjanPituus,
+      // GDPR: hoitajan oma muistiinpano jätetään asiakkaan kopiosta pois.
+      naytaMuistaEnsiKerralla: false,
+    })
   }).join('')
 
   const html = `
