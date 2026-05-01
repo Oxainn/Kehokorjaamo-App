@@ -83,20 +83,26 @@ export default function Kayntihistoria({ asiakas }) {
       <div style={containerTyyli}>
         <h3 style={otsikkoTyyli}>Käynnit ({kaynnit.length})</h3>
         <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {kaynnit.map((k) => (
-            <li key={k.id}>
-              <div style={riviTyyli}>
-                <span>{muotoilePvm(k.voimassa_alkaen, '—')}</span>
-                <button
-                  type="button"
-                  onClick={() => setAvoinId(k.id)}
-                  style={avaaNappiTyyli}
-                >
-                  Avaa
-                </button>
-              </div>
-            </li>
-          ))}
+          {kaynnit.map((k) => {
+            const pvm = muotoilePvm(k.voimassa_alkaen, '—')
+            const teksti = k.otsikko ? `${pvm} · ${k.otsikko}` : pvm
+            return (
+              <li key={k.id}>
+                <div style={riviTyyli}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={teksti}>
+                    {teksti}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAvoinId(k.id)}
+                    style={avaaNappiTyyli}
+                  >
+                    Avaa
+                  </button>
+                </div>
+              </li>
+            )
+          })}
         </ul>
       </div>
 

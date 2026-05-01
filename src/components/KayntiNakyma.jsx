@@ -140,9 +140,11 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
   const v     = data.versio
   const lisat = v?.lisakentat ?? {}
   const allekirjoitus = lisat.allekirjoitus ?? null
-  const otsikko = v?.voimassa_alkaen
-    ? `Käynti ${muotoilePvm(v.voimassa_alkaen)}`
-    : 'Käynti'
+  const otsikko = (() => {
+    const pvm = v?.voimassa_alkaen ? muotoilePvm(v.voimassa_alkaen) : null
+    const perusotsikko = pvm ? `Käynti ${pvm}` : 'Käynti'
+    return v?.otsikko ? `${perusotsikko} — ${v.otsikko}` : perusotsikko
+  })()
 
   return (
     <div style={overlayTyyli} onClick={onSulje} role="dialog" aria-modal="true">
@@ -175,6 +177,13 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
 
           {!lataa && !virhe && v && (
             <>
+              {/* Käynnin meta — otsikko jos on annettu */}
+              {v?.otsikko && (
+                <div style={{ ...ryhmaTyyli, background: '#f0fdf4', borderColor: '#bbf7d0' }}>
+                  <Rivi label="Käynnin otsikko" arvo={v.otsikko} />
+                </div>
+              )}
+
               {/* Henkilötiedot — asiakkaat-rivistä (nykyiset) */}
               <div style={ryhmaTyyli}>
                 <h3 style={ryhmaOtsikko}>Henkilötiedot</h3>

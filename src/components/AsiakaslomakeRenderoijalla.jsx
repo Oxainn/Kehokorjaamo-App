@@ -52,6 +52,7 @@ const ilmoitusTyyli = (sävy) => ({
 export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = () => {} }) {
   const [pohjaId,    setPohjaId]    = useState(null)
   const [vastaukset, setVastaukset] = useState({})
+  const [otsikko,    setOtsikko]    = useState('')
   const [tila,       setTila]       = useState(TILA.TYHJA)
   const [virheviesti, setVirheviesti] = useState(null)
   const [pohjaVirhe, setPohjaVirhe] = useState(null)
@@ -76,6 +77,7 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
   useEffect(() => {
     if (!asiakasId) {
       setVastaukset({})
+      setOtsikko('')
       return
     }
     let peruttu = false
@@ -83,12 +85,14 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
       .then(({ versio, sairausIdit }) => {
         if (peruttu) return
         setVastaukset(kokoaVastaukset(asiakas, versio, sairausIdit))
+        setOtsikko(versio?.otsikko ?? '')
       })
       .catch((e) => {
         if (peruttu) return
         console.warn('[AsiakaslomakeRenderoijalla] Esitäyttö epäonnistui:', e)
         // Jätä vastaukset tyhjäksi — käyttäjä voi täyttää kentät manuaalisesti
         setVastaukset(kokoaVastaukset(asiakas, null, []))
+        setOtsikko('')
       })
     return () => { peruttu = true }
   }, [asiakasId])
@@ -100,6 +104,7 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
       const tulos = await tallennaRenderoijastaLomake({
         vastaukset:           arvot,
         asiakasIdJosOlemassa: asiakas?.id ?? null,
+        otsikko,
       })
       if (tulos.virhe) {
         setTila(TILA.EPAONNISTUI)
@@ -162,6 +167,47 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
           <p style={{ margin: '4px 0 0 0' }}>{virheviesti}</p>
         </div>
       )}
+
+      {/* Käynnin otsikko — vapaaehtoinen, max 50 merkkiä. Näytetään
+          käyntipillereissä ja KayntiNakyma-modaalin otsikossa. */}
+      <div style={{
+        background:    'white',
+        border:        '1px solid #e2e8f0',
+        borderRadius:  '12px',
+        padding:       '14px 16px',
+        display:       'flex',
+        flexDirection: 'column',
+        gap:           '6px',
+      }}>
+        <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+          Käynnin otsikko
+          <span style={{ fontWeight: 400, color: '#9ca3af', marginLeft: '6px' }}>(valinnainen)</span>
+        </label>
+        <input
+          type="text"
+          value={otsikko}
+          onChange={(e) => setOtsikko(e.target.value.slice(0, 50))}
+          maxLength={50}
+          placeholder="esim. Niskakipu, alkuhoito"
+          style={{
+            width:        '100%',
+            boxSizing:    'border-box',
+            padding:      '10px 12px',
+            borderRadius: '10px',
+            border:       '1.5px solid #e2e8f0',
+            fontSize:     '14px',
+            color:        '#111827',
+            outline:      'none',
+            background:   'white',
+            fontFamily:   'inherit',
+          }}
+        />
+        {otsikko.length >= 40 && (
+          <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0 }}>
+            {otsikko.length}/50 merkkiä
+          </p>
+        )}
+      </div>
 
       {/* Lähetys-nappi näkyy LomakeRenderoija:n sisällä vain uudelle asiakkaalle.
           Olemassa olevalle näytetään erillinen "Tallenna muutokset"-nappi

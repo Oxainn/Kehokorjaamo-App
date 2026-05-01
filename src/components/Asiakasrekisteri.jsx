@@ -247,31 +247,39 @@ export default function Asiakasrekisteri({
             gap:        '6px',
             paddingLeft: '54px',  // sama sisennys kuin avatarin oikealla puolella
           }}>
-            {kaynnit.map((k) => (
-              <button
-                key={k.id}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setAvoinKaynti({ lomakeVersioId: k.id, asiakas: a })
-                }}
-                style={{
-                  background:   '#f3f4f6',
-                  color:        '#374151',
-                  padding:      '6px 12px',
-                  minHeight:    '32px',
-                  borderRadius: '999px',
-                  fontSize:     '12px',
-                  fontWeight:   500,
-                  border:       'none',
-                  cursor:       'pointer',
-                  whiteSpace:   'nowrap',
-                }}
-                aria-label={`Avaa käynti ${muotoilePvm(k.voimassa_alkaen)}`}
-              >
-                {muotoilePvm(k.voimassa_alkaen)}
-              </button>
-            ))}
+            {kaynnit.map((k) => {
+              const pvm = muotoilePvm(k.voimassa_alkaen, '—')
+              const lyhytOtsikko = k.otsikko && k.otsikko.length > 22
+                ? `${k.otsikko.slice(0, 20)}…`
+                : (k.otsikko || '')
+              const sisalto = lyhytOtsikko ? `${pvm} · ${lyhytOtsikko}` : pvm
+              return (
+                <button
+                  key={k.id}
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setAvoinKaynti({ lomakeVersioId: k.id, asiakas: a })
+                  }}
+                  style={{
+                    background:   '#f3f4f6',
+                    color:        '#374151',
+                    padding:      '6px 12px',
+                    minHeight:    '32px',
+                    borderRadius: '999px',
+                    fontSize:     '12px',
+                    fontWeight:   500,
+                    border:       'none',
+                    cursor:       'pointer',
+                    whiteSpace:   'nowrap',
+                  }}
+                  aria-label={`Avaa käynti ${pvm}${k.otsikko ? ` — ${k.otsikko}` : ''}`}
+                  title={k.otsikko ? `${pvm} — ${k.otsikko}` : pvm}
+                >
+                  {sisalto}
+                </button>
+              )
+            })}
           </div>
         )}
       </div>

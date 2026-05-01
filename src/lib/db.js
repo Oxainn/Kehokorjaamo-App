@@ -87,10 +87,10 @@ export const haeKontraindikaatiotAsiakkaille = async (asiakasIdt) => {
   return tulos
 }
 
-// Hakee asiakkaan menneiden hoitokäyntien päivämäärät — kaikki suljetut
-// lomakeversiot (voimassa_asti IS NOT NULL) uusimmasta vanhimpaan.
-// Jokainen rivi vastaa yhtä mennyttä hoitokäyntiä; aktiivinen avoin
-// versio jätetään pois.
+// Hakee asiakkaan menneiden hoitokäyntien päivämäärät + otsikot.
+// Palauttaa kaikki suljetut lomakeversiot (voimassa_asti IS NOT NULL)
+// uusimmasta vanhimpaan. Jokainen rivi vastaa yhtä mennyttä hoitokäyntiä;
+// aktiivinen avoin versio jätetään pois.
 //
 // rajoitus: jos annettu (esim. 4), palautetaan korkeintaan N uusinta.
 // Käytetään Asiakasrekisterin pillerinäkymässä jossa näytetään 4 uusinta.
@@ -99,7 +99,7 @@ export const haeKayntienPaivamaarat = async (asiakasId, rajoitus = null) => {
   if (!asiakasId) return []
   let query = supabase
     .from('asiakastietolomake_versiot')
-    .select('id, voimassa_alkaen')
+    .select('id, voimassa_alkaen, otsikko')
     .eq('asiakas_id', asiakasId)
     .not('voimassa_asti', 'is', null)
     .order('voimassa_alkaen', { ascending: false })
@@ -121,7 +121,7 @@ export const haeLomakeversio = async (lomakeVersioId) => {
 
   const { data: versio, error: versioVirhe } = await supabase
     .from('asiakastietolomake_versiot')
-    .select('id, hoitoon_syy, kipu_taso, laakitys, diagnosoidut_sairaudet, vammat_huomiot, harrastukset, lisakentat, muokkaaja_rooli, voimassa_alkaen, voimassa_asti, luotu')
+    .select('id, otsikko, hoitoon_syy, kipu_taso, laakitys, diagnosoidut_sairaudet, vammat_huomiot, harrastukset, lisakentat, muokkaaja_rooli, voimassa_alkaen, voimassa_asti, luotu')
     .eq('id', lomakeVersioId)
     .maybeSingle()
 
@@ -151,7 +151,7 @@ export const haeAsiakkaanViimeisinLomake = async (asiakasId) => {
 
   const { data: versio } = await supabase
     .from('asiakastietolomake_versiot')
-    .select('id, hoitoon_syy, kipu_taso, laakitys, diagnosoidut_sairaudet, vammat_huomiot, harrastukset, lisakentat, muokkaaja_rooli, luotu')
+    .select('id, otsikko, hoitoon_syy, kipu_taso, laakitys, diagnosoidut_sairaudet, vammat_huomiot, harrastukset, lisakentat, muokkaaja_rooli, luotu')
     .eq('asiakas_id', asiakasId)
     .is('voimassa_asti', null)
     .order('luotu', { ascending: false })
@@ -935,7 +935,7 @@ export const haeLomakepohja = async (pohjaId) => {
 //   - Sairaudet: delete-then-insert (yksinkertaisin tapa pitää lista
 //     synkronissa renderöijän nykytilan kanssa)
 //   - Lisäkentät: jsonb-sarakkeeseen asiakastietolomake_versiot.lisakentat
-export const tallennaRenderoijastaLomake = async ({ vastaukset, asiakasIdJosOlemassa = null, muokkaajaRooli = 'hoitaja' }) => {
+export const tallennaRenderoijastaLomake = async ({ vastaukset, asiakasIdJosOlemassa = null, muokkaajaRooli = 'hoitaja', otsikko = null }) => {
   const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
   if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
 
@@ -971,12 +971,18 @@ export const tallennaRenderoijastaLomake = async ({ vastaukset, asiakasIdJosOlem
     .maybeSingle()
 
   // 3. UPDATE jos olemassa, INSERT muuten
+  // Otsikko on käynnin tason ominaisuus (E1) — talletetaan vain jos kutsuja
+  // antoi sen eksplisiittisesti (eli ei-undefined).
+  const lisaaOtsikko = otsikko !== undefined
+    ? { otsikko: (typeof otsikko === 'string' ? otsikko.trim() : otsikko) || null }
+    : {}
   let versioId
   if (olemassaVersio) {
     const { error: paivitysVirhe } = await supabase
       .from('asiakastietolomake_versiot')
       .update({
         ...jaettu.lomake,
+        ...lisaaOtsikko,
         lisakentat:      jaettu.lisakentat,
         muokkaaja_id:    user.id,
         muokkaaja_rooli: muokkaajaRooli,
@@ -1004,6 +1010,7 @@ export const tallennaRenderoijastaLomake = async ({ vastaukset, asiakasIdJosOlem
       .insert({
         asiakas_id:      asiakas.id,
         ...jaettu.lomake,
+        ...lisaaOtsikko,
         lisakentat:      jaettu.lisakentat,
         muokkaaja_id:    user.id,
         muokkaaja_rooli: muokkaajaRooli,
