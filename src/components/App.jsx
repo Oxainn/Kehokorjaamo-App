@@ -7,7 +7,6 @@ import Asiakasrekisteri from './Asiakasrekisteri'
 // eslint-disable-next-line no-unused-vars
 import Asiakastietolomake from './Asiakastietolomake' // ROLLBACK — vanha lomake, ei käytössä
 import AsiakaslomakeRenderoijalla from './AsiakaslomakeRenderoijalla'
-import LomakeRenderoijaTesti from './LomakeRenderoijaTesti' // TILAPÄINEN — kehitystestaus
 import JulkinenLomake from './JulkinenLomake'
 import PalveluValinta from './PalveluValinta'
 
@@ -15,7 +14,6 @@ const ylaNav = [
   { id: 'rekisteri',    nimi: 'Asiakasrekisteri', ikoni: '👥' },
   { id: 'uusi-kaynti', nimi: 'Uusi käynti',       ikoni: '➕' },
   { id: 'asetukset',   nimi: 'Asetukset',          ikoni: '⚙️' },
-  { id: 'renderoija-testi', nimi: 'Renderöijä-testi', ikoni: '🧪' }, // TILAPÄINEN
 ]
 
 export default function App() {
@@ -199,11 +197,6 @@ export default function App() {
         {/* ASETUKSET */}
         {nakyma === 'asetukset' && (
           <Settings hoitajaId={hoitajaId} />
-        )}
-
-        {/* TILAPÄINEN — Pala 1:n testaus */}
-        {nakyma === 'renderoija-testi' && (
-          <LomakeRenderoijaTesti />
         )}
 
       </main>
