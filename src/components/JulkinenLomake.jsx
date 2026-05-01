@@ -1,13 +1,18 @@
 // Julkinen lomakenäkymä — asiakas saapuu tänne URL-parametrilla ?palvelu=ID
-// ilman kirjautumista. Lataa Edge Function:in kautta palvelun + oletuspohjan.
-// Tallennus → Edge Function → magic link sähköpostissa → Vello-välilehti.
+// ilman kirjautumista. Lataa Edge Function:in kautta palvelun + lomakkeen.
+// Tallennus → Edge Function → Vello-välilehti → 6s auto-close kiitos-modaali.
+//
+// HUOM: magic link / portaalisähköposti on toistaiseksi pois käytöstä.
+// Palautetaan kun Vaihe C (asiakasportaali) valmistuu.
 
-import { useState, useEffect } from 'react'
-import { supabase } from '../services/supabase'
+import { useState, useEffect, useRef } from 'react'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+// Kiitos-modaalin näyttöaika ennen automaattista sulkemista (ms).
+const KIITOS_MS = 6000
 
 const tilaTyyli = {
   display:        'flex',
@@ -19,6 +24,42 @@ const tilaTyyli = {
   textAlign:      'center',
 }
 
+// Modaalin overlay (kelluva, sulkee lomakkeen alle)
+const overlayTyyli = {
+  position:   'fixed',
+  inset:      0,
+  background: 'rgba(0, 0, 0, 0.6)',
+  display:    'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding:    '16px',
+  zIndex:     1000,
+}
+
+const modaaliTyyli = {
+  background:    '#ecfdf5',
+  border:        '1px solid #6ee7b7',
+  borderRadius:  '20px',
+  padding:       '32px 28px',
+  maxWidth:      '480px',
+  width:         '100%',
+  color:         '#065f46',
+  textAlign:     'center',
+  boxShadow:     '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+}
+
+const sulkeNappiTyyli = {
+  marginTop:    '20px',
+  padding:      '10px 24px',
+  background:   'white',
+  border:       '1px solid #6ee7b7',
+  borderRadius: '10px',
+  color:        '#065f46',
+  fontSize:     '14px',
+  fontWeight:   600,
+  cursor:       'pointer',
+}
+
 export default function JulkinenLomake({ palveluId }) {
   const [tila,       setTila]       = useState('lataa') // lataa | valmis | virhe | tallentaa | onnistui
   const [palvelu,    setPalvelu]    = useState(null)
@@ -26,9 +67,7 @@ export default function JulkinenLomake({ palveluId }) {
   const [kentat,     setKentat]     = useState({})
   const [virhe,      setVirhe]      = useState(null)
   const [vastaukset, setVastaukset] = useState({})
-  // Tallennetaan onnistumisen jälkeen jotta Kiitos-näkymä voi kertoa
-  // todenmukaisen viestin (sähköposti voi puuttua, varauslinkkiä ei aina ole).
-  const [tallennusTulos, setTallennusTulos] = useState({ sahkopostiAnnettu: false, varauslinkki: null })
+  const ajastinRef = useRef(null)
 
   useEffect(() => {
     if (!palveluId) {
@@ -60,6 +99,24 @@ export default function JulkinenLomake({ palveluId }) {
     return () => { peruttu = true }
   }, [palveluId])
 
+  // Siivous: ajastin pitää siivota jos käyttäjä navigoi pois ennen sen laukeamista
+  useEffect(() => {
+    return () => {
+      if (ajastinRef.current) clearTimeout(ajastinRef.current)
+    }
+  }, [])
+
+  function suljeKiitos() {
+    if (ajastinRef.current) {
+      clearTimeout(ajastinRef.current)
+      ajastinRef.current = null
+    }
+    // Tyhjennä lomake ja palauta lomakenäkymään — käyttäjä voi täyttää uudestaan
+    // jos haluaa, tai sulkea välilehden.
+    setVastaukset({})
+    setTila('valmis')
+  }
+
   async function lahetaLomake(arvot) {
     setTila('tallentaa')
     setVirhe(null)
@@ -87,33 +144,18 @@ export default function JulkinenLomake({ palveluId }) {
         return
       }
 
-      // 2. Lähetä passwordless-kirjautumislinkki sähköpostiin (jos sähköposti annettu)
-      const sahkoposti = arvot.sahkoposti
-      let sahkopostiLahetetty = false
-      if (sahkoposti && sahkoposti.trim()) {
-        const { error: otpVirhe } = await supabase.auth.signInWithOtp({
-          email: sahkoposti.trim(),
-          options: {
-            shouldCreateUser: true,
-            emailRedirectTo:  `${window.location.origin}/portaali`,
-          },
-        })
-        if (otpVirhe) {
-          // Magic linkin lähetys epäonnistui mutta tallennus onnistui — älä kaada
-          console.warn('[JulkinenLomake] Magic linkin lähetys epäonnistui:', otpVirhe.message)
-        } else {
-          sahkopostiLahetetty = true
-        }
+      // 2. Avaa varauslinkki uudessa välilehdessä jos asetettu
+      if (palvelu.varauslinkki_url) {
+        window.open(palvelu.varauslinkki_url, '_blank', 'noopener,noreferrer')
       }
 
-      // 3. Avaa Vello uudessa välilehdessä jos varauslinkki on asetettu
-      const varauslinkki = palvelu.varauslinkki_url ?? null
-      if (varauslinkki) {
-        window.open(varauslinkki, '_blank', 'noopener,noreferrer')
-      }
-
-      setTallennusTulos({ sahkopostiAnnettu: sahkopostiLahetetty, varauslinkki })
+      // 3. Näytä kiitos-modaali ja sulje 6 sekunnin kuluttua automaattisesti
       setTila('onnistui')
+      ajastinRef.current = setTimeout(() => {
+        ajastinRef.current = null
+        setVastaukset({})
+        setTila('valmis')
+      }, KIITOS_MS)
     } catch (e) {
       console.error('[JulkinenLomake] Lähetys epäonnistui:', e)
       setVirhe(e.message ?? 'Lähetys epäonnistui')
@@ -133,29 +175,6 @@ export default function JulkinenLomake({ palveluId }) {
         <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '24px', maxWidth: '500px', color: '#991b1b' }}>
           <p style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>Lomaketta ei voi näyttää</p>
           <p style={{ fontSize: '14px', lineHeight: 1.5 }}>{virhe}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (tila === 'onnistui') {
-    const paaviesti = tallennusTulos.varauslinkki
-      ? 'Lomake tallennettu ja varaussivu avautui uudessa välilehdessä.'
-      : 'Lomake tallennettu. Hoitaja ottaa sinuun yhteyttä ajan sopimiseksi.'
-    return (
-      <div style={tilaTyyli}>
-        <div style={{ background: '#ecfdf5', border: '1px solid #6ee7b7', borderRadius: '16px', padding: '32px', maxWidth: '560px', color: '#065f46' }}>
-          <div style={{ fontSize: '48px', marginBottom: '8px' }}>✓</div>
-          <p style={{ fontSize: '20px', fontWeight: 700, marginBottom: '12px' }}>Kiitos!</p>
-          <p style={{ fontSize: '15px', lineHeight: 1.6, marginBottom: '12px' }}>
-            {paaviesti}
-          </p>
-          {tallennusTulos.sahkopostiAnnettu && (
-            <p style={{ fontSize: '14px', lineHeight: 1.6 }}>
-              Lähetimme sähköpostiisi kirjautumistunnukset asiakasportaaliin —
-              siellä näet hoitohistoriasi ja voit varata jatkohoitoja ilman uutta lomaketta.
-            </p>
-          )}
         </div>
       </div>
     )
@@ -204,6 +223,30 @@ export default function JulkinenLomake({ palveluId }) {
         onMuutos={setVastaukset}
         onLahetys={lahetaLomake}
       />
+
+      {/* Kiitos-modaali — kelluva, auto-close 6s, manuaalinen sulkunappi */}
+      {tila === 'onnistui' && (
+        <div
+          style={overlayTyyli}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="kiitos-otsikko"
+          onClick={suljeKiitos}
+        >
+          <div style={modaaliTyyli} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: '56px', lineHeight: 1, marginBottom: '12px' }}>✓</div>
+            <p id="kiitos-otsikko" style={{ fontSize: '22px', fontWeight: 700, marginBottom: '12px' }}>
+              Kiitos ennakkotiedoista!
+            </p>
+            <p style={{ fontSize: '15px', lineHeight: 1.6, margin: 0 }}>
+              Hoitaja on sinuun tarvittaessa yhteydessä ennen hoitoaikaasi.
+            </p>
+            <button type="button" onClick={suljeKiitos} style={sulkeNappiTyyli}>
+              Sulje
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
