@@ -291,15 +291,91 @@ export const aloitaUusiKaynti = async (asiakasId) => {
       // Versio on luotu mutta sairaudet eivät kopioituneet — palauta varoitus
       // mutta älä kaada toimintoa (käyttäjä voi rastittaa sairaudet uudestaan)
       console.warn('Sairauksien kopiointi epäonnistui:', kopiointiVirhe)
-      return {
-        lomakeVersioId: uusi.id,
-        virhe:          null,
-        varoitus:       `Uusi käynti aloitettu mutta sairauksia ei kopioitu: ${kopiointiVirhe.message}`,
-      }
     }
   }
 
-  return { lomakeVersioId: uusi.id, virhe: null }
+  // 6. Luo hoitokaynnit-rivi joka snapshotsoi juuri suljetun lomakeversion.
+  // Snapshot-malli: hoitokerta osoittaa siihen versioon joka oli voimassa
+  // hoidon alkaessa, ei uuteen avoimeen versioon.
+  const { data: hoitokaynti, error: hoitokayntiVirhe } = await supabase
+    .from('hoitokaynnit')
+    .insert({
+      asiakas_id:       asiakasId,
+      hoitaja_id:       user.id,
+      lomake_versio_id: avoin.id,   // suljettu versio = käynnin alkutilanne
+      pvm:              nyt,
+      tila:             'luonnos',
+    })
+    .select('id')
+    .single()
+  if (hoitokayntiVirhe) {
+    console.warn('Hoitokaynnit-rivin luonti epäonnistui:', hoitokayntiVirhe)
+    // Älä kaada toimintoa — lomake on jo aloitettu, hoitokirjaus voidaan tehdä myöhemmin
+    return {
+      lomakeVersioId: uusi.id,
+      hoitokayntiId:  null,
+      virhe:          null,
+      varoitus:       `Uusi käynti aloitettu mutta hoitokirjaus-riviä ei luotu: ${hoitokayntiVirhe.message}`,
+    }
+  }
+
+  return {
+    lomakeVersioId: uusi.id,
+    hoitokayntiId:  hoitokaynti.id,
+    virhe:          null,
+  }
+}
+
+// Hoitokäyntien lukumäärä asiakkaalle — käytetään hoitokirjaus-näkymän
+// "Käynti X / Y" -laskurissa.
+export const haeAsiakkaanKayntienMaara = async (asiakasId) => {
+  if (!asiakasId) return 0
+  const { count, error } = await supabase
+    .from('hoitokaynnit')
+    .select('*', { count: 'exact', head: true })
+    .eq('asiakas_id', asiakasId)
+  if (error) {
+    console.error('Käyntien laskeminen epäonnistui:', error)
+    return 0
+  }
+  return count ?? 0
+}
+
+// Tallentaa hoitokirjauksen tiedot — otsikko, mitä hoidettiin, hoitajan
+// kommentit. Vaihe B Pala B1:n minimi; mittarit, vertailu ja itsehoito-
+// kirjasto tulevat myöhemmin.
+export const tallennaHoitokirjaus = async (hoitokayntiId, tiedot) => {
+  if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
+  const muutokset = { paivitetty: new Date().toISOString() }
+  const sallitut = ['otsikko', 'hoidon_kulku', 'hoitajan_kommentit', 'tila']
+  for (const k of sallitut) {
+    if (tiedot[k] !== undefined) muutokset[k] = tiedot[k] === '' ? null : tiedot[k]
+  }
+  const { error } = await supabase
+    .from('hoitokaynnit')
+    .update(muutokset)
+    .eq('id', hoitokayntiId)
+  if (error) {
+    console.error('Hoitokirjauksen tallennus epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { virhe: null }
+}
+
+// Hakee yksittäisen hoitokäynnin tiedot — käytetään Hoitokirjaus-näkymässä
+// kun hoitaja jatkaa luonnoksen muokkausta (jos hänellä on luonnos).
+export const haeHoitokaynti = async (hoitokayntiId) => {
+  if (!hoitokayntiId) return null
+  const { data, error } = await supabase
+    .from('hoitokaynnit')
+    .select('id, asiakas_id, hoitaja_id, lomake_versio_id, pvm, otsikko, hoidon_kulku, hoitajan_kommentit, muista_ensi_kerralla, tila, luotu, paivitetty')
+    .eq('id', hoitokayntiId)
+    .maybeSingle()
+  if (error) {
+    console.error('Hoitokäynnin haku epäonnistui:', error)
+    return null
+  }
+  return data
 }
 
 // Päivittää asiakkaan perustiedot — käytetään pikamuokkaus-modaalissa

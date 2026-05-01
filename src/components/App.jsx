@@ -7,6 +7,7 @@ import Settings from './Settings'
 import Asiakasrekisteri from './Asiakasrekisteri'
 import AsiakaslomakeRenderoijalla from './AsiakaslomakeRenderoijalla'
 import UudenAsiakkaanTarkistus from './UudenAsiakkaanTarkistus'
+import Hoitokirjaus from './Hoitokirjaus'
 import JulkinenLomake from './JulkinenLomake'
 import PalveluValinta from './PalveluValinta'
 
@@ -70,6 +71,9 @@ export default function App() {
   // (esitäytön uudelleenladauksen) kun "Uusi käynti" suljetaan ja avataan.
   const [kayntiAvain, setKayntiAvain] = useState(0)
   const [kaynnistetaan, setKaynnistetaan] = useState(false)
+  // Aktiivisen hoitokirjauksen id (asetetaan kun "+ Uusi käynti" suoritetaan
+  // ja avaa Hoitokirjaus-näkymän Vaihe B Pala B1).
+  const [hoitokayntiId, setHoitokayntiId] = useState(null)
   // Avain joka triggaa Asiakasrekisterin asiakaslistan ja käyntipillerien
   // uudelleenladaukset. Kasvatetaan aina kun palaamme rekisteriin
   // operaation jälkeen (uusi käynti, vahvistus, lomakkeen tallennus).
@@ -98,8 +102,15 @@ export default function App() {
     if (tulos.varoitus) {
       alert(tulos.varoitus)
     }
-    // Pakota lomakkeen uudelleenlataus jotta esitäyttö hakee uuden version
-    setKayntiAvain((n) => n + 1)
+    // Avaa Hoitokirjaus-näkymä jos hoitokäynti-rivi luotiin onnistuneesti
+    if (tulos.hoitokayntiId) {
+      setHoitokayntiId(tulos.hoitokayntiId)
+      setNakyma('hoitokirjaus')
+    } else {
+      // Reunatapaus: lomakeversio aloitettu mutta hoitokirjaus epäonnistui.
+      // Pakota lomakkeen uudelleenlataus jotta esitäyttö hakee uuden version.
+      setKayntiAvain((n) => n + 1)
+    }
   }
 
   // Esc sulkee modaalin
@@ -413,11 +424,29 @@ export default function App() {
           </div>
         )}
 
-        {/* UUSI KÄYNTI */}
+        {/* UUSI KÄYNTI — uuden asiakkaan luonti tyhjällä lomakkeella */}
         {nakyma === 'uusi-kaynti' && (
           <AsiakaslomakeRenderoijalla
             asiakas={null}
             onValmis={paluuRekisteriin}
+          />
+        )}
+
+        {/* HOITOKIRJAUS — Vaihe B Pala B1, avautuu "+ Uusi käynti" -toiminnon jälkeen */}
+        {nakyma === 'hoitokirjaus' && asiakas && hoitokayntiId && (
+          <Hoitokirjaus
+            asiakas={asiakas}
+            hoitokayntiId={hoitokayntiId}
+            onValmis={() => {
+              setHoitokayntiId(null)
+              paluuRekisteriin()
+            }}
+            onPeru={() => {
+              // Käynti jää 'luonnos'-tilaan DB:hen, voi myöhemmin avata
+              // jatkamaan (Pala B7 tms). Tässä palaan vain palaa rekisteriin.
+              setHoitokayntiId(null)
+              paluuRekisteriin()
+            }}
           />
         )}
 
