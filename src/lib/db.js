@@ -112,6 +112,30 @@ export const haeKontraindikaatiotAsiakkaille = async (asiakasIdt) => {
   return tulos
 }
 
+// Hakee asiakkaan A-lomakkeen kehonkartta-merkinnät voimassa olevasta
+// versiosta. Käytetään Pala B6.6:n vertailunäkymässä — hoitaja näkee
+// minkä alueen asiakas itse on merkinnyt oireilevaksi.
+//
+// Palauttaa { merkinnat, vedot, hahmo } -objektin tai null jos asiakkaalla
+// ei ole kehonkarttaa lomakkeessaan. merkinnat-rakenne on { vyohyke_id:
+// oiretyyppi[] }.
+export const haeAsiakkaanKehonkartta = async (asiakasId) => {
+  if (!asiakasId) return null
+  const { data, error } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('lisakentat')
+    .eq('asiakas_id', asiakasId)
+    .is('voimassa_asti', null)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('Asiakkaan kehonkartan haku epäonnistui:', error)
+    return null
+  }
+  return data?.lisakentat?.kehonkartta_piirros ?? null
+}
+
 // Hakee asiakkaan menneiden hoitokäyntien päivämäärät + otsikot.
 // Palauttaa kaikki suljetut lomakeversiot (voimassa_asti IS NOT NULL)
 // uusimmasta vanhimpaan. Jokainen rivi vastaa yhtä mennyttä hoitokäyntiä;

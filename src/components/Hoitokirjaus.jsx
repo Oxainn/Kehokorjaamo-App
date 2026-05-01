@@ -22,10 +22,11 @@ import {
   haeKaynninItsehoito,
   tallennaKaynninItsehoito,
   haeHoitosarjanPituus,
+  haeAsiakkaanKehonkartta,
 } from '../lib/db'
 import { useAutoResize } from '../hooks/useAutoResize'
 import { muotoilePvm } from '../lib/muotoilu'
-import BodyMap from './BodyMap'
+import KehonkarttaVertailu from './KehonkarttaVertailu'
 import MittariSliideri from './MittariSliideri'
 import ItsehoitoValinnat from './ItsehoitoValinnat'
 import { MITTARIT } from '../data/linjausmittarit'
@@ -102,6 +103,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   // Havainnot (BodyMap-löydökset)
   const [havainnot,          setHavainnot]          = useState([])
   const [havainnotEsitayte,  setHavainnotEsitayte]  = useState(null)
+  // Pala B6.6 — asiakkaan A-lomakkeen kehonkartta vertailutietona
+  const [asiakkaanKehonkartta, setAsiakkaanKehonkartta] = useState(null)
   // Mittarit (Pala B3): { sarake: numero | null }
   const [mittarit,           setMittarit]           = useState({})
   // Edellisen käynnin mittarit (Pala B4) — null jos ei aiempaa käyntiä
@@ -138,7 +141,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       haeEdellisetMittarit(asiakas.id, hoitokayntiId),
       haeKaynninItsehoito(hoitokayntiId),
       haeHoitosarjanPituus(),
-    ]).then(([kaynti, kpl, havRivit, edellinen, edellisetMitt, itsehoitoRivit, sarjaPit]) => {
+      haeAsiakkaanKehonkartta(asiakas.id),
+    ]).then(([kaynti, kpl, havRivit, edellinen, edellisetMitt, itsehoitoRivit, sarjaPit, asKehonkartta]) => {
       if (peruttu) return
       if (kaynti) {
         setOtsikko(kaynti.otsikko ?? '')
@@ -203,6 +207,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       })))
       // Pala B6.5 — hoitosarjan pituus
       setSarjanPituus(sarjaPit)
+      // Pala B6.6 — asiakkaan A-lomakkeen kehonkartta vertailua varten
+      setAsiakkaanKehonkartta(asKehonkartta ?? null)
       setLataa(false)
     }).catch((e) => {
       if (peruttu) return
@@ -417,13 +423,14 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         </div>
       </div>
 
-      {/* Havainnot — Pala B2 BodyMap */}
+      {/* Havainnot — Pala B2 BodyMap + Pala B6.6 Vertailu */}
       <div style={ryhmaTyyli}>
         <h3 style={ryhmaOtsikko}>Havainnot</h3>
-        <BodyMap
-          piilotaAnalysoi
-          initialFindings={havainnotEsitayte ?? undefined}
-          onChange={onHavainnotMuutos}
+        <KehonkarttaVertailu
+          asiakkaanKehonkartta={asiakkaanKehonkartta}
+          hoitajanHavainnotInit={havainnotEsitayte}
+          hoitajanHavainnot={havainnot}
+          onHavainnotMuutos={onHavainnotMuutos}
         />
       </div>
 
