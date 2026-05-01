@@ -9,6 +9,7 @@ import Asiakastietolomake from './Asiakastietolomake' // ROLLBACK — vanha loma
 import AsiakaslomakeRenderoijalla from './AsiakaslomakeRenderoijalla'
 import LomakeRenderoijaTesti from './LomakeRenderoijaTesti' // TILAPÄINEN — kehitystestaus
 import JulkinenLomake from './JulkinenLomake'
+import PalveluValinta from './PalveluValinta'
 
 const ylaNav = [
   { id: 'rekisteri',    nimi: 'Asiakasrekisteri', ikoni: '👥' },
@@ -27,6 +28,12 @@ export default function App() {
   const julkinenPalveluId = useMemo(() => {
     if (typeof window === 'undefined') return null
     return new URL(window.location.href).searchParams.get('palvelu')
+  }, [])
+
+  // Julkinen palveluvalintasivu — kotisivulta tultaessa
+  const onPalveluValintaPolku = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    return window.location.pathname === '/uusi-asiakas'
   }, [])
 
   useEffect(() => {
@@ -68,8 +75,10 @@ export default function App() {
 
   const aktiivisenYlaNav = (nakyma === 'kaynti' || nakyma === 'uusi-kaynti') ? null : nakyma
 
-  // Julkinen lomake — asiakas saapuu ?palvelu=ID URL:lla, ei tarvitse kirjautua
-  if (julkinenPalveluId) {
+  // Julkiset näkymät — asiakas saapuu kirjautumatta. Kaksi tapausta:
+  //   /uusi-asiakas       → palveluvalintasivu (kortit)
+  //   /?palvelu=ID        → palvelukohtainen lomake
+  if (onPalveluValintaPolku || julkinenPalveluId) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <header style={{ background: '#085041', color: 'white', padding: '10px 16px' }}>
@@ -78,7 +87,9 @@ export default function App() {
           </div>
         </header>
         <main style={{ flex: 1 }}>
-          <JulkinenLomake palveluId={julkinenPalveluId} />
+          {onPalveluValintaPolku
+            ? <PalveluValinta />
+            : <JulkinenLomake palveluId={julkinenPalveluId} />}
         </main>
         <footer style={{ background: 'white', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '12px', color: '#9ca3af', padding: '16px' }}>
           © {new Date().getFullYear()} Kehokorjaamo
