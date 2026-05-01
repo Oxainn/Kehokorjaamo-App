@@ -363,7 +363,13 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
           <button
             type="button"
             onClick={tallenna}
-            disabled={tallentaa || !otsikko.trim() || !tunniste.trim()}
+            disabled={
+              tallentaa ||
+              !tunniste.trim() ||
+              (tyyppi === 'infoteksti'
+                ? (!otsikko.trim() && !infoSisalto.trim())
+                : !otsikko.trim())
+            }
             className="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm"
           >
             {tallentaa ? 'Tallennetaan…' : 'Luo kenttä'}
