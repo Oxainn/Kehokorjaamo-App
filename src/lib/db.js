@@ -195,7 +195,17 @@ export const aloitaUusiKaynti = async (asiakasId) => {
     console.warn('Sairauksien haku vanhasta versiosta epäonnistui:', sairaudetVirhe)
   }
 
-  // 4. Luo uusi versio kopioimalla sisältö
+  // 4. Luo uusi versio kopioimalla sisältö.
+  // Varmuus: jos lisakentat sisältää suostumustunnisteita (gdpr_hyvaksytty,
+  // lupa_luovutukseen) — esim. vanhan datan vuoksi — niitä ei kopioida.
+  // Suostumukset säilyvät asiakkaat-rivin boolean-sarakkeissa, ei lomake-
+  // versiossa.
+  let kopioitavatLisat = avoin.lisakentat ?? null
+  if (kopioitavatLisat && typeof kopioitavatLisat === 'object') {
+    const { gdpr_hyvaksytty: _g, lupa_luovutukseen: _l, ...puhtaat } = kopioitavatLisat
+    kopioitavatLisat = puhtaat
+  }
+
   const { data: uusi, error: luontiVirhe } = await supabase
     .from('asiakastietolomake_versiot')
     .insert({
@@ -206,7 +216,7 @@ export const aloitaUusiKaynti = async (asiakasId) => {
       diagnosoidut_sairaudet: avoin.diagnosoidut_sairaudet,
       vammat_huomiot:         avoin.vammat_huomiot,
       harrastukset:           avoin.harrastukset,
-      lisakentat:             avoin.lisakentat,
+      lisakentat:             kopioitavatLisat,
       muokkaaja_id:           user.id,
       muokkaaja_rooli:        'hoitaja',
     })

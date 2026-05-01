@@ -8,11 +8,28 @@
 // kohdalla tämä korvasi asiakkaan jo täyttämän alkuperäisen tiedon
 // tyhjällä versiolla — siksi App.jsx ohjaa nyt vahvistamattomat suoraan
 // UudenAsiakkaanTarkistus:een.
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, haeAsiakkaanViimeisinLomake } from '../lib/db'
 import { kokoaVastaukset } from '../lib/lomakeTallennus'
+import { useLomakepohja } from '../hooks/useLomakepohja'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
 import Kayntihistoria from './Kayntihistoria'
+
+// Suostumukset annetaan vain ensimmäisellä kerralla (julkinen lomake → asiakkaat-
+// taulun boolean-sarakkeet). Olemassa olevan, suostumuksensa antaneen asiakkaan
+// hoitokäyntilomakkeesta nämä piilotetaan jotta hoitajan ei tarvitse ohittaa
+// niitä joka kerralla. Suostumukset näkyvät edelleen UudenAsiakkaanTarkistus-
+// näkymässä jossa hoitaja tarkistaa uusia asiakkaita.
+function suodataSuostumusOsio(rakenne) {
+  if (!rakenne) return rakenne
+  const osiot = (rakenne.osiot ?? []).filter((osio) => {
+    if (osio.id === 'suostumukset') return false
+    const otsikko = typeof osio.otsikko === 'object' ? osio.otsikko?.fi : osio.otsikko
+    if (typeof otsikko === 'string' && otsikko.toLowerCase().includes('suostumus')) return false
+    return true
+  })
+  return { ...rakenne, osiot }
+}
 
 const TILA = {
   TYHJA:        'tyhja',
@@ -97,11 +114,24 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
     }
   }
 
+  // Lataa pohja paikallisesti jotta voimme suodattaa Suostumukset-osion
+  // pois ennen kuin LomakeRenderoija saa rakenteen.
+  const { rakenne: pohjaRakenne, kentat: pohjaKentat, lataa: lataaPohja, virhe: pohjaLatausVirhe } = useLomakepohja(pohjaId)
+
+  const onSuostumusAnnettu = asiakas?.suostumus_tietojen_sailytys === true
+  const naytettavaRakenne = useMemo(
+    () => onSuostumusAnnettu ? suodataSuostumusOsio(pohjaRakenne) : pohjaRakenne,
+    [pohjaRakenne, onSuostumusAnnettu]
+  )
+
   if (pohjaVirhe) {
     return <div style={ilmoitusTyyli('virhe')}>{pohjaVirhe}</div>
   }
-  if (!pohjaId) {
+  if (!pohjaId || lataaPohja) {
     return <div style={{ padding: '24px', color: '#6b7280', fontSize: '14px' }}>Ladataan lomakepohjaa…</div>
+  }
+  if (pohjaLatausVirhe) {
+    return <div style={ilmoitusTyyli('virhe')}>Lomakepohjan lataus epäonnistui: {pohjaLatausVirhe}</div>
   }
 
   return (
@@ -122,7 +152,7 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
       )}
 
       <LomakeRenderoija
-        pohjaId={pohjaId}
+        valmiitTiedot={{ rakenne: naytettavaRakenne, kentat: pohjaKentat }}
         vastaukset={vastaukset}
         onMuutos={setVastaukset}
         onLahetys={tallenna}
