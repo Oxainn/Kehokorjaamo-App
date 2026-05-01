@@ -302,6 +302,8 @@ export default function ItsehoitoKirjasto() {
   const [avoinId, setAvoinId] = useState(null)
   const [uusiAuki, setUusiAuki] = useState(false)
   const [lataa, setLataa] = useState(true)
+  // VB7 — vahvistusmodaali ennen arkistointia/palautusta. {harjoitus, op}
+  const [vahvistus, setVahvistus] = useState(null)
 
   async function lataa_data() {
     setLataa(true)
@@ -312,15 +314,20 @@ export default function ItsehoitoKirjasto() {
 
   useEffect(() => { lataa_data() }, [arkistoTila])
 
-  async function arkistoi(harjoitus) {
-    const tulos = await paivitaItsehoitoHarjoitus(harjoitus.id, { arkistoitu: true })
-    if (tulos.virhe) { alert('Arkistointi epäonnistui: ' + tulos.virhe); return }
-    await lataa_data()
-  }
+  // VB7 — toiminnot kulkevat vahvistusmodaalin kautta jotta vahingossa
+  // klikkaaminen ei piilota harjoitusta käyttäjältä.
+  function pyyaArkistointi(harjoitus) { setVahvistus({ harjoitus, op: 'arkistoi' }) }
+  function pyyaPalautus(harjoitus)    { setVahvistus({ harjoitus, op: 'palauta' }) }
 
-  async function palauta(harjoitus) {
-    const tulos = await paivitaItsehoitoHarjoitus(harjoitus.id, { arkistoitu: false })
-    if (tulos.virhe) { alert('Palautus epäonnistui: ' + tulos.virhe); return }
+  async function vahvistaToiminto() {
+    if (!vahvistus) return
+    const arkistoituUusi = vahvistus.op === 'arkistoi'
+    const tulos = await paivitaItsehoitoHarjoitus(vahvistus.harjoitus.id, { arkistoitu: arkistoituUusi })
+    setVahvistus(null)
+    if (tulos.virhe) {
+      alert((arkistoituUusi ? 'Arkistointi' : 'Palautus') + ' epäonnistui: ' + tulos.virhe)
+      return
+    }
     await lataa_data()
   }
 
@@ -350,6 +357,12 @@ export default function ItsehoitoKirjasto() {
         Yleinen harjoituskirjasto. Pala B6:ssa hoitaja valitsee tästä asiakkaan
         omaan itsehoito-ohjelmaan.
       </p>
+      {/* VB7 — info datan eheyden suojasta */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-xs text-blue-900 leading-relaxed">
+        ℹ Voit arkistoida harjoituksen, mutta et poistaa kokonaan. Tämä suojaa
+        asiakkaiden hoitohistorian eheyttä — arkistoidut harjoitukset säilyvät
+        ennallaan asiakkaiden vanhoissa ohjelmissa ja PDF-tulosteissa.
+      </div>
 
       {/* Välilehdet */}
       <div className="flex border-b border-gray-200">
@@ -458,11 +471,74 @@ export default function ItsehoitoKirjasto() {
           onAvaa={setAvoinId}
           onSulje={() => setAvoinId(null)}
           onTallennettu={lataa_data}
-          onArkistoi={arkistoi}
-          onPalauta={palauta}
+          onArkistoi={pyyaArkistointi}
+          onPalauta={pyyaPalautus}
           arkistoTila={arkistoTila}
         />
       ))}
+
+      {/* VB7 — vahvistusmodaali ennen arkistointia / palautusta */}
+      {vahvistus && (
+        <div
+          onClick={() => setVahvistus(null)}
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position:       'fixed',
+            inset:          0,
+            background:     'rgba(0, 0, 0, 0.6)',
+            display:        'flex',
+            alignItems:     'center',
+            justifyContent: 'center',
+            padding:        '16px',
+            zIndex:         1000,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background:    'white',
+              borderRadius:  '16px',
+              padding:       '24px',
+              maxWidth:      '460px',
+              width:         '100%',
+              boxShadow:     '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              display:       'flex',
+              flexDirection: 'column',
+              gap:           '16px',
+            }}
+          >
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}>
+                {vahvistus.op === 'arkistoi'
+                  ? `Arkistoi harjoitus "${vahvistus.harjoitus.nimi}"?`
+                  : `Palauta harjoitus "${vahvistus.harjoitus.nimi}" käyttöön?`}
+              </h3>
+              <p style={{ fontSize: '13px', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                {vahvistus.op === 'arkistoi'
+                  ? 'Harjoitus piiloutuu kirjastosta uutta lisäystä varten, mutta säilyy asiakkaiden olemassa olevissa ohjelmissa ja PDF-tulosteissa muuttumattomana.'
+                  : 'Harjoitus tulee jälleen näkyviin kun käynnillä lisätään uusia harjoituksia asiakkaalle.'}
+              </p>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setVahvistus(null)}
+                style={{ padding: '10px 16px', minHeight: '44px', borderRadius: '10px', border: '1px solid #e2e8f0', background: 'white', color: '#374151', fontSize: '14px', fontWeight: 500, cursor: 'pointer' }}
+              >
+                Peruuta
+              </button>
+              <button
+                type="button"
+                onClick={vahvistaToiminto}
+                style={{ padding: '10px 18px', minHeight: '44px', borderRadius: '10px', border: 'none', background: '#1D9E75', color: 'white', fontSize: '14px', fontWeight: 600, cursor: 'pointer' }}
+              >
+                {vahvistus.op === 'arkistoi' ? '🗄 Arkistoi' : '↺ Palauta'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
