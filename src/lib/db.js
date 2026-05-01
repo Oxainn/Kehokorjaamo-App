@@ -401,13 +401,23 @@ export const haeAsiakkaanKayntienMaara = async (asiakasId) => {
 }
 
 // Tallentaa hoitokirjauksen tiedot. Pala B2:ssa laajennettu kattamaan
-// hoitoraportti-osion kentät (kesto_min, lahtotilanne, muista_ensi_kerralla).
+// hoitoraportti-osion kentät, Pala B3:ssa 15 linjausmittaria.
 export const tallennaHoitokirjaus = async (hoitokayntiId, tiedot) => {
   if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
   const muutokset = { paivitetty: new Date().toISOString() }
   const sallitut = [
+    // Pala B1
     'otsikko', 'hoidon_kulku', 'hoitajan_kommentit', 'tila',
+    // Pala B2
     'kesto_min', 'lahtotilanne', 'muista_ensi_kerralla',
+    // Pala B3 — linjausmittarit
+    'lantion_kallistus_aste', 'lantion_sivuttainen_aste', 'lantion_kierto_aste',
+    'olkapaiden_korkeusero_cm', 'paan_eteen_tyontyminen_cm',
+    'q_kulma_vasen_aste', 'q_kulma_oikea_aste', 'skolioosin_kierto_aste',
+    'niskan_kaannos_vasen_aste', 'niskan_kaannos_oikea_aste',
+    'jalkapituus_ero_cm',
+    'navicular_drop_vasen_mm', 'navicular_drop_oikea_mm',
+    'akillesjanteen_kulma_vasen_aste', 'akillesjanteen_kulma_oikea_aste',
   ]
   for (const k of sallitut) {
     if (tiedot[k] !== undefined) muutokset[k] = tiedot[k] === '' ? null : tiedot[k]
@@ -505,7 +515,7 @@ export const haeHoitokaynti = async (hoitokayntiId) => {
   if (!hoitokayntiId) return null
   const { data, error } = await supabase
     .from('hoitokaynnit')
-    .select('id, asiakas_id, hoitaja_id, lomake_versio_id, pvm, otsikko, hoidon_kulku, hoitajan_kommentit, muista_ensi_kerralla, tila, luotu, paivitetty')
+    .select('*')
     .eq('id', hoitokayntiId)
     .maybeSingle()
   if (error) {

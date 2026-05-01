@@ -22,6 +22,8 @@ import {
 import { useAutoResize } from '../hooks/useAutoResize'
 import { muotoilePvm } from '../lib/muotoilu'
 import BodyMap from './BodyMap'
+import MittariSliideri from './MittariSliideri'
+import { MITTARIT } from '../data/linjausmittarit'
 
 const inputTyyli = {
   width:        '100%',
@@ -95,6 +97,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   // Havainnot (BodyMap-löydökset)
   const [havainnot,          setHavainnot]          = useState([])
   const [havainnotEsitayte,  setHavainnotEsitayte]  = useState(null)
+  // Mittarit (Pala B3): { sarake: numero | null }
+  const [mittarit,           setMittarit]           = useState({})
   // Edellisen käynnin nosto
   const [edellisenMuista,    setEdellisenMuista]    = useState(null)
   // Meta
@@ -129,6 +133,12 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         setLahtotilanne(kaynti.lahtotilanne ?? '')
         setMuistaEnsiKerralla(kaynti.muista_ensi_kerralla ?? '')
         setPvm(kaynti.pvm)
+        // Pala B3 — esitäyttö 15 mittarille
+        const m = {}
+        for (const mt of MITTARIT) {
+          m[mt.sarake] = kaynti[mt.sarake] ?? null
+        }
+        setMittarit(m)
       }
       setYhteensa(kpl)
       setKayntinumero(kpl)
@@ -171,7 +181,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   async function tallenna() {
     setTila('tallentaa')
     setVirhe(null)
-    // Tallenna hoitokirjauksen kentät
+    // Tallenna hoitokirjauksen kentät — sis. 15 mittarisaraketta (Pala B3)
     const kayntiTulos = await tallennaHoitokirjaus(hoitokayntiId, {
       otsikko:              otsikko.trim() || null,
       hoidon_kulku:         mitaHoidettiin.trim() || null,
@@ -180,6 +190,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       lahtotilanne:         lahtotilanne.trim() || null,
       muista_ensi_kerralla: muistaEnsiKerralla.trim() || null,
       tila:                 'valmis',
+      ...mittarit,
     })
     if (kayntiTulos.virhe) {
       setVirhe(kayntiTulos.virhe)
@@ -315,6 +326,24 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         />
       </div>
 
+      {/* Mittaukset — Pala B3, 15 linjausmittaria */}
+      <div style={ryhmaTyyli}>
+        <h3 style={ryhmaOtsikko}>Mittaukset</h3>
+        <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 8px', lineHeight: 1.5 }}>
+          Vapaaehtoiset — kirjaa vain ne joita olet mitannut. Tyhjä = ei mitattu.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {MITTARIT.map((m) => (
+            <MittariSliideri
+              key={m.sarake}
+              mittari={m}
+              arvo={mittarit[m.sarake] ?? null}
+              onMuutos={(uusi) => setMittarit((prev) => ({ ...prev, [m.sarake]: uusi }))}
+            />
+          ))}
+        </div>
+      </div>
+
       {/* Hoitoraportti — Pala B2 */}
       <div style={ryhmaTyyli}>
         <h3 style={ryhmaOtsikko}>Hoitoraportti</h3>
@@ -412,7 +441,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
 
       {/* Esikatselu Vaihe B:n tulevista paloista */}
       <div style={{ marginTop: '12px', fontSize: '12px', color: '#9ca3af', textAlign: 'center', fontStyle: 'italic' }}>
-        Tulossa myöhemmissä paloissa: mittaustulokset (B3) · vertailu edelliseen (B4) · itsehoito-ohjeet (B5–B6)
+        Tulossa myöhemmissä paloissa: vertailu edelliseen (B4) · itsehoito-ohjeet (B5–B6)
       </div>
     </div>
   )
