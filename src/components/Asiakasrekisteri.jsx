@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
+import { haeKayntienPaivamaarat } from '../lib/db'
+import KayntiNakyma from './KayntiNakyma'
 
 // Asiakasrekisteri jakautuu kahteen osioon:
 //   - "Uudet asiakkaat" (vahvistettu = false) — ylhäällä, korostettuna oranssilla
@@ -12,6 +14,10 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
   const [asiakkaat, setAsiakkaat] = useState([])
   const [haku, setHaku]           = useState('')
   const [lataa, setLataa]         = useState(true)
+  // Map: asiakkaan id → 4 uusinta käyntiriviä [{ id, voimassa_alkaen }]
+  const [kayntienMap, setKayntienMap] = useState({})
+  // Avattu käynti-modaali — { lomakeVersioId, asiakas } tai null
+  const [avoinKaynti,   setAvoinKaynti]   = useState(null)
 
   useEffect(() => {
     const haeAsiakkaat = async () => {
@@ -23,10 +29,23 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
       // jotta saadaan vahvistettu-sarake mukaan.
       const { data, error } = await supabase
         .from('asiakkaat')
-        .select('id, nimi, sahkoposti, puhelin, syntymaaika, luotu, vahvistettu')
+        .select('id, nimi, sahkoposti, puhelin, syntymaaika, luotu, vahvistettu, lahiosoite, postinumero, postitoimipaikka, ammatti, pituus, paino, suostumus_tietojen_sailytys, suostumus_tietojen_luovutus')
         .eq('hoitaja_id', hoitajaId)
         .order('luotu', { ascending: false })
-      if (!error) setAsiakkaat(data ?? [])
+      if (error) {
+        setLataa(false)
+        return
+      }
+      const lista = data ?? []
+      setAsiakkaat(lista)
+
+      // Hae jokaiselle 4 viimeisintä käyntipäivää rinnan
+      const kayntiTulokset = await Promise.all(
+        lista.map((a) => haeKayntienPaivamaarat(a.id, 4))
+      )
+      const map = {}
+      lista.forEach((a, i) => { map[a.id] = kayntiTulokset[i] ?? [] })
+      setKayntienMap(map)
       setLataa(false)
     }
     haeAsiakkaat()
@@ -53,58 +72,96 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
   )
 
   function AsiakasKortti({ a, korostettu }) {
+    const kaynnit = kayntienMap[a.id] ?? []
     return (
       <div
         style={{
-          display:    'flex',
-          alignItems: 'center',
-          gap:        '12px',
-          padding:    '14px 16px',
-          borderRadius: '12px',
+          display:       'flex',
+          flexDirection: 'column',
+          gap:           '8px',
+          padding:       '14px 16px',
+          borderRadius:  '12px',
           background: korostettu ? '#fffbeb' : 'white',
           border:     korostettu ? '1.5px solid #f59e0b' : '1px solid #e2e8f0',
         }}
       >
-        <div style={{
-          width: '42px', height: '42px', borderRadius: '50%',
-          background: korostettu ? '#fde68a' : '#E1F5EE',
-          color:      korostettu ? '#92400e' : '#085041',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 700, fontSize: '16px', flexShrink: 0,
-        }}>
-          {avatarKirjain(a.nimi)}
-        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '42px', height: '42px', borderRadius: '50%',
+            background: korostettu ? '#fde68a' : '#E1F5EE',
+            color:      korostettu ? '#92400e' : '#085041',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 700, fontSize: '16px', flexShrink: 0,
+          }}>
+            {avatarKirjain(a.nimi)}
+          </div>
 
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {a.nimi || '(nimetön)'}
-          </p>
-          <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {[a.sahkoposti, a.puhelin].filter(Boolean).join(' · ') || '—'}
-          </p>
-          {a.luotu && (
-            <p style={{ fontSize: '11px', color: korostettu ? '#92400e' : '#9ca3af', margin: '2px 0 0', fontWeight: korostettu ? 500 : 400 }}>
-              {korostettu ? `Täyttänyt lomakkeen: ${muotoilePvm(a.luotu)}` : `Lisätty: ${muotoilePvm(a.luotu)}`}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {a.nimi || '(nimetön)'}
             </p>
-          )}
+            <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {[a.sahkoposti, a.puhelin].filter(Boolean).join(' · ') || '—'}
+            </p>
+            {a.luotu && (
+              <p style={{ fontSize: '11px', color: korostettu ? '#92400e' : '#9ca3af', margin: '2px 0 0', fontWeight: korostettu ? 500 : 400 }}>
+                {korostettu ? `Täyttänyt lomakkeen: ${muotoilePvm(a.luotu)}` : `Lisätty: ${muotoilePvm(a.luotu)}`}
+              </p>
+            )}
+          </div>
+
+          <button
+            onClick={() => onValitseAsiakas?.(a)}
+            style={{
+              padding:      '7px 16px',
+              borderRadius: '20px',
+              border:       'none',
+              background:   korostettu ? '#f59e0b' : '#1D9E75',
+              color:        'white',
+              fontSize:     '13px',
+              fontWeight:   500,
+              cursor:       'pointer',
+              flexShrink:   0,
+            }}
+          >
+            {korostettu ? 'Tarkista' : 'Avaa'}
+          </button>
         </div>
 
-        <button
-          onClick={() => onValitseAsiakas?.(a)}
-          style={{
-            padding:      '7px 16px',
-            borderRadius: '20px',
-            border:       'none',
-            background:   korostettu ? '#f59e0b' : '#1D9E75',
-            color:        'white',
-            fontSize:     '13px',
-            fontWeight:   500,
-            cursor:       'pointer',
-            flexShrink:   0,
-          }}
-        >
-          {korostettu ? 'Tarkista' : 'Avaa'}
-        </button>
+        {/* Käyntipillerit — 4 uusinta käyntiä, klikkaus avaa modaalin */}
+        {kaynnit.length > 0 && (
+          <div style={{
+            display:    'flex',
+            flexWrap:   'wrap',
+            gap:        '6px',
+            paddingLeft: '54px',  // sama sisennys kuin avatarin oikealla puolella
+          }}>
+            {kaynnit.map((k) => (
+              <button
+                key={k.id}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setAvoinKaynti({ lomakeVersioId: k.id, asiakas: a })
+                }}
+                style={{
+                  background:   '#f3f4f6',
+                  color:        '#374151',
+                  padding:      '4px 10px',
+                  borderRadius: '999px',
+                  fontSize:     '11px',
+                  fontWeight:   500,
+                  border:       'none',
+                  cursor:       'pointer',
+                  whiteSpace:   'nowrap',
+                }}
+                aria-label={`Avaa käynti ${muotoilePvm(k.voimassa_alkaen)}`}
+              >
+                {muotoilePvm(k.voimassa_alkaen)}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     )
   }
@@ -175,6 +232,15 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
         }}>
           {haku.trim() ? 'Ei hakutuloksia' : 'Ei asiakkaita vielä'}
         </div>
+      )}
+
+      {/* Käyntimodaali — avautuu pillerin klikkauksesta */}
+      {avoinKaynti && (
+        <KayntiNakyma
+          lomakeVersioId={avoinKaynti.lomakeVersioId}
+          asiakas={avoinKaynti.asiakas}
+          onSulje={() => setAvoinKaynti(null)}
+        />
       )}
     </section>
   )

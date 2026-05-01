@@ -7,7 +7,7 @@
 // read-only — hoitaja näkee miten asiakas oli silloin.
 
 import { useState, useEffect } from 'react'
-import { haeAsiakkaanKayntihistoria } from '../lib/db'
+import { haeKayntienPaivamaarat } from '../lib/db'
 import KayntiNakyma from './KayntiNakyma'
 
 const containerTyyli = {
@@ -70,7 +70,7 @@ export default function Kayntihistoria({ asiakas }) {
   useEffect(() => {
     if (!asiakasId) { setLataa(false); return }
     let peruttu = false
-    haeAsiakkaanKayntihistoria(asiakasId)
+    haeKayntienPaivamaarat(asiakasId)
       .then((tulos) => {
         if (peruttu) return
         setKaynnit(tulos)

@@ -45,20 +45,27 @@ export const haeAsiakkaat = async () => {
   return data
 }
 
-// Hakee asiakkaan käyntihistorian — kaikki suljetut lomakeversiot
-// (voimassa_asti IS NOT NULL) uusimmasta vanhimpaan. Jokainen rivi vastaa
-// yhtä mennyttä hoitokäyntiä; aktiivinen avoin versio jätetään pois.
-export const haeAsiakkaanKayntihistoria = async (asiakasId) => {
+// Hakee asiakkaan menneiden hoitokäyntien päivämäärät — kaikki suljetut
+// lomakeversiot (voimassa_asti IS NOT NULL) uusimmasta vanhimpaan.
+// Jokainen rivi vastaa yhtä mennyttä hoitokäyntiä; aktiivinen avoin
+// versio jätetään pois.
+//
+// rajoitus: jos annettu (esim. 4), palautetaan korkeintaan N uusinta.
+// Käytetään Asiakasrekisterin pillerinäkymässä jossa näytetään 4 uusinta.
+// Käyntihistoria-listalla rajoitus jätetään null:ksi → kaikki käynnit.
+export const haeKayntienPaivamaarat = async (asiakasId, rajoitus = null) => {
   if (!asiakasId) return []
-  const { data, error } = await supabase
+  let query = supabase
     .from('asiakastietolomake_versiot')
-    .select('id, voimassa_alkaen, voimassa_asti')
+    .select('id, voimassa_alkaen')
     .eq('asiakas_id', asiakasId)
     .not('voimassa_asti', 'is', null)
     .order('voimassa_alkaen', { ascending: false })
+  if (typeof rajoitus === 'number' && rajoitus > 0) query = query.limit(rajoitus)
 
+  const { data, error } = await query
   if (error) {
-    console.error('Käyntihistorian haku epäonnistui:', error)
+    console.error('Käyntien päivämäärien haku epäonnistui:', error)
     return []
   }
   return data ?? []
