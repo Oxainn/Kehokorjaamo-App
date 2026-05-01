@@ -72,6 +72,15 @@ export default function App() {
   // (esitäytön uudelleenladauksen) kun "Uusi käynti" suljetaan ja avataan.
   const [kayntiAvain, setKayntiAvain] = useState(0)
   const [kaynnistetaan, setKaynnistetaan] = useState(false)
+  // Avain joka triggaa Asiakasrekisterin asiakaslistan ja käyntipillerien
+  // uudelleenladaukset. Kasvatetaan aina kun palaamme rekisteriin
+  // operaation jälkeen (uusi käynti, vahvistus, lomakkeen tallennus).
+  const [rekisteriAvain, setRekisteriAvain] = useState(0)
+
+  function paluuRekisteriin() {
+    setRekisteriAvain((n) => n + 1)
+    setNakyma('rekisteri')
+  }
   // Oma in-app vahvistusmodaali — selaimen window.confirm korvattu
   // jotta tyyli on yhtenäinen muun sovelluksen kanssa ja Esc-näppäin
   // toimii loogisesti.
@@ -242,6 +251,7 @@ export default function App() {
         {nakyma === 'rekisteri' && (
           <Asiakasrekisteri
             hoitajaId={hoitajaId}
+            refresh={rekisteriAvain}
             onValitseAsiakas={(a) => {
               setAsiakas(normalisoiAsiakas(a))
               setNakyma('kaynti')
@@ -254,7 +264,7 @@ export default function App() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 0 12px', borderBottom: '1px solid #e2e8f0', marginBottom: '16px' }}>
               <button
-                onClick={() => setNakyma('rekisteri')}
+                onClick={paluuRekisteriin}
                 style={{ fontSize: '13px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#1D9E75', fontWeight: '500', padding: '4px 0' }}
               >
                 ← Rekisteri
@@ -268,7 +278,7 @@ export default function App() {
               // "Tallenna asiakas" -nappi on tarkistusnäkymässä sisällä.
               <UudenAsiakkaanTarkistus
                 asiakas={asiakas}
-                onValmis={() => setNakyma('rekisteri')}
+                onValmis={paluuRekisteriin}
               />
             ) : (
               // Vahvistettu asiakas → "+ Uusi käynti" -toimintonappi yläreunassa
@@ -300,7 +310,7 @@ export default function App() {
                 <AsiakaslomakeRenderoijalla
                   key={`${asiakas.id}:${kayntiAvain}`}
                   asiakas={asiakas}
-                  onValmis={() => setNakyma('rekisteri')}
+                  onValmis={paluuRekisteriin}
                 />
 
                 {/* Vahvistusmodaali — korvaa selaimen window.confirm */}
@@ -398,7 +408,7 @@ export default function App() {
         {nakyma === 'uusi-kaynti' && (
           <AsiakaslomakeRenderoijalla
             asiakas={null}
-            onValmis={() => setNakyma('rekisteri')}
+            onValmis={paluuRekisteriin}
           />
         )}
 

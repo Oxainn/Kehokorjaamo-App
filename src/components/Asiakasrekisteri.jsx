@@ -10,7 +10,10 @@ import KayntiNakyma from './KayntiNakyma'
 //   - "Asiakkaat" (vahvistettu = true) — alla, normaali näkymä.
 // Hakukenttä suodattaa molempia osioita yhtaikaa.
 
-export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
+// `refresh`-prop: numeerinen avain joka kasvaa kun App.jsx haluaa pakottaa
+// asiakaslistan ja käyntipillerien uudelleenladauksen (esim. paluun
+// jälkeen "+ Uusi käynti" tai "Tallenna asiakas" -toiminnoista).
+export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh = 0 }) {
   const [asiakkaat, setAsiakkaat] = useState([])
   const [haku, setHaku]           = useState('')
   const [lataa, setLataa]         = useState(true)
@@ -49,7 +52,7 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId }) {
       setLataa(false)
     }
     haeAsiakkaat()
-  }, [hoitajaId])
+  }, [hoitajaId, refresh])
 
   const haetMatchaa = (a) => (
     a.nimi?.toLowerCase().includes(haku.toLowerCase()) ||
