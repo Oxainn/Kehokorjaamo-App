@@ -26,7 +26,9 @@ import {
   haeAsiakkaanOireet,
 } from '../lib/db'
 import { useAutoResize } from '../hooks/useAutoResize'
+import { useOnline } from '../hooks/useOnline'
 import { muotoilePvm } from '../lib/muotoilu'
+import { lisaaJonoon } from '../lib/offlineDB'
 import KehonkarttaVertailu from './KehonkarttaVertailu'
 import MittariSliideri from './MittariSliideri'
 import ItsehoitoValinnat from './ItsehoitoValinnat'
@@ -125,8 +127,10 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   const [kayntinumero,       setKayntinumero]       = useState(null)
   const [yhteensa,           setYhteensa]           = useState(null)
   const [lataa,              setLataa]              = useState(true)
-  const [tila,               setTila]               = useState('idle') // idle | tallentaa | onnistui | virhe
+  const [tila,               setTila]               = useState('idle') // idle | tallentaa | onnistui | virhe | jonossa
   const [virhe,              setVirhe]              = useState(null)
+  // Pala B9b — selain raportoi onko verkkoa
+  const online = useOnline()
 
   const mitaHoidettiinRef     = useAutoResize(mitaHoidettiin)
   const hoitajanKommentitRef  = useAutoResize(hoitajanKommentit)
@@ -233,9 +237,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   async function tallenna() {
     setTila('tallentaa')
     setVirhe(null)
-    // Tallenna hoitokirjauksen kentät — sis. 15 mittarisaraketta (Pala B3)
-    // ja seuraavan käynnin ehdotus (Pala B6.5)
-    const kayntiTulos = await tallennaHoitokirjaus(hoitokayntiId, {
+
+    const hoitokirjausPayload = {
       otsikko:              otsikko.trim() || null,
       hoidon_kulku:         mitaHoidettiin.trim() || null,
       hoitajan_kommentit:   hoitajanKommentit.trim() || null,
@@ -245,7 +248,29 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       seuraava_kaynti_pvm:  seuraavaKayntiPvm || null,
       tila:                 'valmis',
       ...mittarit,
-    })
+    }
+
+    // Pala B9b — jos offline, tallenna kaikki kolme operaatiota IndexedDB-
+    // jonoon ja merkitse käynti "jonossa"-tilaan. Jono synkkaa kun yhteys
+    // palaa (App.jsx → synkronoiJono).
+    if (!online) {
+      try {
+        await lisaaJonoon({ op: 'tallennaHoitokirjaus',     args: [hoitokayntiId, hoitokirjausPayload] })
+        await lisaaJonoon({ op: 'tallennaHavainnot',        args: [hoitokayntiId, havainnot] })
+        await lisaaJonoon({ op: 'tallennaKaynninItsehoito', args: [hoitokayntiId, itsehoito] })
+        setTila('jonossa')
+        setTimeout(onValmis, 1800)
+        return
+      } catch (e) {
+        setVirhe('Offline-tallennus epäonnistui: ' + (e.message ?? 'tuntematon virhe'))
+        setTila('virhe')
+        return
+      }
+    }
+
+    // Tallenna hoitokirjauksen kentät — sis. 15 mittarisaraketta (Pala B3)
+    // ja seuraavan käynnin ehdotus (Pala B6.5)
+    const kayntiTulos = await tallennaHoitokirjaus(hoitokayntiId, hoitokirjausPayload)
     if (kayntiTulos.virhe) {
       setVirhe(kayntiTulos.virhe)
       setTila('virhe')
@@ -379,6 +404,11 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       {tila === 'onnistui' && (
         <div style={ilmoitusTyyli('onnistui')}>
           <strong>✓ Hoitokirjaus tallennettu.</strong> Palataan rekisteriin…
+        </div>
+      )}
+      {tila === 'jonossa' && (
+        <div style={ilmoitusTyyli('tieto')}>
+          <strong>🛜 Tallennettu offline-jonoon.</strong> Lähetetään serverille kun yhteys palaa.
         </div>
       )}
       {tila === 'virhe' && virhe && (
@@ -602,7 +632,10 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
             boxShadow:    '0 1px 3px rgba(29, 158, 117, 0.25)',
           }}
         >
-          {tila === 'tallentaa' ? 'Tallennetaan…' : tila === 'onnistui' ? '✓ Tallennettu' : 'Tallenna hoitokirjaus'}
+          {tila === 'tallentaa' ? 'Tallennetaan…'
+            : tila === 'onnistui'  ? '✓ Tallennettu'
+            : tila === 'jonossa'   ? '🛜 Jonossa'
+            : online ? 'Tallenna hoitokirjaus' : 'Tallenna offline-jonoon'}
         </button>
       </div>
 

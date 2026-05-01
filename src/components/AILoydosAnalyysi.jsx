@@ -7,6 +7,7 @@
 
 import { useState, useEffect } from 'react'
 import { kutsuAIAnalyysi, tallennaAIAnalyysi, haeAIAnalyysi } from '../lib/db'
+import { useOnline } from '../hooks/useOnline'
 
 const lohkoTyyli = {
   marginTop:    '12px',
@@ -119,6 +120,8 @@ export default function AILoydosAnalyysi({
   const [tallentaa,   setTallentaa]   = useState(false)
   const [tallennettu, setTallennettu] = useState(false)
   const [naytaPrompti, setNaytaPrompti] = useState(false)
+  // Pala B9b — AI vaatii verkkoyhteyden
+  const online = useOnline()
 
   // Lataa olemassa oleva analyysi käynnistä — cache, ei kutsuta AI:ta uudestaan.
   useEffect(() => {
@@ -183,13 +186,13 @@ export default function AILoydosAnalyysi({
         <button
           type="button"
           onClick={pyydaAnalyysi}
-          disabled={!onHavaintoja || tila === 'lataa'}
+          disabled={!onHavaintoja || tila === 'lataa' || !online}
           style={{
             ...nappiTyyli('#7c3aed', 'white'),
-            opacity: !onHavaintoja || tila === 'lataa' ? 0.5 : 1,
-            cursor:  !onHavaintoja ? 'not-allowed' : tila === 'lataa' ? 'wait' : 'pointer',
+            opacity: !onHavaintoja || tila === 'lataa' || !online ? 0.5 : 1,
+            cursor:  !onHavaintoja || !online ? 'not-allowed' : tila === 'lataa' ? 'wait' : 'pointer',
           }}
-          title={!onHavaintoja ? 'Tee ensin havaintoja BodyMap:ssa' : 'Pyydä AI-analyysi'}
+          title={!online ? 'AI-analyysi vaatii verkkoyhteyden' : (!onHavaintoja ? 'Tee ensin havaintoja BodyMap:ssa' : 'Pyydä AI-analyysi')}
         >
           {tila === 'lataa' ? '🤖 Analysoidaan…' : '🤖 Pyydä AI-analyysi havainnoista'}
         </button>
@@ -198,6 +201,11 @@ export default function AILoydosAnalyysi({
       {!onHavaintoja && !analyysi && (
         <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '6px' }}>
           Lisää havaintoja ennen kuin pyydät AI-analyysiä.
+        </p>
+      )}
+      {onHavaintoja && !analyysi && !online && (
+        <p style={{ fontSize: '12px', color: '#92400e', marginTop: '6px' }}>
+          AI-analyysi vaatii verkkoyhteyden — kokeile uudelleen kun yhteys palaa.
         </p>
       )}
 

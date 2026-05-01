@@ -2,6 +2,9 @@ import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../services/supabase'
 import { normalisoiAsiakas } from '../utils/asiakas'
 import { haeUusienAsiakkaidenMaara, aloitaUusiKaynti, haeAsiakkaanKontraindikaatiot } from '../lib/db'
+import { useOnline } from '../hooks/useOnline'
+import { jononKoko } from '../lib/offlineDB'
+import { synkronoiJono } from '../lib/offlineSync'
 import Login from './Login'
 import Settings from './Settings'
 import Asiakasrekisteri from './Asiakasrekisteri'
@@ -78,6 +81,43 @@ export default function App() {
   // uudelleenladaukset. Kasvatetaan aina kun palaamme rekisteriin
   // operaation jälkeen (uusi käynti, vahvistus, lomakkeen tallennus).
   const [rekisteriAvain, setRekisteriAvain] = useState(0)
+
+  // Pala B9b — online/offline-tila + offline-jonon synkronointi
+  const online = useOnline()
+  const [jonoa, setJonoa] = useState(0)
+  const [synkronoidaan, setSynkronoidaan] = useState(false)
+  const [synkViesti, setSynkViesti] = useState(null)
+
+  // Päivitä jonon koko aina kun yhteys vaihtuu, sekä alkuun
+  useEffect(() => {
+    let peruttu = false
+    jononKoko().then((n) => { if (!peruttu) setJonoa(n) })
+    return () => { peruttu = true }
+  }, [online, rekisteriAvain])
+
+  // Yhteys palasi → automaattinen synkronointi taustalla
+  useEffect(() => {
+    if (!online) return
+    let peruttu = false
+    ;(async () => {
+      const koko = await jononKoko()
+      if (koko === 0) return
+      setSynkronoidaan(true)
+      const tulos = await synkronoiJono()
+      if (peruttu) return
+      setSynkronoidaan(false)
+      const uusiKoko = await jononKoko()
+      setJonoa(uusiKoko)
+      if (tulos.onnistuneet > 0) {
+        setSynkViesti(`Synkronoitu ${tulos.onnistuneet} muutosta`)
+        setTimeout(() => setSynkViesti(null), 4000)
+      } else if (tulos.virheet > 0) {
+        setSynkViesti(`Synkronointi epäonnistui (${tulos.virheet} kpl jää jonoon)`)
+        setTimeout(() => setSynkViesti(null), 6000)
+      }
+    })()
+    return () => { peruttu = true }
+  }, [online])
 
   function paluuRekisteriin() {
     setRekisteriAvain((n) => n + 1)
@@ -195,15 +235,42 @@ export default function App() {
 
       {/* TOPBAR */}
       <header style={{ background: '#085041', color: 'white', padding: '10px 16px' }}>
-        <div className="max-w-5xl mx-auto" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div className="max-w-5xl mx-auto" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
           <span style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px' }}>Kehokorjaamo</span>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            style={{ fontSize: '12px', padding: '4px 12px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', cursor: 'pointer', color: 'white' }}
-          >
-            Kirjaudu ulos
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Pala B9b — online/offline-indikaattori + jonon koko */}
+            <span
+              title={online ? 'Yhteys palvelimeen on päällä' : 'Ei verkkoyhteyttä — muutokset tallentuvat selaimeen ja synkronoidaan kun yhteys palaa'}
+              style={{
+                fontSize:     '12px',
+                padding:      '4px 10px',
+                borderRadius: '999px',
+                background:   online ? 'rgba(255,255,255,0.15)' : '#7f1d1d',
+                color:        'white',
+                fontWeight:   500,
+                display:      'inline-flex',
+                alignItems:   'center',
+                gap:          '6px',
+              }}
+            >
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: online ? '#34d399' : '#fca5a5' }} />
+              {synkronoidaan ? 'Synkronoidaan…'
+                : online ? `Online${jonoa > 0 ? ` · ${jonoa} jonossa` : ''}`
+                : `Offline${jonoa > 0 ? ` · ${jonoa} jonossa` : ''}`}
+            </span>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              style={{ fontSize: '12px', padding: '6px 12px', minHeight: '32px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.35)', background: 'transparent', cursor: 'pointer', color: 'white' }}
+            >
+              Kirjaudu ulos
+            </button>
+          </div>
         </div>
+        {synkViesti && (
+          <div className="max-w-5xl mx-auto" style={{ marginTop: '6px', fontSize: '12px', color: '#a7f3d0' }}>
+            {synkViesti}
+          </div>
+        )}
       </header>
 
       {/* YLÄNAVIGAATIO */}
@@ -318,7 +385,8 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => setVahvistusAuki(true)}
-                  disabled={kaynnistetaan}
+                  disabled={kaynnistetaan || !online}
+                  title={!online ? 'Uuden käynnin aloitus vaatii verkkoyhteyden' : ''}
                   style={{
                     width:        '100%',
                     minHeight:    '52px',
@@ -331,12 +399,14 @@ export default function App() {
                     fontSize:     '15px',
                     fontWeight:   700,
                     letterSpacing: '0.03em',
-                    cursor:       kaynnistetaan ? 'wait' : 'pointer',
-                    opacity:      kaynnistetaan ? 0.7 : 1,
+                    cursor:       kaynnistetaan || !online ? 'not-allowed' : 'pointer',
+                    opacity:      kaynnistetaan || !online ? 0.5 : 1,
                     boxShadow:    '0 1px 3px rgba(29, 158, 117, 0.25)',
                   }}
                 >
-                  {kaynnistetaan ? 'Aloitetaan uutta käyntiä…' : '+ Uusi käynti'}
+                  {!online ? '🛜 + Uusi käynti (vaatii verkon)'
+                    : kaynnistetaan ? 'Aloitetaan uutta käyntiä…'
+                    : '+ Uusi käynti'}
                 </button>
                 <AsiakaslomakeRenderoijalla
                   key={`${asiakas.id}:${kayntiAvain}`}

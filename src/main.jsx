@@ -16,3 +16,15 @@ createRoot(document.getElementById('root')).render(
     </BrowserRouter>
   </StrictMode>,
 )
+
+// Pala B9b — Service Worker: cachetä app-shelli jotta Hoitokirjaus
+// avautuu offline. Network-first → online tilassa aina tuore versio,
+// offline tilassa fallback cacheen. Vain prod-buildissa (devissä
+// Vite hoitaa hot reloadin itse).
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/service-worker.js').catch((e) => {
+      console.warn('Service Worker -rekisteröinti epäonnistui:', e)
+    })
+  })
+}

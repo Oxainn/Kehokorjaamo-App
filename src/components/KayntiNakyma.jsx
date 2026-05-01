@@ -4,6 +4,7 @@
 // silloisesta tilasta. Ei muokkausmahdollisuutta.
 
 import { useEffect, useState } from 'react'
+import { useOnline } from '../hooks/useOnline'
 import {
   haeLomakeversio,
   haeHoitokayntiVersionPerusteella,
@@ -122,6 +123,8 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
   const [lataa, setLataa] = useState(true)
   const [virhe, setVirhe] = useState(null)
   const [tulostetaan, setTulostetaan] = useState(false)
+  // Pala B9b — PDF tarvitsee tuoreet B-lomakkeen tiedot serveriltä
+  const online = useOnline()
 
   async function tulosta() {
     if (!data.versio) return
@@ -318,22 +321,26 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
               <button
                 type="button"
                 onClick={tulosta}
-                disabled={tulostetaan}
+                disabled={tulostetaan || !online}
+                title={!online ? 'PDF-tulostus vaatii verkkoyhteyden' : ''}
                 style={{
                   width:        '100%',
                   padding:      '12px 16px',
                   marginTop:    '4px',
+                  minHeight:    '44px',
                   borderRadius: '10px',
                   border:       '1px solid #e2e8f0',
                   background:   'white',
                   color:        '#374151',
                   fontSize:     '14px',
                   fontWeight:   500,
-                  cursor:       tulostetaan ? 'wait' : 'pointer',
-                  opacity:      tulostetaan ? 0.7 : 1,
+                  cursor:       !online ? 'not-allowed' : tulostetaan ? 'wait' : 'pointer',
+                  opacity:      !online || tulostetaan ? 0.6 : 1,
                 }}
               >
-                {tulostetaan ? 'Luodaan PDF…' : '📄 Tulosta hoitokertomus'}
+                {!online ? '🛜 Tulosta hoitokertomus (vaatii verkon)'
+                  : tulostetaan ? 'Luodaan PDF…'
+                  : '📄 Tulosta hoitokertomus'}
               </button>
 
               {/* Meta */}

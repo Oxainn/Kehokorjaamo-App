@@ -1,0 +1,11 @@
+{
+  "name":              "Kehokorjaamo",
+  "short_name":        "Kehokorjaamo",
+  "description":       "Hoitohuoneen hallintatyokalu — kalevalainen jasenkorjaus",
+  "lang":              "fi",
+  "start_url":         "/",
+  "display":           "standalone",
+  "orientation":       "portrait-primary",
+  "background_color":  "#ffffff",
+  "theme_color":       "#1D9E75"
+}
