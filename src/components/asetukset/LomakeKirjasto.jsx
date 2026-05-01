@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../services/supabase'
+import { muotoilePvm } from '../../lib/muotoilu'
 import LomakepohjaEditori from './LomakepohjaEditori'
 
 const NAYTTOTYYLIT = {
@@ -8,11 +9,6 @@ const NAYTTOTYYLIT = {
   accordion: 'Accordion-tyyli, klikkaus avaa',
 }
 
-function formattiPvm(iso) {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return `${d.getDate()}.${d.getMonth() + 1}.${d.getFullYear()}`
-}
 
 // ── PohjaKortti ───────────────────────────────────────────────────────────────
 // Valikkotila ja uudelleennimeäminen hallitaan komponenttipaikallisesti, jotta
@@ -159,7 +155,7 @@ function PohjaKortti({ pohja, onRefresh, onAvaa, onKopioi, onAsetaOletus, onPois
 
       {/* Meta */}
       <p className="text-xs text-gray-400">
-        {pohja.aktiivinen ? 'Aktiivinen' : 'Ei aktiivinen'} · Päivitetty {formattiPvm(pohja.paivitetty || pohja.luotu)}
+        {pohja.aktiivinen ? 'Aktiivinen' : 'Ei aktiivinen'} · Päivitetty {muotoilePvm(pohja.paivitetty || pohja.luotu, '—')}
       </p>
 
       {/* Toimintonapit */}

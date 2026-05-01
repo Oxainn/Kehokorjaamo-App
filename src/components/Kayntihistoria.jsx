@@ -8,6 +8,7 @@
 
 import { useState, useEffect } from 'react'
 import { haeKayntienPaivamaarat } from '../lib/db'
+import { muotoilePvm } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
 
 const containerTyyli = {
@@ -53,14 +54,6 @@ const avaaNappiTyyli = {
   cursor:       'pointer',
 }
 
-function muotoilePvm(iso) {
-  if (!iso) return '—'
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('fi-FI')
-  } catch { return iso }
-}
-
 export default function Kayntihistoria({ asiakas }) {
   const asiakasId = asiakas?.id ?? asiakas?.supabase_id ?? null
   const [kaynnit, setKaynnit] = useState([])
@@ -93,7 +86,7 @@ export default function Kayntihistoria({ asiakas }) {
           {kaynnit.map((k) => (
             <li key={k.id}>
               <div style={riviTyyli}>
-                <span>{muotoilePvm(k.voimassa_alkaen)}</span>
+                <span>{muotoilePvm(k.voimassa_alkaen, '—')}</span>
                 <button
                   type="button"
                   onClick={() => setAvoinId(k.id)}

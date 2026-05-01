@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 import { haeKayntienPaivamaarat } from '../lib/db'
+import { muotoilePvm } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
 
 // Asiakasrekisteri jakautuu kahteen osioon:
@@ -61,9 +62,6 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
 
   const uudet         = asiakkaat.filter((a) => a.vahvistettu === false && haetMatchaa(a))
   const vahvistetut   = asiakkaat.filter((a) => a.vahvistettu !== false && haetMatchaa(a))
-
-  const muotoilePvm = (iso) =>
-    iso ? new Date(iso).toLocaleDateString('fi-FI') : null
 
   const avatarKirjain = (nimi) =>
     nimi?.trim()?.[0]?.toUpperCase() ?? '?'

@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react'
 import { haeLomakeversio } from '../lib/db'
+import { muotoilePvm, muotoilePvmAika } from '../lib/muotoilu'
 
 const overlayTyyli = {
   position:   'fixed',
@@ -105,22 +106,6 @@ function Rivi({ label, arvo }) {
       </span>
     </div>
   )
-}
-
-function muotoilePvm(iso) {
-  if (!iso) return null
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('fi-FI')
-  } catch { return iso }
-}
-
-function muotoilePvmAika(iso) {
-  if (!iso) return null
-  try {
-    const d = new Date(iso)
-    return d.toLocaleString('fi-FI')
-  } catch { return iso }
 }
 
 export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {

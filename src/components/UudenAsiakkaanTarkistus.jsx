@@ -12,6 +12,7 @@
 
 import { useState, useEffect } from 'react'
 import { haeAsiakkaanViimeisinLomake, vahvistaAsiakas } from '../lib/db'
+import { muotoilePvm, muotoilePvmAika } from '../lib/muotoilu'
 
 const ilmoitusTyyli = (sävy) => ({
   background:   sävy === 'tieto' ? '#eff6ff' : sävy === 'onnistui' ? '#ecfdf5' : '#fef2f2',
@@ -81,15 +82,6 @@ function Rivi({ label, arvo }) {
   )
 }
 
-function muotoilePvm(iso) {
-  if (!iso) return null
-  try { return new Date(iso).toLocaleString('fi-FI') } catch { return iso }
-}
-
-function muotoileSyntyma(iso) {
-  if (!iso) return null
-  try { return new Date(iso).toLocaleDateString('fi-FI') } catch { return iso }
-}
 
 export default function UudenAsiakkaanTarkistus({ asiakas, onValmis }) {
   const [lomake,  setLomake]  = useState({ versio: null, sairaudet: [] })
@@ -204,7 +196,7 @@ export default function UudenAsiakkaanTarkistus({ asiakas, onValmis }) {
         <Rivi label="Nimi"          arvo={asiakas?.nimi} />
         <Rivi label="Sähköposti"    arvo={asiakas?.sahkoposti} />
         <Rivi label="Puhelin"       arvo={asiakas?.puhelin} />
-        <Rivi label="Syntymäaika"   arvo={muotoileSyntyma(asiakas?.syntymaaika)} />
+        <Rivi label="Syntymäaika"   arvo={muotoilePvm(asiakas?.syntymaaika)} />
         <Rivi label="Osoite"        arvo={[
           asiakas?.lahiosoite,
           [asiakas?.postinumero, asiakas?.postitoimipaikka].filter(Boolean).join(' '),
@@ -280,7 +272,7 @@ export default function UudenAsiakkaanTarkistus({ asiakas, onValmis }) {
       {/* Meta */}
       {v?.luotu && (
         <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'right', margin: 0 }}>
-          Lomake täytetty: {muotoilePvm(v.luotu)}
+          Lomake täytetty: {muotoilePvmAika(v.luotu)}
           {v.muokkaaja_rooli && ` · ${v.muokkaaja_rooli}`}
         </p>
       )}
