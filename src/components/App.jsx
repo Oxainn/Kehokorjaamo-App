@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../services/supabase'
 import { normalisoiAsiakas } from '../utils/asiakas'
+import { haeUusienAsiakkaidenMaara } from '../lib/db'
 import Login from './Login'
 import Settings from './Settings'
 import Asiakasrekisteri from './Asiakasrekisteri'
@@ -21,6 +22,10 @@ export default function App() {
   const [asiakas, setAsiakas]     = useState(null)
   const [kayttaja, setKayttaja]   = useState(null)
   const [lataaAuth, setLataaAuth] = useState(true)
+  // Vahvistamattomien asiakkaiden määrä — näytetään ylävalikon Asiakasrekisteri-
+  // napin badge:ssa. Päivitetään pollauksella 30 s välein + aina kun
+  // näkymä palaa rekisteriin (jolloin Tallenna asiakas -klikkaus heijastuu heti).
+  const [uusienMaara, setUusienMaara] = useState(0)
 
   // Julkinen lomakenäkymä: ?palvelu=ID URL-parametri ohittaa kirjautumisen
   const julkinenPalveluId = useMemo(() => {
@@ -61,6 +66,22 @@ export default function App() {
   }, [])
 
   const hoitajaId = kayttaja?.id
+
+  // Pollaa uusien asiakkaiden määrä 30 s välein + heti kun näkymä vaihtuu
+  // rekisteriin (esim. "Tallenna asiakas" -klikkauksen jälkeen).
+  useEffect(() => {
+    if (!hoitajaId) { setUusienMaara(0); return }
+
+    let peruttu = false
+    const paivita = async () => {
+      const maara = await haeUusienAsiakkaidenMaara(hoitajaId)
+      if (!peruttu) setUusienMaara(maara)
+    }
+
+    paivita()
+    const intervalli = setInterval(paivita, 30_000)
+    return () => { peruttu = true; clearInterval(intervalli) }
+  }, [hoitajaId, nakyma])
 
   const onYlaNav = (id) => {
     if (id === 'uusi-kaynti') {
@@ -123,31 +144,58 @@ export default function App() {
       {/* YLÄNAVIGAATIO */}
       <nav style={{ background: 'white', borderBottom: '2px solid #e2e8f0', padding: '10px 16px' }}>
         <div className="max-w-5xl mx-auto" style={{ display: 'flex', gap: '8px' }}>
-          {ylaNav.map(({ id, nimi, ikoni }) => (
-            <button
-              key={id}
-              onClick={() => onYlaNav(id)}
-              style={{
-                flex: 1,
-                padding: '10px 6px',
-                borderRadius: '10px',
-                border: `2px solid ${aktiivisenYlaNav === id ? '#1D9E75' : '#e2e8f0'}`,
-                background: aktiivisenYlaNav === id ? '#E1F5EE' : 'white',
-                color: aktiivisenYlaNav === id ? '#085041' : '#374151',
-                fontSize: '12px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '4px',
-                transition: 'all 0.15s',
-              }}
-            >
-              <span style={{ fontSize: '18px', lineHeight: 1 }}>{ikoni}</span>
-              <span>{nimi}</span>
-            </button>
-          ))}
+          {ylaNav.map(({ id, nimi, ikoni }) => {
+            const naytaBadge = id === 'rekisteri' && uusienMaara > 0
+            return (
+              <button
+                key={id}
+                onClick={() => onYlaNav(id)}
+                style={{
+                  flex: 1,
+                  padding: '10px 6px',
+                  borderRadius: '10px',
+                  border: `2px solid ${aktiivisenYlaNav === id ? '#1D9E75' : '#e2e8f0'}`,
+                  background: aktiivisenYlaNav === id ? '#E1F5EE' : 'white',
+                  color: aktiivisenYlaNav === id ? '#085041' : '#374151',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s',
+                  position: 'relative',
+                }}
+                aria-label={naytaBadge ? `${nimi} (${uusienMaara} uutta)` : nimi}
+              >
+                <span style={{ fontSize: '18px', lineHeight: 1 }}>{ikoni}</span>
+                <span>
+                  {nimi}
+                  {naytaBadge && (
+                    <span style={{
+                      marginLeft:    '6px',
+                      display:       'inline-flex',
+                      alignItems:    'center',
+                      justifyContent: 'center',
+                      minWidth:      '20px',
+                      height:        '20px',
+                      padding:       '0 6px',
+                      borderRadius:  '10px',
+                      background:    '#f59e0b',
+                      color:         'white',
+                      fontSize:      '11px',
+                      fontWeight:    700,
+                      lineHeight:    1,
+                      verticalAlign: 'middle',
+                    }}>
+                      {uusienMaara}
+                    </span>
+                  )}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </nav>
 
