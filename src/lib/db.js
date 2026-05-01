@@ -1,3 +1,19 @@
+// Kehokorjaamo-App — tietokantakerros (Supabase JS-client)
+//
+// Lomake-terminologia:
+//   A-lomake = asiakastietolomake_versiot (asiakkaan täyttämä esitietolomake)
+//             Yksi voimassa oleva versio per asiakas (voimassa_asti IS NULL),
+//             historia voimassa_asti-aikaleimalla.
+//   B-lomake = hoitokaynnit (hoitajan täyttämä havaintolomake)
+//             Yksi rivi per käynti. Tilat: 'odottaa_kayntia' (tyhjä, asiakas
+//             vahvistettu mutta käynti ei vielä pidetty), 'luonnos' (käynnissä,
+//             "+ Uusi käynti" avasi sen), 'valmis' (hoitokirjaus tallennettu).
+//
+// "+ Uusi käynti" -toiminto: sulkee A-lomakkeen aktiivisen version, kopioi
+// sen sisällön uuteen avoimeen versioon (jatkohoitoa varten), ja päivittää
+// asiakkaan tyhjää B-lomaketta luonnos-tilaan. Jos tyhjää B-lomaketta ei
+// ole (toinen tai myöhempi käynti), uusi B-lomake luodaan.
+
 import { supabase } from './supabase'
 import { jaaVastaukset } from './lomakeTallennus'
 
@@ -294,34 +310,68 @@ export const aloitaUusiKaynti = async (asiakasId) => {
     }
   }
 
-  // 6. Luo hoitokaynnit-rivi joka snapshotsoi juuri suljetun lomakeversion.
-  // Snapshot-malli: hoitokerta osoittaa siihen versioon joka oli voimassa
-  // hoidon alkaessa, ei uuteen avoimeen versioon.
-  const { data: hoitokaynti, error: hoitokayntiVirhe } = await supabase
+  // 6. Käytä olemassa olevaa tyhjää B-lomaketta jos sellainen on
+  // (asiakkaan vahvistuksessa luotu odottaa_kayntia-rivi). Muuten luo uusi.
+  // Snapshot-malli: hoitokerta osoittaa siihen A-lomakkeen versioon joka
+  // oli voimassa hoidon alkaessa (juuri suljettu), ei uuteen avoimeen.
+  const bLomakePaivitys = {
+    lomake_versio_id: avoin.id,   // A-lomake (asiakastietolomake_versiot)
+    pvm:              nyt,
+    tila:             'luonnos',
+  }
+
+  const { data: tyhjaBLomake } = await supabase
     .from('hoitokaynnit')
-    .insert({
-      asiakas_id:       asiakasId,
-      hoitaja_id:       user.id,
-      lomake_versio_id: avoin.id,   // suljettu versio = käynnin alkutilanne
-      pvm:              nyt,
-      tila:             'luonnos',
-    })
     .select('id')
-    .single()
-  if (hoitokayntiVirhe) {
-    console.warn('Hoitokaynnit-rivin luonti epäonnistui:', hoitokayntiVirhe)
-    // Älä kaada toimintoa — lomake on jo aloitettu, hoitokirjaus voidaan tehdä myöhemmin
-    return {
-      lomakeVersioId: uusi.id,
-      hoitokayntiId:  null,
-      virhe:          null,
-      varoitus:       `Uusi käynti aloitettu mutta hoitokirjaus-riviä ei luotu: ${hoitokayntiVirhe.message}`,
+    .eq('asiakas_id', asiakasId)
+    .eq('tila', 'odottaa_kayntia')
+    .order('luotu', { ascending: true })
+    .limit(1)
+    .maybeSingle()
+
+  let bLomakeId = null
+  if (tyhjaBLomake) {
+    // Päivitä tyhjä B-lomake "luonnos"-tilaan — tämä on asiakkaan ensimmäinen käynti
+    const { error: paivitysVirhe } = await supabase
+      .from('hoitokaynnit')
+      .update(bLomakePaivitys)
+      .eq('id', tyhjaBLomake.id)
+    if (paivitysVirhe) {
+      console.warn('Tyhjän B-lomakkeen päivitys epäonnistui:', paivitysVirhe)
+      return {
+        lomakeVersioId: uusi.id,
+        hoitokayntiId:  null,
+        virhe:          null,
+        varoitus:       `Uusi käynti aloitettu mutta B-lomakkeen päivitys epäonnistui: ${paivitysVirhe.message}`,
+      }
     }
+    bLomakeId = tyhjaBLomake.id
+  } else {
+    // Luo uusi B-lomake — toinen tai myöhempi käynti
+    const { data: hoitokaynti, error: hoitokayntiVirhe } = await supabase
+      .from('hoitokaynnit')
+      .insert({
+        asiakas_id: asiakasId,
+        hoitaja_id: user.id,
+        ...bLomakePaivitys,
+      })
+      .select('id')
+      .single()
+    if (hoitokayntiVirhe) {
+      console.warn('Hoitokaynnit-rivin luonti epäonnistui:', hoitokayntiVirhe)
+      return {
+        lomakeVersioId: uusi.id,
+        hoitokayntiId:  null,
+        virhe:          null,
+        varoitus:       `Uusi käynti aloitettu mutta B-lomaketta ei luotu: ${hoitokayntiVirhe.message}`,
+      }
+    }
+    bLomakeId = hoitokaynti.id
   }
 
   return {
     lomakeVersioId: uusi.id,
-    hoitokayntiId:  hoitokaynti.id,
+    hoitokayntiId:  bLomakeId,
     virhe:          null,
   }
 }
@@ -447,16 +497,53 @@ export const haeArkistoidunMaara = async (hoitajaId) => {
 
 // Vahvistaa julkisen lomakkeen kautta tulleen asiakkaan — siirtää hänet
 // Asiakasrekisterin "Uudet asiakkaat" -osiosta normaaliin asiakaslistaan.
+//
+// A/B-lomakkeen kytkös: tässä luodaan myös tyhjä B-lomake (hoitokaynnit)
+// joka odottaa ensimmäistä hoitokertaa. tila='odottaa_kayntia', pvm=NULL.
+// Kun hoitaja klikkaa "+ Uusi käynti", aloitaUusiKaynti käyttää tämän
+// tyhjän rivin uudelleen sen sijaan että loisi uuden.
 export const vahvistaAsiakas = async (asiakasId) => {
-  const { error } = await supabase
+  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
+  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
+
+  // 1. Merkitse asiakas vahvistetuksi
+  const { error: vahvistusVirhe } = await supabase
     .from('asiakkaat')
     .update({ vahvistettu: true, paivitetty: new Date().toISOString() })
     .eq('id', asiakasId)
-
-  if (error) {
-    console.error('Asiakkaan vahvistus epäonnistui:', error)
-    return { virhe: error.message }
+  if (vahvistusVirhe) {
+    console.error('Asiakkaan vahvistus epäonnistui:', vahvistusVirhe)
+    return { virhe: vahvistusVirhe.message }
   }
+
+  // 2. Luo tyhjä B-lomake (hoitokaynnit) ensimmäistä käyntiä odottamaan.
+  // Älä luo useampaa: jos asiakkaalle on jo aiempi odottaa_kayntia-rivi,
+  // jätetään se.
+  const { data: olemassa } = await supabase
+    .from('hoitokaynnit')
+    .select('id')
+    .eq('asiakas_id', asiakasId)
+    .eq('tila', 'odottaa_kayntia')
+    .limit(1)
+    .maybeSingle()
+
+  if (!olemassa) {
+    const { error: bLomakeVirhe } = await supabase
+      .from('hoitokaynnit')
+      .insert({
+        asiakas_id: asiakasId,
+        hoitaja_id: user.id,
+        tila:       'odottaa_kayntia',
+        // pvm jätetään NULLiksi — käynti ei vielä pidetty
+      })
+    if (bLomakeVirhe) {
+      // Älä kaada vahvistusta — tyhjän B-lomakkeen luonti voi epäonnistua
+      // (esim. RLS), mutta vahvistus itse on jo onnistunut. aloitaUusiKaynti
+      // luo uuden tarvittaessa.
+      console.warn('Tyhjän B-lomakkeen luonti epäonnistui:', bLomakeVirhe)
+    }
+  }
+
   return { virhe: null }
 }
 

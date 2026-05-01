@@ -1,8 +1,10 @@
-// Vaihe B — Pala B1: Hoitokirjaus-näkymän pohja
+// Vaihe B — Pala B1: Hoitokirjaus-näkymän pohja (B-lomakkeen täyttö)
 //
 // Avautuu kun "+ Uusi käynti" suoritettiin (App.jsx setNakyma 'hoitokirjaus').
-// hoitokayntiId: id juuri luodusta hoitokaynnit-rivistä joka snapshotsoi
-// asiakkaan tiedot käynnin alkaessa.
+// hoitokayntiId: id B-lomakkeesta (hoitokaynnit-rivistä) joka aiemmin
+// luotiin tyhjänä asiakkaan vahvistuksen yhteydessä, tai juuri luotu
+// uudelle hoitokerralle. B-lomake on linkattu A-lomakkeen (asiakastieto-
+// lomake_versiot) suljettuun versioon snapshot-malliksi.
 //
 // Tähän palaan kuuluu vain perustiedot:
 //   - Otsikko (sama 50 merkin rajoitus kuin lomakeversion otsikolla)
