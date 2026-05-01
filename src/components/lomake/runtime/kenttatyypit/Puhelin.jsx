@@ -18,7 +18,8 @@ const muotoilePuhelin = (arvo) => {
   const n = t.replace(/\D/g, '')
   if (n.length <= 3) return n
   if (n.length <= 6) return `${n.slice(0, 3)} ${n.slice(3)}`
-  return `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6, 10)}`
+  // Säilytä kaikki numerot — pitkät numerot (ulkomaiset, alanumerot) eivät saa kadota
+  return `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`
 }
 
 export default function Puhelin({ kentta, arvo, virhe, onMuutos }) {
