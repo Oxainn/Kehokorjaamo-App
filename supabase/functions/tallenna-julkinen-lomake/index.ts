@@ -161,10 +161,12 @@ Deno.serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    // Hae palvelu — sen hoitaja_id on tämän tallennuksen auktoritäärinen omistaja
+    // Hae palvelu — sen hoitaja_id on tämän tallennuksen auktoritäärinen omistaja.
+    // Joinin kautta saadaan myös palveluun liitetty lomakepohja_id, jota
+    // käytetään pakollisten kenttien tarkistukseen alla.
     const { data: palvelu, error: palveluVirhe } = await supabase
       .from("palvelut")
-      .select("id, hoitaja_id, aktiivinen")
+      .select("id, hoitaja_id, aktiivinen, lomakepohja_id")
       .eq("id", palveluId)
       .single()
 
@@ -176,6 +178,42 @@ Deno.serve(async (req: Request) => {
     }
 
     const hoitajaId = palvelu.hoitaja_id  // luotettava lähde
+
+    // Backend-pakollisuusvalidointi (M2): lue palveluun liitetty pohja ja
+    // varmista että vastaukset sisältää kaikki pakolliset kentät ei-tyhjillä
+    // arvoilla. Frontend tekee saman, mutta suora API-kutsu (esim. curl) voi
+    // ohittaa client-tarkistukset.
+    if (palvelu.lomakepohja_id) {
+      const { data: pohjaversio } = await supabase
+        .from("lomakepohja_versiot")
+        .select("rakenne")
+        .eq("pohja_id", palvelu.lomakepohja_id)
+        .eq("aktiivinen", true)
+        .order("versio", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const puuttuvat: string[] = []
+      const osiot = (pohjaversio?.rakenne?.osiot ?? []) as Array<{
+        kenttat?: Array<{ kentta_id_tunniste: string; pakollinen?: boolean }>
+      }>
+      for (const osio of osiot) {
+        for (const kf of (osio.kenttat ?? [])) {
+          if (kf.pakollinen !== true) continue
+          const arvo = (vastaukset as Record<string, unknown>)?.[kf.kentta_id_tunniste]
+          const tyhja = arvo === null || arvo === undefined ||
+                        (typeof arvo === "string" && arvo.trim() === "") ||
+                        (Array.isArray(arvo) && arvo.length === 0)
+          if (tyhja) puuttuvat.push(kf.kentta_id_tunniste)
+        }
+      }
+      if (puuttuvat.length > 0) {
+        return jsonResponse({
+          virhe:     "Pakollisia kenttiä puuttuu",
+          puuttuvat,
+        }, 400)
+      }
+    }
 
     const jaettu = jaaVastaukset(vastaukset)
 
