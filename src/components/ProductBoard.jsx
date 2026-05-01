@@ -28,6 +28,16 @@ const PRIORITEETIT = [
   { id: 'matala', label: 'Matala', ikoni: '🟢', kehys: 'border-green-200',  bg: 'bg-green-50',  teksti: 'text-green-700'  },
 ]
 
+// Fallback-priori jos rivin prioriteetti-arvo on tuntematon (esim
+// vanhojen rivien 'keskitaso', 'medium', tai puuttuva). Estää crashin
+// kun .bg/.teksti luetaan undefinedista.
+const TUNTEMATON_PRIORI = { id: '?', label: 'Muu', ikoni: '⚪', kehys: 'border-gray-200', bg: 'bg-gray-50', teksti: 'text-gray-600' }
+const ALIAS = { keskitaso: 'keski', medium: 'keski', high: 'korkea', low: 'matala' }
+function loydaPriori(id) {
+  const k = ALIAS[id] ?? id
+  return PRIORITEETIT.find((p) => p.id === k) ?? TUNTEMATON_PRIORI
+}
+
 const OLETUS_TEHTÄVÄT = [
   { id: 'rm-v1b', teksti: 'Vaihe 1: Osio 3 — Hoitoon tulon syy (pakollinen tekstikenttä, apukysymykset, kipuasteikko 0–10 värikoodattuna)', prioriteetti: 'korkea', lisätty: '2026-04-28T00:00:00.000Z' },
   { id: 'rm-v1c', teksti: 'Vaihe 1: Osio 4 — Kehonkartta (vapaa piirtäminen sormella, hybridi-tallennus: kuva + vyöhyke-JSON, nainen/mies-valinta)', prioriteetti: 'korkea', lisätty: '2026-04-28T00:00:00.000Z' },
@@ -366,8 +376,9 @@ Projektin konteksti:
 
   // ── Sorted views ─────────────────────────────────────────────────────────
   const prioJärjestys = { korkea: 0, keski: 1, matala: 2 }
+  const prioArvo = (p) => prioJärjestys[ALIAS[p] ?? p] ?? 99
   const järjestetytTehtävät  = [...pb.tehtävät].sort(
-    (a, b) => prioJärjestys[a.prioriteetti] - prioJärjestys[b.prioriteetti]
+    (a, b) => prioArvo(a.prioriteetti) - prioArvo(b.prioriteetti)
   )
   const järjestettyChangelog = [...pb.changelog].sort(
     (a, b) => new Date(b.valmistunut) - new Date(a.valmistunut)
@@ -547,7 +558,7 @@ Projektin konteksti:
             ) : (
               <ul className="flex flex-col gap-2">
                 {järjestetytTehtävät.map(t => {
-                  const p = PRIORITEETIT.find(x => x.id === t.prioriteetti)
+                  const p = loydaPriori(t.prioriteetti)
                   return (
                     <li
                       key={t.id}
