@@ -229,17 +229,42 @@ export default function App() {
               </span>
             </div>
             {asiakas.vahvistettu === false ? (
-              // Vahvistamaton asiakas → tarkistusnäkymä joka EI muokkaa lomakeversiota
+              // Vahvistamaton asiakas → tarkistusnäkymä joka EI muokkaa lomakeversiota.
+              // "Tallenna asiakas" -nappi on tarkistusnäkymässä sisällä.
               <UudenAsiakkaanTarkistus
                 asiakas={asiakas}
                 onValmis={() => setNakyma('rekisteri')}
               />
             ) : (
-              // Vahvistettu asiakas → normaali hoitokerran lomake (luo uuden version)
-              <AsiakaslomakeRenderoijalla
-                asiakas={asiakas}
-                onValmis={() => setNakyma('rekisteri')}
-              />
+              // Vahvistettu asiakas → "+ Uusi käynti" -toimintonappi yläreunassa
+              // sekä lomakerenderöijä jolla muokataan asiakkaan ainoaa lomaketta.
+              <>
+                <button
+                  type="button"
+                  onClick={() => alert('Tulossa: uusi käynti -toiminto')}
+                  style={{
+                    width:        '100%',
+                    minHeight:    '52px',
+                    marginBottom: '16px',
+                    padding:      '14px',
+                    borderRadius: '12px',
+                    border:       'none',
+                    background:   '#1D9E75',
+                    color:        'white',
+                    fontSize:     '15px',
+                    fontWeight:   700,
+                    letterSpacing: '0.03em',
+                    cursor:       'pointer',
+                    boxShadow:    '0 1px 3px rgba(29, 158, 117, 0.25)',
+                  }}
+                >
+                  + Uusi käynti
+                </button>
+                <AsiakaslomakeRenderoijalla
+                  asiakas={asiakas}
+                  onValmis={() => setNakyma('rekisteri')}
+                />
+              </>
             )}
           </div>
         )}
