@@ -178,15 +178,22 @@ Deno.serve(async (req: Request) => {
     }
 
     if (asiakasId) {
+      // Päivitä olemassa olevan asiakkaan tiedot. ÄLÄ koske vahvistettu-
+      // kenttään: jos hoitaja on jo vahvistanut tämän asiakkaan, hänen
+      // pitää pysyä vahvistetuissa vaikka asiakas täyttäisi lomakkeen
+      // uudestaan (esim. jatkohoito).
       const { error: paivitysVirhe } = await supabase
         .from("asiakkaat")
         .update({ ...jaettu.asiakas, paivitetty: new Date().toISOString() })
         .eq("id", asiakasId)
       if (paivitysVirhe) throw paivitysVirhe
     } else {
+      // Uusi asiakas julkisen lomakkeen kautta — odottaa hoitajan vahvistusta.
+      // Hoitaja näkee tämän "Uudet asiakkaat" -osiossa Asiakasrekisterissä
+      // ja painaa "Tallenna asiakas" -nappia kun on tarkistanut tiedot.
       const { data: uusi, error: luontiVirhe } = await supabase
         .from("asiakkaat")
-        .insert({ ...jaettu.asiakas, hoitaja_id: hoitajaId })
+        .insert({ ...jaettu.asiakas, hoitaja_id: hoitajaId, vahvistettu: false })
         .select("id")
         .single()
       if (luontiVirhe) throw luontiVirhe
