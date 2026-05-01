@@ -5,8 +5,7 @@
 //
 // Pyynnön muoto:
 //   {
-//     hoitajaId: uuid (pakollinen),
-//     palveluId: uuid | null,
+//     palveluId: uuid (pakollinen),
 //     vastaukset: { [kentta_id_tunniste]: arvo }
 //   }
 //
@@ -16,8 +15,10 @@
 // Turvallisuus:
 //   - Service_role-avain on vain tämän funktion ympäristössä, ei selaimessa
 //   - verify_jwt = false koska asiakas ei ole kirjautunut
-//   - Validoi että palvelu kuuluu annetulle hoitajalle (ei voi tallentaa
-//     mielivaltaiseen hoitaja-tiliin ilman palvelu-yhteyttä)
+//   - hoitaja_id luetaan AINA palvelusta DB:stä — hyökkääjä ei voi spämmiä
+//     mielivaltaisen hoitajan asiakaslistaa pelkällä UUID:llä, koska
+//     palveluId on pakollinen ja palvelun hoitaja_id on auktoritäärinen.
+//   - Palvelun pitää olla aktiivinen, muuten pyyntö hylätään
 //   - Asiakkaan sähköpostin perusteella upsert: päivittää saman hoitajan
 //     olemassa olevia asiakkaita, tai luo uuden
 
@@ -126,9 +127,13 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json()
-    const { hoitajaId, palveluId, vastaukset } = body ?? {}
+    const { palveluId, vastaukset } = body ?? {}
 
-    if (!hoitajaId)  return jsonResponse({ virhe: "hoitajaId puuttuu" }, 400)
+    // palveluId on PAKOLLINEN. hoitaja_id luetaan palvelusta — pyyntö ei
+    // saa kertoa hoitaja-id:tä. Aiempi rajapinta hyväksyi pelkän
+    // hoitajaId-kentän ilman palveluId:tä, jolloin kuka tahansa joka
+    // tunsi hoitajan UUID:n saattoi spämmiä asiakaslistaa.
+    if (!palveluId)  return jsonResponse({ virhe: "palveluId puuttuu" }, 400)
     if (!vastaukset) return jsonResponse({ virhe: "vastaukset puuttuu" }, 400)
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")
@@ -140,26 +145,21 @@ Deno.serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    // Validointi: jos palveluId annettu, sen pitää kuulua tälle hoitajalle.
-    // Tämä estää mielivaltaisen hoitajan tilille tallentamisen ilman
-    // legitiimiä palvelu-pohjaa.
-    if (palveluId) {
-      const { data: palvelu, error: palveluVirhe } = await supabase
-        .from("palvelut")
-        .select("id, hoitaja_id, aktiivinen")
-        .eq("id", palveluId)
-        .single()
+    // Hae palvelu — sen hoitaja_id on tämän tallennuksen auktoritäärinen omistaja
+    const { data: palvelu, error: palveluVirhe } = await supabase
+      .from("palvelut")
+      .select("id, hoitaja_id, aktiivinen")
+      .eq("id", palveluId)
+      .single()
 
-      if (palveluVirhe || !palvelu) {
-        return jsonResponse({ virhe: "Palvelua ei löydy" }, 404)
-      }
-      if (palvelu.hoitaja_id !== hoitajaId) {
-        return jsonResponse({ virhe: "Palvelu ei kuulu annetulle hoitajalle" }, 403)
-      }
-      if (!palvelu.aktiivinen) {
-        return jsonResponse({ virhe: "Palvelu ei ole aktiivinen" }, 400)
-      }
+    if (palveluVirhe || !palvelu) {
+      return jsonResponse({ virhe: "Palvelua ei löydy" }, 404)
     }
+    if (!palvelu.aktiivinen) {
+      return jsonResponse({ virhe: "Palvelu ei ole aktiivinen" }, 400)
+    }
+
+    const hoitajaId = palvelu.hoitaja_id  // luotettava lähde
 
     const jaettu = jaaVastaukset(vastaukset)
 

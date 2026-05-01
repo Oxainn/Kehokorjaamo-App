@@ -131,7 +131,6 @@ export default function JulkinenLomake({ palveluId }) {
             'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({
-            hoitajaId:  palvelu.hoitaja_id,
             palveluId:  palvelu.id,
             vastaukset: arvot,
           }),
