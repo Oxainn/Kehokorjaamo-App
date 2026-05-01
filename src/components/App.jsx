@@ -72,17 +72,18 @@ export default function App() {
   // (esitäytön uudelleenladauksen) kun "Uusi käynti" suljetaan ja avataan.
   const [kayntiAvain, setKayntiAvain] = useState(0)
   const [kaynnistetaan, setKaynnistetaan] = useState(false)
+  // Oma in-app vahvistusmodaali — selaimen window.confirm korvattu
+  // jotta tyyli on yhtenäinen muun sovelluksen kanssa ja Esc-näppäin
+  // toimii loogisesti.
+  const [vahvistusAuki, setVahvistusAuki] = useState(false)
 
-  async function kaynnistaUusiKaynti() {
-    if (!asiakas?.id) return
+  async function vahvistaUusiKaynti() {
+    if (!asiakas?.id) { setVahvistusAuki(false); return }
     if (kaynnistetaan) return
-    const ok = window.confirm(
-      'Aloita uusi käynti? Nykyinen lomake lukittuu käyntihistoriaan eikä sitä voi enää muokata.'
-    )
-    if (!ok) return
     setKaynnistetaan(true)
     const tulos = await aloitaUusiKaynti(asiakas.id)
     setKaynnistetaan(false)
+    setVahvistusAuki(false)
     if (tulos.virhe) {
       alert('Uuden käynnin aloitus epäonnistui: ' + tulos.virhe)
       return
@@ -93,6 +94,14 @@ export default function App() {
     // Pakota lomakkeen uudelleenlataus jotta esitäyttö hakee uuden version
     setKayntiAvain((n) => n + 1)
   }
+
+  // Esc sulkee modaalin
+  useEffect(() => {
+    if (!vahvistusAuki) return
+    const onKeyDown = (e) => { if (e.key === 'Escape') setVahvistusAuki(false) }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [vahvistusAuki])
 
   // Pollaa uusien asiakkaiden määrä 30 s välein + heti kun näkymä vaihtuu
   // rekisteriin (esim. "Tallenna asiakas" -klikkauksen jälkeen).
@@ -267,7 +276,7 @@ export default function App() {
               <>
                 <button
                   type="button"
-                  onClick={kaynnistaUusiKaynti}
+                  onClick={() => setVahvistusAuki(true)}
                   disabled={kaynnistetaan}
                   style={{
                     width:        '100%',
@@ -293,6 +302,93 @@ export default function App() {
                   asiakas={asiakas}
                   onValmis={() => setNakyma('rekisteri')}
                 />
+
+                {/* Vahvistusmodaali — korvaa selaimen window.confirm */}
+                {vahvistusAuki && (
+                  <div
+                    onClick={() => !kaynnistetaan && setVahvistusAuki(false)}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="uusi-kaynti-otsikko"
+                    style={{
+                      position:       'fixed',
+                      inset:          0,
+                      background:     'rgba(0, 0, 0, 0.6)',
+                      display:        'flex',
+                      alignItems:     'center',
+                      justifyContent: 'center',
+                      padding:        '16px',
+                      zIndex:         1000,
+                    }}
+                  >
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        background:    'white',
+                        borderRadius:  '16px',
+                        padding:       '24px',
+                        maxWidth:      '440px',
+                        width:         '100%',
+                        boxShadow:     '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                        display:       'flex',
+                        flexDirection: 'column',
+                        gap:           '16px',
+                      }}
+                    >
+                      <div>
+                        <h3
+                          id="uusi-kaynti-otsikko"
+                          style={{ fontSize: '16px', fontWeight: 700, color: '#111827', margin: '0 0 8px' }}
+                        >
+                          Aloita uusi käynti?
+                        </h3>
+                        <p style={{ fontSize: '13px', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+                          Nykyinen lomake lukittuu käyntihistoriaan eikä sitä voi enää muokata.
+                        </p>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button
+                          type="button"
+                          onClick={() => setVahvistusAuki(false)}
+                          disabled={kaynnistetaan}
+                          style={{
+                            padding:      '10px 18px',
+                            borderRadius: '10px',
+                            border:       '1px solid #e5e7eb',
+                            background:   'transparent',
+                            color:        '#374151',
+                            fontSize:     '14px',
+                            fontWeight:   500,
+                            cursor:       kaynnistetaan ? 'not-allowed' : 'pointer',
+                            opacity:      kaynnistetaan ? 0.5 : 1,
+                          }}
+                        >
+                          Peru
+                        </button>
+                        <button
+                          type="button"
+                          onClick={vahvistaUusiKaynti}
+                          disabled={kaynnistetaan}
+                          autoFocus
+                          style={{
+                            padding:      '10px 18px',
+                            borderRadius: '10px',
+                            border:       'none',
+                            background:   '#1D9E75',
+                            color:        'white',
+                            fontSize:     '14px',
+                            fontWeight:   600,
+                            cursor:       kaynnistetaan ? 'wait' : 'pointer',
+                            opacity:      kaynnistetaan ? 0.7 : 1,
+                          }}
+                        >
+                          {kaynnistetaan ? 'Aloitetaan…' : 'Aloita käynti'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </div>
