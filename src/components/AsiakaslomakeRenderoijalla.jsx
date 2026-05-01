@@ -9,7 +9,7 @@
 // tyhjällä versiolla — siksi App.jsx ohjaa nyt vahvistamattomat suoraan
 // UudenAsiakkaanTarkistus:een.
 import { useState, useEffect, useMemo } from 'react'
-import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, haeAsiakkaanViimeisinLomake } from '../lib/db'
+import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, haeAsiakkaanViimeisinLomake, haeKayntienPaivamaarat, haeLomakeversio } from '../lib/db'
 import { kokoaVastaukset } from '../lib/lomakeTallennus'
 import { useLomakepohja } from '../hooks/useLomakepohja'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
@@ -131,6 +131,51 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
 
   const onUusiAsiakas = !asiakas?.id
 
+  const [tulostetaan, setTulostetaan] = useState(false)
+  async function tulostaGDPR() {
+    if (!asiakas?.id) return
+    setTulostetaan(true)
+    try {
+      // Lazy-load PDF-kirjasto — html2pdf.js + jspdf + html2canvas
+      // latautuvat vain kun tulostusta oikeasti tarvitaan.
+      const { tulostaTietopaketti } = await import('../lib/pdf')
+      // Hae KAIKKI asiakkaan käynnit — voimassa olevat + suljetut.
+      // Käytetään kahta erillistä kyselyä: nykyinen + historia.
+      const [nykyinenTulos, historia] = await Promise.all([
+        haeAsiakkaanViimeisinLomake(asiakas.id),
+        haeKayntienPaivamaarat(asiakas.id),
+      ])
+      const kaikkiVersiot = []
+      if (nykyinenTulos?.versio) {
+        kaikkiVersiot.push({
+          versio:    nykyinenTulos.versio,
+          sairaudet: nykyinenTulos.sairaudet ?? [],
+        })
+      }
+      // Hae vanhojen versioiden tarkemmat tiedot rinnakkaisesti
+      const vanhatTulokset = await Promise.all(
+        (historia ?? []).map((h) => haeLomakeversio(h.id))
+      )
+      for (const t of vanhatTulokset) {
+        if (t?.versio) kaikkiVersiot.push(t)
+      }
+      // Järjestä uusin ensin (voimassa olevassa ei ole voimassa_alkaen-aikaa
+      // joka olisi suurempi, mutta päivämäärän mukaan järjestäminen on ok).
+      kaikkiVersiot.sort((a, b) => {
+        const ad = a.versio?.voimassa_alkaen ?? a.versio?.luotu ?? ''
+        const bd = b.versio?.voimassa_alkaen ?? b.versio?.luotu ?? ''
+        return bd.localeCompare(ad)
+      })
+
+      await tulostaTietopaketti({ asiakas, kaynnit: kaikkiVersiot })
+    } catch (e) {
+      console.error('Tietopaketin luonti epäonnistui:', e)
+      alert('Tietopaketin luonti epäonnistui: ' + (e.message ?? 'tuntematon virhe'))
+    } finally {
+      setTulostetaan(false)
+    }
+  }
+
   // Lataa pohja paikallisesti jotta voimme suodattaa Suostumukset-osion
   // pois ennen kuin LomakeRenderoija saa rakenteen.
   const { rakenne: pohjaRakenne, kentat: pohjaKentat, lataa: lataaPohja, virhe: pohjaLatausVirhe } = useLomakepohja(pohjaId)
@@ -246,6 +291,30 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
 
       {/* Käyntihistoria — näytetään vain jos asiakkaalla on suljettuja versioita */}
       {asiakas && <Kayntihistoria asiakas={asiakas} />}
+
+      {/* GDPR-tietopaketti — vain olemassa olevalle asiakkaalle */}
+      {asiakas?.id && (
+        <button
+          type="button"
+          onClick={tulostaGDPR}
+          disabled={tulostetaan}
+          style={{
+            width:        '100%',
+            padding:      '12px 16px',
+            marginTop:    '12px',
+            borderRadius: '10px',
+            border:       '1px solid #e2e8f0',
+            background:   'white',
+            color:        '#374151',
+            fontSize:     '14px',
+            fontWeight:   500,
+            cursor:       tulostetaan ? 'wait' : 'pointer',
+            opacity:      tulostetaan ? 0.7 : 1,
+          }}
+        >
+          {tulostetaan ? 'Luodaan PDF…' : '📄 Tulosta tietopaketti (GDPR)'}
+        </button>
+      )}
 
       {/* Arkistoi-nappi — vain olemassa olevalle asiakkaalle (ei uusi-käynti-näkymässä) */}
       {asiakas?.id && <ArkistoiNappi asiakas={asiakas} onArkistoitu={onValmis} />}

@@ -112,6 +112,23 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
   const [data, setData] = useState({ versio: null, sairaudet: [] })
   const [lataa, setLataa] = useState(true)
   const [virhe, setVirhe] = useState(null)
+  const [tulostetaan, setTulostetaan] = useState(false)
+
+  async function tulosta() {
+    if (!data.versio) return
+    setTulostetaan(true)
+    try {
+      // Lazy-load: html2pdf.js + jspdf + html2canvas latautuvat vain kun
+      // tulostusta oikeasti tarvitaan, eivät app-bundlessa heti alussa.
+      const { tulostaKaynti } = await import('../lib/pdf')
+      await tulostaKaynti({ asiakas, versio: data.versio, sairaudet: data.sairaudet })
+    } catch (e) {
+      console.error('PDF-tulostus epäonnistui:', e)
+      alert('PDF-tulostus epäonnistui: ' + (e.message ?? 'tuntematon virhe'))
+    } finally {
+      setTulostetaan(false)
+    }
+  }
 
   useEffect(() => {
     let peruttu = false
@@ -262,6 +279,28 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
                     })}
                 </div>
               )}
+
+              {/* Tulosta PDF -nappi */}
+              <button
+                type="button"
+                onClick={tulosta}
+                disabled={tulostetaan}
+                style={{
+                  width:        '100%',
+                  padding:      '12px 16px',
+                  marginTop:    '4px',
+                  borderRadius: '10px',
+                  border:       '1px solid #e2e8f0',
+                  background:   'white',
+                  color:        '#374151',
+                  fontSize:     '14px',
+                  fontWeight:   500,
+                  cursor:       tulostetaan ? 'wait' : 'pointer',
+                  opacity:      tulostetaan ? 0.7 : 1,
+                }}
+              >
+                {tulostetaan ? 'Luodaan PDF…' : '📄 Tulosta hoitokertomus'}
+              </button>
 
               {/* Meta */}
               <p style={{ fontSize: '12px', color: '#9ca3af', textAlign: 'right', margin: 0 }}>
