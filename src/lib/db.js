@@ -805,33 +805,28 @@ export const haeAIAnalyysi = async (hoitokayntiId) => {
   }
 }
 
-// Tallentaa AI-analyysin käynnille. Jos käynnillä on jo analyysi, korvaa
-// vanhan (delete-then-insert), jotta cache pysyy yhtenä riviä per käynti.
+// Tallentaa AI-analyysin käynnille. Yksi rivi per (käynti, tyyppi)
+// migraation 20260501_ai_ehdotukset_unique.sql tuoman uniikin rajoitteen
+// ansiosta — käytetään upsertia jotta delete+insert-racea ei tarvita.
 export const tallennaAIAnalyysi = async (hoitokayntiId, { vastaus, prompti, malli }) => {
   if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
   if (!vastaus)      return { virhe: 'Vastaus puuttuu' }
 
-  const { error: poistoVirhe } = await supabase
+  const { error } = await supabase
     .from('ai_ehdotukset')
-    .delete()
-    .eq('hoitokaynti_id', hoitokayntiId)
-    .eq('tyyppi', 'loydosanalyysi')
-  if (poistoVirhe) {
-    console.error('Vanhan AI-analyysin poisto epäonnistui:', poistoVirhe)
-    return { virhe: poistoVirhe.message }
-  }
-  const { error: lisaysVirhe } = await supabase
-    .from('ai_ehdotukset')
-    .insert({
+    .upsert({
       hoitokaynti_id:       hoitokayntiId,
       tyyppi:               'loydosanalyysi',
       ehdotus_alkuperainen: vastaus,
       ai_malli:             malli ?? null,
       ai_konteksti:         prompti ? { prompti } : null,
-    })
-  if (lisaysVirhe) {
-    console.error('AI-analyysin tallennus epäonnistui:', lisaysVirhe)
-    return { virhe: lisaysVirhe.message }
+      // luotu päivittyy myös uusilla pyynneillä → "viimeisin" on aina
+      // ajantasainen.
+      luotu:                new Date().toISOString(),
+    }, { onConflict: 'hoitokaynti_id,tyyppi' })
+  if (error) {
+    console.error('AI-analyysin tallennus epäonnistui:', error)
+    return { virhe: error.message }
   }
   return { virhe: null }
 }

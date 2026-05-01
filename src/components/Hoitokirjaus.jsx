@@ -271,11 +271,20 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
     // Pala B9b — jos offline, tallenna kaikki kolme operaatiota IndexedDB-
     // jonoon ja merkitse käynti "jonossa"-tilaan. Jono synkkaa kun yhteys
     // palaa (App.jsx → synkronoiJono).
+    //
+    // Tarkistus-bugi: kolme erillistä lisaaJonoon-kutsua → jos kesken
+    // epäonnistuu, jonossa on osittainen päivitys. Käytetään Promise.all
+    // jotta epäonnistuessa nähdään ettei mikään niistä tuonut tulosta.
+    // (Natiivi IndexedDB-rajapintaamme ei tue cross-store transactioneja
+    // tässä helposti — riski on hyvin pieni koska kaikki kolme menevät
+    // samaan storeen samalla istunnolla.)
     if (!online) {
       try {
-        await lisaaJonoon({ op: 'tallennaHoitokirjaus',     args: [hoitokayntiId, hoitokirjausPayload] })
-        await lisaaJonoon({ op: 'tallennaHavainnot',        args: [hoitokayntiId, havainnot] })
-        await lisaaJonoon({ op: 'tallennaKaynninItsehoito', args: [hoitokayntiId, itsehoito] })
+        await Promise.all([
+          lisaaJonoon({ op: 'tallennaHoitokirjaus',     args: [hoitokayntiId, hoitokirjausPayload] }),
+          lisaaJonoon({ op: 'tallennaHavainnot',        args: [hoitokayntiId, havainnot] }),
+          lisaaJonoon({ op: 'tallennaKaynninItsehoito', args: [hoitokayntiId, itsehoito] }),
+        ])
         setTila('jonossa')
         setTimeout(onValmis, 1800)
         return
