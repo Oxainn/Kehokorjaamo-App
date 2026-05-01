@@ -13,9 +13,9 @@ import JulkinenLomake from './JulkinenLomake'
 import PalveluValinta from './PalveluValinta'
 
 const ylaNav = [
-  { id: 'rekisteri',    nimi: 'Asiakasrekisteri', ikoni: '👥' },
-  { id: 'uusi-kaynti', nimi: 'Uusi käynti',       ikoni: '➕' },
-  { id: 'asetukset',   nimi: 'Asetukset',          ikoni: '⚙️' },
+  { id: 'rekisteri',    nimi: 'Asiakasrekisteri',  ikoni: '👥' },
+  { id: 'uusi-kaynti', nimi: 'Lisää uusi asiakas', ikoni: '➕' },
+  { id: 'asetukset',   nimi: 'Asetukset',           ikoni: '⚙️' },
 ]
 
 export default function App() {

@@ -9,7 +9,8 @@
 // tyhjällä versiolla — siksi App.jsx ohjaa nyt vahvistamattomat suoraan
 // UudenAsiakkaanTarkistus:een.
 import { useState, useEffect } from 'react'
-import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake } from '../lib/db'
+import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, haeAsiakkaanViimeisinLomake } from '../lib/db'
+import { kokoaVastaukset } from '../lib/lomakeTallennus'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
 
 const TILA = {
@@ -47,6 +48,31 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
       .catch((e) => { if (!peruttu) setPohjaVirhe(e.message ?? 'Pohjan haku epäonnistui') })
     return () => { peruttu = true }
   }, [])
+
+  // Esitäyttö: kun avataan olemassa oleva asiakas, kerää nykyinen lomakedata
+  // (asiakkaat-rivi + voimassa oleva lomakeversio + sairaudet) ja täytä
+  // renderöijän kentät. Tämä mahdollistaa lomakkeen päivittämisen ajan
+  // mittaan eikä joka tallennus tyhjästä.
+  const asiakasId = asiakas?.id ?? asiakas?.supabase_id ?? null
+  useEffect(() => {
+    if (!asiakasId) {
+      setVastaukset({})
+      return
+    }
+    let peruttu = false
+    haeAsiakkaanViimeisinLomake(asiakasId)
+      .then(({ versio, sairausIdit }) => {
+        if (peruttu) return
+        setVastaukset(kokoaVastaukset(asiakas, versio, sairausIdit))
+      })
+      .catch((e) => {
+        if (peruttu) return
+        console.warn('[AsiakaslomakeRenderoijalla] Esitäyttö epäonnistui:', e)
+        // Jätä vastaukset tyhjäksi — käyttäjä voi täyttää kentät manuaalisesti
+        setVastaukset(kokoaVastaukset(asiakas, null, []))
+      })
+    return () => { peruttu = true }
+  }, [asiakasId])
 
   async function tallenna(arvot) {
     setTila(TILA.TALLENTAA)
