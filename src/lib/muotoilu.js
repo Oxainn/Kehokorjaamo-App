@@ -50,8 +50,13 @@ export function muodostaCSV(otsikot, rivit, erotin = ';') {
     otsikot.map(escape).join(erotin),
     ...rivit.map((r) => r.map(escape).join(erotin)),
   ]
-  // ﻿ = UTF-8 BOM (auttaa Exceliä tunnistamaan UTF-8:n)
-  return '﻿' + lines.join('\r\n')
+  // ﻿ = UTF-8 BOM (auttaa Exceliä tunnistamaan UTF-8:n).
+  // "sep=<erotin>" -rivi on Excel-spesifinen ohje joka kertoo erottimen
+  // suoraan, ohittaen oletuslokaalin pilkku-vs-puolipiste-arpomisen.
+  // Excel piilottaa rivin avattaessa; muut työkalut (LibreOffice, Numbers,
+  // ohjelmointikielten csv-parserit) jättävät sen huomiotta tai
+  // käsittelevät kommenttina.
+  return '﻿' + 'sep=' + erotin + '\r\n' + lines.join('\r\n')
 }
 
 // Jakaa kokonimen etu- ja sukunimeen ensimmäisen tai viimeisen välilyönnin
