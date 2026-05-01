@@ -1,7 +1,7 @@
 // Tuotantokomponentti: lataa oletuspohjan, renderöi lomakkeen, tallentaa Supabaseen.
 // Käytetään App.jsx:n näkymissä 'kaynti' (olemassa olevaan asiakkaaseen) ja 'uusi-kaynti' (uusi asiakas).
 import { useState, useEffect } from 'react'
-import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake } from '../lib/db'
+import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, vahvistaAsiakas } from '../lib/db'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
 
 const TILA = {
@@ -27,6 +27,23 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
   const [tila,       setTila]       = useState(TILA.TYHJA)
   const [virheviesti, setVirheviesti] = useState(null)
   const [pohjaVirhe, setPohjaVirhe] = useState(null)
+  const [vahvistaaTila, setVahvistaaTila] = useState('idle') // idle | vahvistaa | onnistui | epaonnistui
+
+  const onVahvistamaton = asiakas?.vahvistettu === false
+  const asiakasId       = asiakas?.id ?? asiakas?.supabase_id ?? null
+
+  async function vahvista() {
+    if (!asiakasId) return
+    setVahvistaaTila('vahvistaa')
+    const tulos = await vahvistaAsiakas(asiakasId)
+    if (tulos.virhe) {
+      setVahvistaaTila('epaonnistui')
+      setVirheviesti(tulos.virhe)
+      return
+    }
+    setVahvistaaTila('onnistui')
+    setTimeout(onValmis, 1200)
+  }
 
   useEffect(() => {
     let peruttu = false
@@ -71,6 +88,55 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Korostettu palkki uuden, vahvistamattoman asiakkaan kohdalla */}
+      {onVahvistamaton && (
+        <div style={{
+          background:    '#fffbeb',
+          border:        '1.5px solid #f59e0b',
+          borderRadius:  '12px',
+          padding:       '16px 20px',
+          display:       'flex',
+          flexDirection: 'column',
+          gap:           '12px',
+        }}>
+          <div>
+            <p style={{ fontSize: '14px', fontWeight: 700, color: '#92400e', margin: '0 0 4px' }}>
+              🔔 Uusi asiakas — odottaa vahvistusta
+            </p>
+            <p style={{ fontSize: '13px', color: '#78350f', margin: 0, lineHeight: 1.5 }}>
+              Asiakas täytti lomakkeen julkisen linkin kautta. Tarkista alla olevat tiedot ja paina
+              "Tallenna asiakas" lisätäksesi hänet asiakaslistaan.
+            </p>
+          </div>
+          {vahvistaaTila === 'onnistui' ? (
+            <div style={ilmoitusTyyli('onnistui')}>
+              <strong>✓ Asiakas tallennettu.</strong> Palataan rekisteriin…
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={vahvista}
+              disabled={vahvistaaTila === 'vahvistaa'}
+              style={{
+                width:        '100%',
+                minHeight:    '52px',
+                borderRadius: '12px',
+                border:       'none',
+                background:   '#1D9E75',
+                color:        'white',
+                fontSize:     '15px',
+                fontWeight:   700,
+                letterSpacing: '0.03em',
+                cursor:       vahvistaaTila === 'vahvistaa' ? 'wait' : 'pointer',
+                opacity:      vahvistaaTila === 'vahvistaa' ? 0.7 : 1,
+              }}
+            >
+              {vahvistaaTila === 'vahvistaa' ? 'Tallennetaan…' : '✓ Tallenna asiakas'}
+            </button>
+          )}
+        </div>
+      )}
+
       {tila === TILA.TALLENTAA && (
         <div style={ilmoitusTyyli('tieto')}>Tallennetaan…</div>
       )}

@@ -45,6 +45,37 @@ export const haeAsiakkaat = async () => {
   return data
 }
 
+// Vahvistaa julkisen lomakkeen kautta tulleen asiakkaan — siirtää hänet
+// Asiakasrekisterin "Uudet asiakkaat" -osiosta normaaliin asiakaslistaan.
+export const vahvistaAsiakas = async (asiakasId) => {
+  const { error } = await supabase
+    .from('asiakkaat')
+    .update({ vahvistettu: true, paivitetty: new Date().toISOString() })
+    .eq('id', asiakasId)
+
+  if (error) {
+    console.error('Asiakkaan vahvistus epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { virhe: null }
+}
+
+// Lasketaan vahvistamattomien asiakkaiden määrä — käytetään ylävalikon badgessa.
+export const haeUusienAsiakkaidenMaara = async (hoitajaId) => {
+  if (!hoitajaId) return 0
+  const { count, error } = await supabase
+    .from('asiakkaat')
+    .select('*', { count: 'exact', head: true })
+    .eq('hoitaja_id', hoitajaId)
+    .eq('vahvistettu', false)
+
+  if (error) {
+    console.error('Uusien asiakkaiden lukumäärän haku epäonnistui:', error)
+    return 0
+  }
+  return count ?? 0
+}
+
 export const tallennaKaynti = async (
   asiakasId, havainnot, loyodokset,
   hoitosuunnitelma, kuvaAnalyysit,
