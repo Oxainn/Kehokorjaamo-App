@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../services/supabase'
 import { normalisoiAsiakas } from '../utils/asiakas'
-import { haeUusienAsiakkaidenMaara } from '../lib/db'
+import { haeUusienAsiakkaidenMaara, aloitaUusiKaynti } from '../lib/db'
 import Login from './Login'
 import Settings from './Settings'
 import Asiakasrekisteri from './Asiakasrekisteri'
@@ -67,6 +67,32 @@ export default function App() {
   }, [])
 
   const hoitajaId = kayttaja?.id
+
+  // Avain joka pakottaa AsiakaslomakeRenderoijalla:n uudelleenrenderöinnin
+  // (esitäytön uudelleenladauksen) kun "Uusi käynti" suljetaan ja avataan.
+  const [kayntiAvain, setKayntiAvain] = useState(0)
+  const [kaynnistetaan, setKaynnistetaan] = useState(false)
+
+  async function kaynnistaUusiKaynti() {
+    if (!asiakas?.id) return
+    if (kaynnistetaan) return
+    const ok = window.confirm(
+      'Aloita uusi käynti? Nykyinen lomake lukittuu käyntihistoriaan eikä sitä voi enää muokata.'
+    )
+    if (!ok) return
+    setKaynnistetaan(true)
+    const tulos = await aloitaUusiKaynti(asiakas.id)
+    setKaynnistetaan(false)
+    if (tulos.virhe) {
+      alert('Uuden käynnin aloitus epäonnistui: ' + tulos.virhe)
+      return
+    }
+    if (tulos.varoitus) {
+      alert(tulos.varoitus)
+    }
+    // Pakota lomakkeen uudelleenlataus jotta esitäyttö hakee uuden version
+    setKayntiAvain((n) => n + 1)
+  }
 
   // Pollaa uusien asiakkaiden määrä 30 s välein + heti kun näkymä vaihtuu
   // rekisteriin (esim. "Tallenna asiakas" -klikkauksen jälkeen).
@@ -241,7 +267,8 @@ export default function App() {
               <>
                 <button
                   type="button"
-                  onClick={() => alert('Tulossa: uusi käynti -toiminto')}
+                  onClick={kaynnistaUusiKaynti}
+                  disabled={kaynnistetaan}
                   style={{
                     width:        '100%',
                     minHeight:    '52px',
@@ -254,13 +281,15 @@ export default function App() {
                     fontSize:     '15px',
                     fontWeight:   700,
                     letterSpacing: '0.03em',
-                    cursor:       'pointer',
+                    cursor:       kaynnistetaan ? 'wait' : 'pointer',
+                    opacity:      kaynnistetaan ? 0.7 : 1,
                     boxShadow:    '0 1px 3px rgba(29, 158, 117, 0.25)',
                   }}
                 >
-                  + Uusi käynti
+                  {kaynnistetaan ? 'Aloitetaan uutta käyntiä…' : '+ Uusi käynti'}
                 </button>
                 <AsiakaslomakeRenderoijalla
+                  key={`${asiakas.id}:${kayntiAvain}`}
                   asiakas={asiakas}
                   onValmis={() => setNakyma('rekisteri')}
                 />

@@ -79,6 +79,122 @@ export const haeAsiakkaanViimeisinLomake = async (asiakasId) => {
   }
 }
 
+// Aloittaa uuden hoitokäynnin asiakkaalle:
+//   1. Sulkee nykyisen avoimen lomakeversion (voimassa_asti = now()) —
+//      lukittuu käyntihistoriaan eikä sitä voi enää muokata
+//   2. Luo uuden version kopioimalla suljetun version kaikki kentät
+//   3. Kopioi suljetun version lomake_sairaudet-rivit uuteen versioon
+//
+// Lopputulos: asiakkaalla on edelleen yksi avoin (muokattavissa oleva)
+// versio jonka sisältö vastaa edellistä, mutta historiaan jää lukittu
+// snapshot edellisen käynnin tilanteesta.
+export const aloitaUusiKaynti = async (asiakasId) => {
+  if (!asiakasId) return { virhe: 'Asiakas-id puuttuu' }
+  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
+  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
+
+  // 1. Hae nykyinen avoin versio kaikkine kenttineen
+  const { data: avoin, error: hakuVirhe } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('id, hoitoon_syy, kipu_taso, laakitys, diagnosoidut_sairaudet, vammat_huomiot, harrastukset, lisakentat')
+    .eq('asiakas_id', asiakasId)
+    .is('voimassa_asti', null)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (hakuVirhe) {
+    console.error('Avoimen version haku epäonnistui:', hakuVirhe)
+    return { virhe: hakuVirhe.message }
+  }
+
+  // Jos avointa versiota ei ole, luodaan vain tyhjä uusi (reunatapaus —
+  // pitäisi olla harvinainen koska julkinen lomake luo aina version)
+  if (!avoin) {
+    const { data: uusi, error: luontiVirhe } = await supabase
+      .from('asiakastietolomake_versiot')
+      .insert({
+        asiakas_id:      asiakasId,
+        muokkaaja_id:    user.id,
+        muokkaaja_rooli: 'hoitaja',
+      })
+      .select('id')
+      .single()
+    if (luontiVirhe) {
+      console.error('Tyhjän version luonti epäonnistui:', luontiVirhe)
+      return { virhe: luontiVirhe.message }
+    }
+    return { lomakeVersioId: uusi.id, virhe: null }
+  }
+
+  // 2. Sulje nykyinen versio
+  const nyt = new Date().toISOString()
+  const { error: sulkuVirhe } = await supabase
+    .from('asiakastietolomake_versiot')
+    .update({ voimassa_asti: nyt })
+    .eq('id', avoin.id)
+  if (sulkuVirhe) {
+    console.error('Vanhan version sulku epäonnistui:', sulkuVirhe)
+    return { virhe: sulkuVirhe.message }
+  }
+
+  // 3. Hae sairaudet vanhasta versiosta — säilytetään käyntihistoriassa
+  //    ja kopioidaan uuteen versioon
+  const { data: vanhatSairaudet, error: sairaudetVirhe } = await supabase
+    .from('lomake_sairaudet')
+    .select('sairaus_tyyppi_id, on_voimassa, tarkenne')
+    .eq('lomake_versio_id', avoin.id)
+  if (sairaudetVirhe) {
+    console.warn('Sairauksien haku vanhasta versiosta epäonnistui:', sairaudetVirhe)
+  }
+
+  // 4. Luo uusi versio kopioimalla sisältö
+  const { data: uusi, error: luontiVirhe } = await supabase
+    .from('asiakastietolomake_versiot')
+    .insert({
+      asiakas_id:             asiakasId,
+      hoitoon_syy:            avoin.hoitoon_syy,
+      kipu_taso:              avoin.kipu_taso,
+      laakitys:               avoin.laakitys,
+      diagnosoidut_sairaudet: avoin.diagnosoidut_sairaudet,
+      vammat_huomiot:         avoin.vammat_huomiot,
+      harrastukset:           avoin.harrastukset,
+      lisakentat:             avoin.lisakentat,
+      muokkaaja_id:           user.id,
+      muokkaaja_rooli:        'hoitaja',
+    })
+    .select('id')
+    .single()
+  if (luontiVirhe) {
+    console.error('Uuden version luonti epäonnistui:', luontiVirhe)
+    return { virhe: luontiVirhe.message }
+  }
+
+  // 5. Kopioi sairaudet uuteen versioon
+  if (vanhatSairaudet && vanhatSairaudet.length > 0) {
+    const rivit = vanhatSairaudet.map((s) => ({
+      lomake_versio_id:  uusi.id,
+      sairaus_tyyppi_id: s.sairaus_tyyppi_id,
+      on_voimassa:       s.on_voimassa,
+      tarkenne:          s.tarkenne,
+    }))
+    const { error: kopiointiVirhe } = await supabase
+      .from('lomake_sairaudet')
+      .insert(rivit)
+    if (kopiointiVirhe) {
+      // Versio on luotu mutta sairaudet eivät kopioituneet — palauta varoitus
+      // mutta älä kaada toimintoa (käyttäjä voi rastittaa sairaudet uudestaan)
+      console.warn('Sairauksien kopiointi epäonnistui:', kopiointiVirhe)
+      return {
+        lomakeVersioId: uusi.id,
+        virhe:          null,
+        varoitus:       `Uusi käynti aloitettu mutta sairauksia ei kopioitu: ${kopiointiVirhe.message}`,
+      }
+    }
+  }
+
+  return { lomakeVersioId: uusi.id, virhe: null }
+}
+
 // Vahvistaa julkisen lomakkeen kautta tulleen asiakkaan — siirtää hänet
 // Asiakasrekisterin "Uudet asiakkaat" -osiosta normaaliin asiakaslistaan.
 export const vahvistaAsiakas = async (asiakasId) => {
