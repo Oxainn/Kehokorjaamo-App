@@ -1,0 +1,31 @@
+# Supabase-projektin konfiguraatio
+# ----------------------------------------------------------------
+# Tämä tiedosto on lähde Edge Functioneiden asetuksille jotka muuten
+# määriteltäisiin pelkästään Supabase Dashboardin kautta. Repossa
+# pitäminen varmistaa että asetukset eivät katoa projektin uudelleen-
+# luonnissa eikä uusi kloonaaja jää ihmettelemään miksi julkinen
+# lomake ei toimi.
+
+project_id = "uwysictfbzswecnxvmif"
+
+# ── Edge Functions ────────────────────────────────────────────────
+# verify_jwt = false: pyyntö ei vaadi käyttäjän JWT-tokenia, koska
+# näitä funktioita kutsutaan asiakkailta jotka eivät ole kirjautuneet
+# (julkinen lomakepolku /uusi-asiakas → /?palvelu=ID).
+#
+# Suojausmekanismit:
+#  - Kaikki funktiot vaativat anon-avaimen Authorization-headerissa
+#  - Funktiot lukevat vain niitä rivejä joiden tunnisteen pyyntö antaa
+#  - tallenna-julkinen-lomake validoi palveluId:n ja lukee hoitaja_id:n
+#    palvelusta (ei luota pyynnön kenttiin)
+#  - hae-julkinen-lomake / hae-julkiset-palvelut suodattavat aktiiviset
+#    palvelut + aktiiviset lomakepohjat
+
+[functions.tallenna-julkinen-lomake]
+verify_jwt = false
+
+[functions.hae-julkinen-lomake]
+verify_jwt = false
+
+[functions.hae-julkiset-palvelut]
+verify_jwt = false
