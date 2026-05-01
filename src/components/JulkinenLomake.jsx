@@ -26,6 +26,9 @@ export default function JulkinenLomake({ palveluId }) {
   const [kentat,     setKentat]     = useState({})
   const [virhe,      setVirhe]      = useState(null)
   const [vastaukset, setVastaukset] = useState({})
+  // Tallennetaan onnistumisen jälkeen jotta Kiitos-näkymä voi kertoa
+  // todenmukaisen viestin (sähköposti voi puuttua, varauslinkkiä ei aina ole).
+  const [tallennusTulos, setTallennusTulos] = useState({ sahkopostiAnnettu: false, varauslinkki: null })
 
   useEffect(() => {
     if (!palveluId) {
@@ -86,6 +89,7 @@ export default function JulkinenLomake({ palveluId }) {
 
       // 2. Lähetä passwordless-kirjautumislinkki sähköpostiin (jos sähköposti annettu)
       const sahkoposti = arvot.sahkoposti
+      let sahkopostiLahetetty = false
       if (sahkoposti && sahkoposti.trim()) {
         const { error: otpVirhe } = await supabase.auth.signInWithOtp({
           email: sahkoposti.trim(),
@@ -97,14 +101,18 @@ export default function JulkinenLomake({ palveluId }) {
         if (otpVirhe) {
           // Magic linkin lähetys epäonnistui mutta tallennus onnistui — älä kaada
           console.warn('[JulkinenLomake] Magic linkin lähetys epäonnistui:', otpVirhe.message)
+        } else {
+          sahkopostiLahetetty = true
         }
       }
 
       // 3. Avaa Vello uudessa välilehdessä jos varauslinkki on asetettu
-      if (palvelu.varauslinkki_url) {
-        window.open(palvelu.varauslinkki_url, '_blank', 'noopener,noreferrer')
+      const varauslinkki = palvelu.varauslinkki_url ?? null
+      if (varauslinkki) {
+        window.open(varauslinkki, '_blank', 'noopener,noreferrer')
       }
 
+      setTallennusTulos({ sahkopostiAnnettu: sahkopostiLahetetty, varauslinkki })
       setTila('onnistui')
     } catch (e) {
       console.error('[JulkinenLomake] Lähetys epäonnistui:', e)
@@ -131,18 +139,23 @@ export default function JulkinenLomake({ palveluId }) {
   }
 
   if (tila === 'onnistui') {
+    const paaviesti = tallennusTulos.varauslinkki
+      ? 'Lomake tallennettu ja varaussivu avautui uudessa välilehdessä.'
+      : 'Lomake tallennettu. Hoitaja ottaa sinuun yhteyttä ajan sopimiseksi.'
     return (
       <div style={tilaTyyli}>
         <div style={{ background: '#ecfdf5', border: '1px solid #6ee7b7', borderRadius: '16px', padding: '32px', maxWidth: '560px', color: '#065f46' }}>
           <div style={{ fontSize: '48px', marginBottom: '8px' }}>✓</div>
           <p style={{ fontSize: '20px', fontWeight: 700, marginBottom: '12px' }}>Kiitos!</p>
           <p style={{ fontSize: '15px', lineHeight: 1.6, marginBottom: '12px' }}>
-            Lomake tallennettu ja Vello-varaus avautui uudessa välilehdessä.
+            {paaviesti}
           </p>
-          <p style={{ fontSize: '14px', lineHeight: 1.6 }}>
-            Lähetimme sähköpostiisi kirjautumistunnukset asiakasportaaliin —
-            siellä näet hoitohistoriasi ja voit varata jatkohoitoja ilman uutta lomaketta.
-          </p>
+          {tallennusTulos.sahkopostiAnnettu && (
+            <p style={{ fontSize: '14px', lineHeight: 1.6 }}>
+              Lähetimme sähköpostiisi kirjautumistunnukset asiakasportaaliin —
+              siellä näet hoitohistoriasi ja voit varata jatkohoitoja ilman uutta lomaketta.
+            </p>
+          )}
         </div>
       </div>
     )
