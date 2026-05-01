@@ -930,52 +930,22 @@ export const haeArkistoidunMaara = async (hoitajaId) => {
 // Vahvistaa julkisen lomakkeen kautta tulleen asiakkaan — siirtää hänet
 // Asiakasrekisterin "Uudet asiakkaat" -osiosta normaaliin asiakaslistaan.
 //
-// A/B-lomakkeen kytkös: tässä luodaan myös tyhjä B-lomake (hoitokaynnit)
-// joka odottaa ensimmäistä hoitokertaa. tila='odottaa_kayntia', pvm=NULL.
-// Kun hoitaja klikkaa "+ Uusi käynti", aloitaUusiKaynti käyttää tämän
-// tyhjän rivin uudelleen sen sijaan että loisi uuden.
+// VB5: ei luoda enää tyhjää B-lomaketta vahvistuksen yhteydessä.
+// Aiemmin luotiin 'odottaa_kayntia'-rivi joka jäi tyhjäksi jos asiakas
+// ei tullutkaan käyntiin → roska DB:ssä. Nyt hoitokaynti-rivi luodaan
+// vasta kun "+ Uusi käynti" klikataan (aloitaUusiKaynti).
+//
+// aloitaUusiKaynti tukee edelleen vanhoja 'odottaa_kayntia'-rivejä jos
+// niitä on jossain (uudelleen-käyttölogiikka), mutta uusia ei enää tehdä.
 export const vahvistaAsiakas = async (asiakasId) => {
-  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
-  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
-
-  // 1. Merkitse asiakas vahvistetuksi
-  const { error: vahvistusVirhe } = await supabase
+  const { error } = await supabase
     .from('asiakkaat')
     .update({ vahvistettu: true, paivitetty: new Date().toISOString() })
     .eq('id', asiakasId)
-  if (vahvistusVirhe) {
-    console.error('Asiakkaan vahvistus epäonnistui:', vahvistusVirhe)
-    return { virhe: vahvistusVirhe.message }
+  if (error) {
+    console.error('Asiakkaan vahvistus epäonnistui:', error)
+    return { virhe: error.message }
   }
-
-  // 2. Luo tyhjä B-lomake (hoitokaynnit) ensimmäistä käyntiä odottamaan.
-  // Älä luo useampaa: jos asiakkaalle on jo aiempi odottaa_kayntia-rivi,
-  // jätetään se.
-  const { data: olemassa } = await supabase
-    .from('hoitokaynnit')
-    .select('id')
-    .eq('asiakas_id', asiakasId)
-    .eq('tila', 'odottaa_kayntia')
-    .limit(1)
-    .maybeSingle()
-
-  if (!olemassa) {
-    const { error: bLomakeVirhe } = await supabase
-      .from('hoitokaynnit')
-      .insert({
-        asiakas_id: asiakasId,
-        hoitaja_id: user.id,
-        tila:       'odottaa_kayntia',
-        // pvm jätetään NULLiksi — käynti ei vielä pidetty
-      })
-    if (bLomakeVirhe) {
-      // Älä kaada vahvistusta — tyhjän B-lomakkeen luonti voi epäonnistua
-      // (esim. RLS), mutta vahvistus itse on jo onnistunut. aloitaUusiKaynti
-      // luo uuden tarvittaessa.
-      console.warn('Tyhjän B-lomakkeen luonti epäonnistui:', bLomakeVirhe)
-    }
-  }
-
   return { virhe: null }
 }
 
