@@ -17,3 +17,14 @@
 .lataauspulse {
   animation: lataauspulse 1.4s ease-in-out infinite;
 }
+
+/* iOS Safari autozoomaa input-kenttiin jos fonttikoko on < 16 px focus-tilassa.
+   Pakota kaikki input/textarea/select käyttämään 16 px (mediakysely vain
+   mobile-leveydellä jotta desktopin tiheämpi 14 px -tyyli säilyy). */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
