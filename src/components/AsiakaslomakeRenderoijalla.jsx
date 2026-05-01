@@ -12,6 +12,7 @@ import { useState, useEffect } from 'react'
 import { haeOletusLomakepohjaId, tallennaRenderoijastaLomake, haeAsiakkaanViimeisinLomake } from '../lib/db'
 import { kokoaVastaukset } from '../lib/lomakeTallennus'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
+import Kayntihistoria from './Kayntihistoria'
 
 const TILA = {
   TYHJA:        'tyhja',
@@ -126,6 +127,9 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
         onMuutos={setVastaukset}
         onLahetys={tallenna}
       />
+
+      {/* Käyntihistoria — näytetään vain jos asiakkaalla on suljettuja versioita */}
+      {asiakas && <Kayntihistoria asiakas={asiakas} />}
     </div>
   )
 }

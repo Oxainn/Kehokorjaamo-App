@@ -45,6 +45,54 @@ export const haeAsiakkaat = async () => {
   return data
 }
 
+// Hakee asiakkaan käyntihistorian — kaikki suljetut lomakeversiot
+// (voimassa_asti IS NOT NULL) uusimmasta vanhimpaan. Jokainen rivi vastaa
+// yhtä mennyttä hoitokäyntiä; aktiivinen avoin versio jätetään pois.
+export const haeAsiakkaanKayntihistoria = async (asiakasId) => {
+  if (!asiakasId) return []
+  const { data, error } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('id, voimassa_alkaen, voimassa_asti')
+    .eq('asiakas_id', asiakasId)
+    .not('voimassa_asti', 'is', null)
+    .order('voimassa_alkaen', { ascending: false })
+
+  if (error) {
+    console.error('Käyntihistorian haku epäonnistui:', error)
+    return []
+  }
+  return data ?? []
+}
+
+// Hakee yksittäisen lomakeversion täydet tiedot + sairaudet — käytetään
+// käyntihistorian read-only-modaalissa jossa näytetään yksi vanhentunut
+// versio sellaisena kuin se oli sulkemishetkellä.
+export const haeLomakeversio = async (lomakeVersioId) => {
+  if (!lomakeVersioId) return { versio: null, sairaudet: [] }
+
+  const { data: versio, error: versioVirhe } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('id, hoitoon_syy, kipu_taso, laakitys, diagnosoidut_sairaudet, vammat_huomiot, harrastukset, lisakentat, muokkaaja_rooli, voimassa_alkaen, voimassa_asti, luotu')
+    .eq('id', lomakeVersioId)
+    .maybeSingle()
+
+  if (versioVirhe || !versio) {
+    console.error('Lomakeversion haku epäonnistui:', versioVirhe)
+    return { versio: null, sairaudet: [] }
+  }
+
+  const { data: sairaudet } = await supabase
+    .from('lomake_sairaudet')
+    .select('sairaus_tyyppi:sairaus_tyypit (id, nimi, kontraindikaatio)')
+    .eq('lomake_versio_id', lomakeVersioId)
+    .eq('on_voimassa', true)
+
+  return {
+    versio,
+    sairaudet: (sairaudet ?? []).map((s) => s.sairaus_tyyppi).filter(Boolean),
+  }
+}
+
 // Hakee asiakkaan viimeisimmän lomakeversion + sairaudet — käytetään
 // "Uuden asiakkaan tarkistus" -näkymässä jossa hoitaja näkee asiakkaan
 // julkisen lomakkeen kautta täyttämät tiedot ennen vahvistusta.
