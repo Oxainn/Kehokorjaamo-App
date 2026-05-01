@@ -14,6 +14,7 @@ import { kokoaVastaukset } from '../lib/lomakeTallennus'
 import { useLomakepohja } from '../hooks/useLomakepohja'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
 import Kayntihistoria from './Kayntihistoria'
+import ArkistoiNappi from './ArkistoiNappi'
 
 // Suostumukset annetaan vain ensimmäisellä kerralla (julkinen lomake → asiakkaat-
 // taulun boolean-sarakkeet). Olemassa olevan, suostumuksensa antaneen asiakkaan
@@ -169,6 +170,9 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
 
       {/* Käyntihistoria — näytetään vain jos asiakkaalla on suljettuja versioita */}
       {asiakas && <Kayntihistoria asiakas={asiakas} />}
+
+      {/* Arkistoi-nappi — vain olemassa olevalle asiakkaalle (ei uusi-käynti-näkymässä) */}
+      {asiakas?.id && <ArkistoiNappi asiakas={asiakas} onArkistoitu={onValmis} />}
     </div>
   )
 }

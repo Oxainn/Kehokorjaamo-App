@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
-import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille } from '../lib/db'
+import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas } from '../lib/db'
 import { muotoilePvm, muodostaCSV, lataaTiedosto } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
 
@@ -14,7 +14,18 @@ import KayntiNakyma from './KayntiNakyma'
 // `refresh`-prop: numeerinen avain joka kasvaa kun App.jsx haluaa pakottaa
 // asiakaslistan ja käyntipillerien uudelleenladauksen (esim. paluun
 // jälkeen "+ Uusi käynti" tai "Tallenna asiakas" -toiminnoista).
-export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh = 0 }) {
+//
+// `arkistoTila`-prop: jos true, näyttää arkistoidut asiakkaat ja "↺ Palauta"
+// -napin. Oletus false näyttää aktiiviset (ei-arkistoidut) asiakkaat.
+// `onSiirryArkistoon` / `onTakaisinRekisteriin`: callback-funktiot navigaatioon.
+export default function Asiakasrekisteri({
+  onValitseAsiakas,
+  hoitajaId,
+  refresh = 0,
+  arkistoTila = false,
+  onSiirryArkistoon,
+  onTakaisinRekisteriin,
+}) {
   const [asiakkaat, setAsiakkaat] = useState([])
   const [haku, setHaku]           = useState('')
   const [lataa, setLataa]         = useState(true)
@@ -24,6 +35,10 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
   const [kontraindikaatiotMap, setKontraindikaatiotMap] = useState(new Map())
   // Avattu käynti-modaali — { lomakeVersioId, asiakas } tai null
   const [avoinKaynti,   setAvoinKaynti]   = useState(null)
+  // Arkistoitujen asiakkaiden määrä (näkyy normaalin näkymän "🗄 Arkisto (X)" -linkissä)
+  const [arkistoMaara, setArkistoMaara] = useState(0)
+  // Lokaali "refresh" arkistotilassa kun palautus muuttaa listan
+  const [paikallinenRefresh, setPaikallinenRefresh] = useState(0)
 
   useEffect(() => {
     const haeAsiakkaat = async () => {
@@ -35,8 +50,9 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
       // jotta saadaan vahvistettu-sarake mukaan.
       const { data, error } = await supabase
         .from('asiakkaat')
-        .select('id, nimi, sahkoposti, puhelin, syntymaaika, luotu, vahvistettu, lahiosoite, postinumero, postitoimipaikka, ammatti, pituus, paino, suostumus_tietojen_sailytys, suostumus_tietojen_luovutus')
+        .select('id, nimi, sahkoposti, puhelin, syntymaaika, luotu, vahvistettu, lahiosoite, postinumero, postitoimipaikka, ammatti, pituus, paino, suostumus_tietojen_sailytys, suostumus_tietojen_luovutus, arkistoitu')
         .eq('hoitaja_id', hoitajaId)
+        .eq('arkistoitu', arkistoTila)
         .order('luotu', { ascending: false })
       if (error) {
         setLataa(false)
@@ -45,25 +61,42 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
       const lista = data ?? []
       setAsiakkaat(lista)
 
-      // Hae rinnan: jokaisen asiakkaan 4 viimeisintä käyntipäivää +
-      // kontraindikaatiot kaikille asiakkaille kerralla
-      const [kayntiTulokset, kontraindikaatiot] = await Promise.all([
+      // Hae rinnan: jokaisen asiakkaan 4 viimeisintä käyntipäivää,
+      // kontraindikaatiot kaikille asiakkaille kerralla, ja arkistoitujen
+      // kokonaismäärä (jälkimmäinen vain normaalitilassa, ei arkistossa).
+      const [kayntiTulokset, kontraindikaatiot, arkistoMaaraTulos] = await Promise.all([
         Promise.all(lista.map((a) => haeKayntienPaivamaarat(a.id, 4))),
         haeKontraindikaatiotAsiakkaille(lista.map((a) => a.id)),
+        arkistoTila ? Promise.resolve(0) : haeArkistoidunMaara(hoitajaId),
       ])
       const map = {}
       lista.forEach((a, i) => { map[a.id] = kayntiTulokset[i] ?? [] })
       setKayntienMap(map)
       setKontraindikaatiotMap(kontraindikaatiot)
+      setArkistoMaara(arkistoMaaraTulos)
       setLataa(false)
     }
     haeAsiakkaat()
-  }, [hoitajaId, refresh])
+  }, [hoitajaId, refresh, arkistoTila, paikallinenRefresh])
 
-  const haetMatchaa = (a) => (
-    a.nimi?.toLowerCase().includes(haku.toLowerCase()) ||
-    a.sahkoposti?.toLowerCase().includes(haku.toLowerCase())
-  )
+  async function palauta(asiakas) {
+    const ok = window.confirm(`Palautetaanko ${asiakas.nimi || 'asiakas'} aktiiviseen rekisteriin?`)
+    if (!ok) return
+    const tulos = await palautaAsiakas(asiakas.id)
+    if (tulos.virhe) { alert('Palautus epäonnistui: ' + tulos.virhe); return }
+    setPaikallinenRefresh((n) => n + 1)
+  }
+
+  const haetMatchaa = (a) => {
+    const h = haku.toLowerCase()
+    return (
+      a.nimi?.toLowerCase().includes(h) ||
+      a.sahkoposti?.toLowerCase().includes(h) ||
+      // Puhelinnumero on merkkijono jossa voi olla välilyöntejä — tarkka
+      // tekstinhaku ilman lower-casea (puhelimessa ei kirjaimia).
+      a.puhelin?.includes(haku.trim())
+    )
+  }
 
   const uudet         = asiakkaat.filter((a) => a.vahvistettu === false && haetMatchaa(a))
   const vahvistetut   = asiakkaat.filter((a) => a.vahvistettu !== false && haetMatchaa(a))
@@ -154,12 +187,12 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
           </div>
 
           <button
-            onClick={() => onValitseAsiakas?.(a)}
+            onClick={() => arkistoTila ? palauta(a) : onValitseAsiakas?.(a)}
             style={{
               padding:      '7px 16px',
               borderRadius: '20px',
               border:       'none',
-              background:   korostettu ? '#f59e0b' : '#1D9E75',
+              background:   arkistoTila ? '#6b7280' : (korostettu ? '#f59e0b' : '#1D9E75'),
               color:        'white',
               fontSize:     '13px',
               fontWeight:   500,
@@ -167,7 +200,7 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
               flexShrink:   0,
             }}
           >
-            {korostettu ? 'Tarkista' : 'Avaa'}
+            {arkistoTila ? '↺ Palauta' : (korostettu ? 'Tarkista' : 'Avaa')}
           </button>
         </div>
 
@@ -212,14 +245,14 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
 
   return (
     <section>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', margin: '0 0 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', margin: '0 0 8px' }}>
         <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#111827', margin: 0 }}>
-          Asiakasrekisteri
+          {arkistoTila ? '🗄 Arkisto' : 'Asiakasrekisteri'}
           <span style={{ fontSize: '13px', fontWeight: 400, color: '#9ca3af', marginLeft: '8px' }}>
             {asiakkaat.length} asiakasta
           </span>
         </h2>
-        {asiakkaat.length > 0 && (
+        {!arkistoTila && asiakkaat.length > 0 && (
           <button
             type="button"
             onClick={vieCSV}
@@ -241,9 +274,30 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
         )}
       </div>
 
+      {/* Arkisto-linkki normaalitilassa, "Takaisin"-linkki arkistotilassa */}
+      <div style={{ marginBottom: '16px' }}>
+        {arkistoTila ? (
+          <button
+            type="button"
+            onClick={onTakaisinRekisteriin}
+            style={{ fontSize: '13px', color: '#1D9E75', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 500 }}
+          >
+            ← Asiakasrekisteri
+          </button>
+        ) : arkistoMaara > 0 ? (
+          <button
+            type="button"
+            onClick={onSiirryArkistoon}
+            style={{ fontSize: '13px', color: '#6b7280', background: 'transparent', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '4px 10px', cursor: 'pointer' }}
+          >
+            🗄 Arkisto ({arkistoMaara})
+          </button>
+        ) : null}
+      </div>
+
       <input
         type="text"
-        placeholder="Hae nimellä tai sähköpostilla..."
+        placeholder="Hae nimellä, sähköpostilla tai puhelimella..."
         value={haku}
         onChange={e => setHaku(e.target.value)}
         style={{

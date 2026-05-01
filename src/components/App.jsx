@@ -254,6 +254,17 @@ export default function App() {
               setAsiakas(normalisoiAsiakas(a))
               setNakyma('kaynti')
             }}
+            onSiirryArkistoon={() => setNakyma('arkisto')}
+          />
+        )}
+
+        {/* ARKISTO — pehmeästi poistetut asiakkaat */}
+        {nakyma === 'arkisto' && (
+          <Asiakasrekisteri
+            hoitajaId={hoitajaId}
+            refresh={rekisteriAvain}
+            arkistoTila
+            onTakaisinRekisteriin={paluuRekisteriin}
           />
         )}
 

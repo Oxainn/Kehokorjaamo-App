@@ -13,6 +13,7 @@
 import { useState, useEffect } from 'react'
 import { haeAsiakkaanViimeisinLomake, vahvistaAsiakas } from '../lib/db'
 import { muotoilePvm, muotoilePvmAika } from '../lib/muotoilu'
+import ArkistoiNappi from './ArkistoiNappi'
 
 const ilmoitusTyyli = (sävy) => ({
   background:   sävy === 'tieto' ? '#eff6ff' : sävy === 'onnistui' ? '#ecfdf5' : '#fef2f2',
@@ -285,6 +286,9 @@ export default function UudenAsiakkaanTarkistus({ asiakas, onValmis }) {
           ja täyttää lomakkeen myöhemmin.
         </div>
       )}
+
+      {/* Arkistointi — myös vahvistamaton asiakas voidaan piilottaa rekisteristä */}
+      <ArkistoiNappi asiakas={asiakas} onArkistoitu={onValmis} />
     </div>
   )
 }

@@ -302,6 +302,50 @@ export const aloitaUusiKaynti = async (asiakasId) => {
   return { lomakeVersioId: uusi.id, virhe: null }
 }
 
+// Pehmeä poisto: piilottaa asiakkaan normaalista listasta mutta säilyttää
+// kaikki tiedot DB:ssä (lakisääteinen 6 v säilytysaika hoitoasiakirjoille).
+// Asiakas näkyy "Arkisto"-näkymässä josta voi palauttaa.
+export const arkistoiAsiakas = async (asiakasId) => {
+  const { error } = await supabase
+    .from('asiakkaat')
+    .update({ arkistoitu: true, paivitetty: new Date().toISOString() })
+    .eq('id', asiakasId)
+  if (error) {
+    console.error('Asiakkaan arkistointi epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { virhe: null }
+}
+
+// Palauttaa arkistoidun asiakkaan takaisin aktiiviseen rekisteriin.
+export const palautaAsiakas = async (asiakasId) => {
+  const { error } = await supabase
+    .from('asiakkaat')
+    .update({ arkistoitu: false, paivitetty: new Date().toISOString() })
+    .eq('id', asiakasId)
+  if (error) {
+    console.error('Asiakkaan palautus epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { virhe: null }
+}
+
+// Lasketaan arkistoitujen asiakkaiden lukumäärä — käytetään Asiakasrekisterin
+// "🗄 Arkisto (X)" -linkin badgessa.
+export const haeArkistoidunMaara = async (hoitajaId) => {
+  if (!hoitajaId) return 0
+  const { count, error } = await supabase
+    .from('asiakkaat')
+    .select('*', { count: 'exact', head: true })
+    .eq('hoitaja_id', hoitajaId)
+    .eq('arkistoitu', true)
+  if (error) {
+    console.error('Arkistoitujen asiakkaiden määrän haku epäonnistui:', error)
+    return 0
+  }
+  return count ?? 0
+}
+
 // Vahvistaa julkisen lomakkeen kautta tulleen asiakkaan — siirtää hänet
 // Asiakasrekisterin "Uudet asiakkaat" -osiosta normaaliin asiakaslistaan.
 export const vahvistaAsiakas = async (asiakasId) => {
