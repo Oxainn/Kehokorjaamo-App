@@ -5,7 +5,7 @@
 // uudelleen avattaessa käyntiä — uusi pyyntö lähtee vain jos hoitaja
 // painaa "Päivitä analyysi" -nappia.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { kutsuAIAnalyysi, tallennaAIAnalyysi, haeAIAnalyysi } from '../lib/db'
 import { useOnline } from '../hooks/useOnline'
 
@@ -122,6 +122,11 @@ export default function AILoydosAnalyysi({
   const [naytaPrompti, setNaytaPrompti] = useState(false)
   // Pala B9b — AI vaatii verkkoyhteyden
   const online = useOnline()
+  // Tarkistus-bugi: kahdesti klikkaaminen "Päivitä analyysi" kahdesti
+  // peräkkäin → kaksi rinnakkaista API-kutsua, ja jos myöhempi vastaa
+  // ennen edellistä, vanhempi ylikirjoittaa tuoreemman. pyyntoIdRef
+  // pitää viimeisimmän pyyntö-id:n; stale-vastaus jätetään huomiotta.
+  const pyyntoIdRef = useRef(0)
 
   // Lataa olemassa oleva analyysi käynnistä — cache, ei kutsuta AI:ta uudestaan.
   useEffect(() => {
@@ -138,6 +143,7 @@ export default function AILoydosAnalyysi({
   const onHavaintoja = Array.isArray(havainnot) && havainnot.length > 0
 
   async function pyydaAnalyysi() {
+    const oma = ++pyyntoIdRef.current
     setTila('lataa')
     setVirhe(null)
     setTallennettu(false)
@@ -148,6 +154,8 @@ export default function AILoydosAnalyysi({
       asiakkaanKehonkartta,
       asiakkaanOireet,
     })
+    // Stale-tulos: tämän pyynnön jälkeen on tehty uusi → ohita vastaus
+    if (oma !== pyyntoIdRef.current) return
     if (tulos.virhe) {
       setTila('virhe')
       setVirhe(tulos.virhe)
