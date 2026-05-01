@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react'
 import { useOnline } from '../hooks/useOnline'
+import { useEscKey } from '../hooks/useEscKey'
 import {
   haeLomakeversio,
   haeHoitokayntiVersionPerusteella,
@@ -184,12 +185,8 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
     return () => { peruttu = true }
   }, [lomakeVersioId])
 
-  // Sulje Esc-näppäimellä
-  useEffect(() => {
-    const onKeyDown = (e) => { if (e.key === 'Escape') onSulje() }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onSulje])
+  // VB3 — yhteinen Esc-hook stable-referenssillä
+  useEscKey(onSulje)
 
   const v     = data.versio
   const lisat = v?.lisakentat ?? {}

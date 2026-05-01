@@ -6,21 +6,17 @@
 // säilytysaikaa varten, mutta hän siirtyy "Arkisto"-näkymään josta
 // voidaan palauttaa.
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { arkistoiAsiakas } from '../lib/db'
+import { useEscKey } from '../hooks/useEscKey'
 
 export default function ArkistoiNappi({ asiakas, onArkistoitu }) {
   const [auki,        setAuki]        = useState(false)
   const [arkistoidaan, setArkistoidaan] = useState(false)
   const [virhe,       setVirhe]       = useState(null)
 
-  // Esc sulkee modaalin
-  useEffect(() => {
-    if (!auki) return
-    const onKey = (e) => { if (e.key === 'Escape') setAuki(false) }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [auki])
+  // VB3 — Esc sulkee modaalin (vain kun auki)
+  useEscKey(() => setAuki(false), auki)
 
   async function vahvista() {
     if (!asiakas?.id) return

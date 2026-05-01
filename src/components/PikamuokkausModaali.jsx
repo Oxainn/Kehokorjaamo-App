@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react'
 import { paivitaAsiakkaanPerustiedot } from '../lib/db'
 import { jaaNimi } from '../lib/muotoilu'
+import { useEscKey } from '../hooks/useEscKey'
 
 const inputTyyli = {
   width:        '100%',
@@ -53,12 +54,8 @@ export default function PikamuokkausModaali({ asiakas, onSulje, onTallennettu })
     setPostitoimipaikka(asiakas.postitoimipaikka ?? '')
   }, [asiakas])
 
-  // Esc sulkee
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape' && !tallentaa) onSulje() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [tallentaa, onSulje])
+  // VB3 — Esc sulkee, paitsi kesken tallennuksen
+  useEscKey(onSulje, !tallentaa)
 
   async function tallenna() {
     setTallentaa(true)

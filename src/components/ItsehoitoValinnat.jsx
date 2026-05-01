@@ -15,6 +15,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { haeItsehoitoKirjasto } from '../lib/db'
+import { useEscKey } from '../hooks/useEscKey'
 
 const containerTyyli = {
   display:       'flex',
@@ -138,12 +139,8 @@ function ValintaModaali({ kirjasto, jaValitut, havaitutAlueet, onValmis, onPeru 
   // Esitäyttö: jo valittuja ei voi valita uudestaan
   const jaValitutSet = useMemo(() => new Set(jaValitut.map((v) => v.kirjasto_harjoitus_id)), [jaValitut])
 
-  // Esc sulkee
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onPeru() }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onPeru])
+  // VB3 — yhteinen Esc-hook stable-referenssillä
+  useEscKey(onPeru)
 
   const suodatetut = useMemo(() => {
     const h = haku.trim().toLowerCase()

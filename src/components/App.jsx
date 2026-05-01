@@ -3,6 +3,7 @@ import { supabase } from '../services/supabase'
 import { normalisoiAsiakas } from '../utils/asiakas'
 import { haeUusienAsiakkaidenMaara, aloitaUusiKaynti, haeAsiakkaanKontraindikaatiot } from '../lib/db'
 import { useOnline } from '../hooks/useOnline'
+import { useEscKey } from '../hooks/useEscKey'
 import { jononKoko } from '../lib/offlineDB'
 import { synkronoiJono } from '../lib/offlineSync'
 import Login from './Login'
@@ -154,12 +155,8 @@ export default function App() {
   }
 
   // Esc sulkee modaalin
-  useEffect(() => {
-    if (!vahvistusAuki) return
-    const onKeyDown = (e) => { if (e.key === 'Escape') setVahvistusAuki(false) }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [vahvistusAuki])
+  // VB3 — yhteinen Esc-hook (paalla=true vain kun modaali auki)
+  useEscKey(() => setVahvistusAuki(false), vahvistusAuki)
 
   // Hae kontraindikaatiot kun vahvistusmodaali avataan (Pala B2)
   const [vahvistusKontra, setVahvistusKontra] = useState([])
