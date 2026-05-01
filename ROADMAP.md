@@ -4,7 +4,7 @@
 > Päivitä aina kun vaihe valmistuu tai suunnitelma muuttuu.
 > Kun aloitat uuden Claude-chatin, voit sanoa: *"Lue ROADMAP.md ja jatka vaiheesta X"*.
 
-**Viimeisin päivitys:** 2026-05-01
+**Viimeisin päivitys:** 2026-05-01 (myöhäisempi sessio — Vaihe A 🟢 + Vaihe B 🟢 valmis)
 
 ---
 
@@ -26,8 +26,8 @@ Kehokorjaamo-App on **täysi alustatuote** joka korvaa kaiken hoitohuoneen pyör
 
 | # | Vaihe | Status | Aikaarvio |
 |---|-------|--------|-----------|
-| A | Palvelukohtainen asiakaslomake + perusrekisteri | 🟡 Käynnissä (renderöijä + editori valmis) | 2–3 vk |
-| B | Hoitajan kirjauspuoli | ⚪ Odottaa | 3–4 vk |
+| A | Palvelukohtainen asiakaslomake + perusrekisteri | 🟢 Valmis (tuotannossa oikeilla asiakkailla 1.5.2026) | 2–3 vk |
+| B | Hoitajan kirjauspuoli | 🟢 Valmis (1.5.2026) — paperiton hoitokirjaus | 3–4 vk |
 | C | Asiakasportaali | ⚪ Odottaa | 2–3 vk |
 | D | Julkinen sivusto | ⚪ Odottaa | 2–3 vk |
 | E | Oma ajanvaraus (korvaa Vellon) | ⚪ Odottaa | 3–5 vk |
@@ -87,24 +87,28 @@ Asiakkaat täyttävät lomakkeen sähköisesti — joko etukäteen kotona tai ho
 
 ## Vaihe B — Hoitajan kirjauspuoli
 
-**Aikaarvio:** 3–4 viikkoa
+**Status:** 🟢 Valmis 1.5.2026 — paperiton hoitokirjaus tuotannossa.
+
+**Aikaarvio:** 3–4 viikkoa (toteutui yhdellä intensiivisellä sessiolla)
 
 **Tavoite:** Olet kokonaan paperiton. Hoitokirjaukset digitaalisia, vertailukelpoisia, helposti löydettäviä.
 
-**Sisältö:**
+**Toteutuneet palat (B1–B9b):**
 
-- Hoitajan oma osa lomakkeesta — strukturoidut kentät havainnoille (kallistumat, kiertymät, asentomuutokset)
-- Mittaustulokset rakenteellisesti tallennettuna (numerot, liukusäätimet, vaaitus)
-- **Mittaustulosten 3 tasoa:**
-  - **Automatiikka** — kehonkartta-piirroksesta vyöhyke-yhteenveto, AI-tunnistus puhelinkuvista (kulmat, asennot)
-  - **Erilliset kentät** — strukturoidut kentät joihin hoitaja kirjaa itse
-  - **Vertailu edelliseen** — "viime kerralla X, nyt?" -formaatti
-- Hoidon kulun ja jatkohoitojen suositusten kirjaus
-- Asiakkaan ohjeistusten kirjaus (ylläpito-ohjeet, oireiden välttäminen)
-- Hoitokerta = lomake-snapshot -logiikka
-- Jatkohoidoissa edellisten käyntien näkyminen kronologisesti
-- Tablet-optimoitu hoitohuonekäyttö
-- **Offline-pääsy** — paikallinen tallennus selaimeen jos verkkoyhteys ei toimi, synkronointi serverille kun yhteys palaa
+- 🟢 **B1** — Hoitokirjaus-näkymän pohja: käynnin perustiedot, A/B-lomake-terminologia, automaattinen kytkentä A-lomakkeen suljettuun versioon (snapshot)
+- 🟢 **B2** — BodyMap-havainnot (8 anatomista aluetta), hoitoraportti (lähtötilanne, kulku, "Muista ensi kerralla"-nosto), edellisen käynnin Muista-nosto seuraavalle
+- 🟢 **B3** — 15 linjausmittaria liukusäätimillä (lantion kulmat, Q-kulmat, niskan käännökset, navicular drop, akillesjänne)
+- 🟢 **B4** — Mittausarvojen vertailu edelliseen + parannus/heikennys-tulkinta (delta + tavoite-etäisyys)
+- 🟢 **B5** — Itsehoito-kirjasto editorinäkymä Asetuksiin (kohdealueet, toistot, frekvenssi, varoitukset)
+- 🟢 **B6** — Yksilöllisen itsehoito-ohjelman koonti käynnin yhteydessä + älykäs aluefiltteri + PDF-tuloste
+- 🟢 **B6.5** — Hoitosarjan logiikka: N/M käyntilaskuri, automaattinen seuraavan käynnin pvm-ehdotus, sarjan päätöksen huomautus
+- 🟢 **B6.6** — Asiakkaan kehonkartta hoitajan vertailunäkymänä: yhteneväiset / hiljaiset jännitykset / asiakkaan oireet ilman löydöstä
+- 🟢 **B7** — Hoitokertomus PDF laajennettu: havainnot, mittaukset, hoitoraportti, jatkohoitosuunnitelma; GDPR-tietopaketista jätetään pois "Muista ensi kerralla"
+- 🟢 **B8** — AI-analyysi löydöksistä (Anthropic Claude haiku, Edge Function, markdown-vastaus, cache + rate-limit 30/h ja 200/24h, kvoot-laskuri UI:ssa)
+- 🟢 **B9a** — Tablet-optimointi: hit-areat ≥44px, range-thumb 24-28px, modaalit täysruutu, touch-action: manipulation, 16px input-fontti
+- 🟢 **B9b** — Offline-tallennus + synkronointi: PWA Service Worker (network-first), IndexedDB-jono epäonnistuneille tallennuksille, online/offline-indikaattori, automaattinen sync yhteyden palatessa, AI/PDF/uusi käynti vaativat verkon
+
+**Vaihe B tarkistus (1.5.2026 myöhempi sessio):** korjattu kesto-validointi (NaN-suoja), AI-race-condition (pyyntoIdRef), offline-jonon Promise.all, AI-tallennus upsertilla (uniikki rajoite), itsehoito-harjoituksen poisto → vain arkistointi (FK CASCADE → RESTRICT, datan eheys), useEscKey-yhteinen hook, 15 mittarin DB-CHECK-constraintit, vahvistuksen tyhjä B-lomake poistettu, AI-rate-limit (ai_kutsu_loki-taulu), osittainen tallennusvirhe per-osio + retry, optimistinen lukko hoitokäynnille (versio-sarake) + beforeunload-varoitus.
 
 ---
 
