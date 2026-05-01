@@ -8,9 +8,12 @@ export default function AllekirjoitusPad({ onChange, error }) {
 
   useEffect(() => {
     const canvas = canvasRef.current
+    // Valkoinen tausta jotta JPEG-tallennus ei tuota mustaa läpinäkyvää aluetta.
+    // Allekirjoituspaikka on visuaalisesti selkeämpi valkoisena; säilyy sisällä
+    // pyöristetyn rajan sisällä joka antaa palstamaisen ulkoasun.
     const pad = new SignaturePad(canvas, {
       penColor: '#1a1a1a',
-      backgroundColor: 'rgba(0,0,0,0)',
+      backgroundColor: '#ffffff',
       minWidth: 1,
       maxWidth: 3,
     })
@@ -19,7 +22,11 @@ export default function AllekirjoitusPad({ onChange, error }) {
     const onEnd = () => {
       const isEmpty = pad.isEmpty()
       setTyhjä(isEmpty)
-      onChange(isEmpty ? '' : pad.toDataURL('image/png'))
+      // JPEG 0.7-laatu pakkaa kuvan ~10x pienemmäksi kuin täysi PNG, mikä
+      // pitää payloadin Edge Functionin 200 KB -kattorajan alla. Allekirjoitus
+      // ei tarvitse läpinäkyvyyttä eikä korkeaa tarkkuutta — pelkkä luettava
+      // viiva riittää.
+      onChange(isEmpty ? '' : pad.toDataURL('image/jpeg', 0.7))
     }
     pad.addEventListener('endStroke', onEnd)
 

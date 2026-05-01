@@ -121,9 +121,25 @@ function jsonResponse(data: unknown, status: number) {
   })
 }
 
+// Pyynnön kokokatto. Lomakkeen tekstidata on yleensä alle 5 KB; allekirjoitus
+// JPEG-pakattuna (0.7-laatu, 600x150 px) ~5-10 KB. 200 KB on yli 10x reilumpi
+// kuin tarvitsisi, mutta torjuu DoS-yritykset jotka lähettävät isoa base64-
+// dataa (esim. valokuva tai audio binäärinä).
+const MAX_PAYLOAD_BYTES = 200_000
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
   if (req.method !== "POST")    return jsonResponse({ virhe: "Vain POST sallittu" }, 405)
+
+  // Tarkista payload-koko ennen kuin yritetään parsia JSONia — estää DoS-tyyliset
+  // pyynnöt joissa on monen MB:n base64-roskaa.
+  const contentLength = parseInt(req.headers.get("content-length") ?? "0", 10)
+  if (contentLength > MAX_PAYLOAD_BYTES) {
+    return jsonResponse(
+      { virhe: `Pyyntö on liian iso (max ${Math.round(MAX_PAYLOAD_BYTES / 1000)} KB)` },
+      413,
+    )
+  }
 
   try {
     const body = await req.json()
