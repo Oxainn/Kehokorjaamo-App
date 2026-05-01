@@ -3,6 +3,7 @@ import { rakennaPbPäivitys } from '../utils/productboard'
 import { supabase } from '../services/supabase'
 import ProductBoard from './ProductBoard'
 import KehonkarttaKalibrointi from './asetukset/KehonkarttaKalibrointi'
+import KotisivunLinkit from './asetukset/KotisivunLinkit'
 import PalvelutJaLomakkeet from './asetukset/PalvelutJaLomakkeet'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
@@ -318,6 +319,13 @@ export default function Settings({ hoitajaId }) {
             <TallennaNappi tallennettu={tallennettu1} />
           </form>
         }
+      />
+
+      {/* ── Kotisivun linkit ──────────────────────────────────────────────── */}
+      <AccordionOsio
+        id="kotisivun_linkit" otsikko="Kotisivun linkit" ikoni="🔗"
+        auki={aukiOsio === 'kotisivun_linkit'} onToggle={toggle}
+        lapset={<KotisivunLinkit />}
       />
 
       {/* ── Palvelut & lomakkeet (yhdistetty näkymä) ──────────────────────── */}
