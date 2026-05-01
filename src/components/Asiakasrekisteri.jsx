@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
 import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille } from '../lib/db'
-import { muotoilePvm } from '../lib/muotoilu'
+import { muotoilePvm, muodostaCSV, lataaTiedosto } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
 
 // Asiakasrekisteri jakautuu kahteen osioon:
@@ -70,6 +70,27 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
 
   const avatarKirjain = (nimi) =>
     nimi?.trim()?.[0]?.toUpperCase() ?? '?'
+
+  function vieCSV() {
+    if (asiakkaat.length === 0) return
+    const otsikot = ['Nimi','Sähköposti','Puhelin','Syntymäaika','Osoite','Postinumero','Postitoimipaikka','Ammatti','Pituus (cm)','Paino (kg)','Lisätty']
+    const rivit = asiakkaat.map((a) => [
+      a.nimi ?? '',
+      a.sahkoposti ?? '',
+      a.puhelin ?? '',
+      a.syntymaaika ?? '',
+      a.lahiosoite ?? '',
+      a.postinumero ?? '',
+      a.postitoimipaikka ?? '',
+      a.ammatti ?? '',
+      a.pituus ?? '',
+      a.paino ?? '',
+      muotoilePvm(a.luotu) ?? '',
+    ])
+    const csv = muodostaCSV(otsikot, rivit)
+    const pvm = new Date().toISOString().slice(0, 10)
+    lataaTiedosto(csv, `kehokorjaamo-asiakkaat-${pvm}.csv`)
+  }
 
   if (lataa) return (
     <div className="lataauspulse" style={{ textAlign: 'center', padding: '48px 16px', color: '#6b7280', fontSize: '14px' }}>
@@ -191,12 +212,34 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
 
   return (
     <section>
-      <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#111827', margin: '0 0 16px' }}>
-        Asiakasrekisteri
-        <span style={{ fontSize: '13px', fontWeight: 400, color: '#9ca3af', marginLeft: '8px' }}>
-          {asiakkaat.length} asiakasta
-        </span>
-      </h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', margin: '0 0 16px' }}>
+        <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#111827', margin: 0 }}>
+          Asiakasrekisteri
+          <span style={{ fontSize: '13px', fontWeight: 400, color: '#9ca3af', marginLeft: '8px' }}>
+            {asiakkaat.length} asiakasta
+          </span>
+        </h2>
+        {asiakkaat.length > 0 && (
+          <button
+            type="button"
+            onClick={vieCSV}
+            title="Lataa kaikki asiakkaat CSV-tiedostona (Excel-yhteensopiva)"
+            style={{
+              padding:      '6px 14px',
+              borderRadius: '8px',
+              border:       '1px solid #e2e8f0',
+              background:   'white',
+              color:        '#374151',
+              fontSize:     '13px',
+              fontWeight:   500,
+              cursor:       'pointer',
+              whiteSpace:   'nowrap',
+            }}
+          >
+            ⬇ Vie CSV
+          </button>
+        )}
+      </div>
 
       <input
         type="text"
