@@ -4,9 +4,8 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../services/supabase'
-import { haeKenttakirjasto, haePalveluLinkitPohjalle, paivitaPalveluLinkit } from '../../lib/db'
+import { haeKenttakirjasto, haePalvelutPohjalle } from '../../lib/db'
 import LisaaKenttaModaali from './LisaaKenttaModaali'
-import LiitaPalveluihinModaali from './LiitaPalveluihinModaali'
 import LomakeRenderoija from '../lomake/runtime/LomakeRenderoija'
 
 const luoTunniste = () => {
@@ -62,9 +61,8 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
   const [lisayksenKohde, setLisayksenKohde] = useState(null) // null tai osio.id
   const [esikatselu,     setEsikatselu]     = useState({ auki: false, vastaukset: {} })
 
-  // Palvelu-linkit pohjalle: [{ palvelu_id, palvelu_nimi, on_oletus }]
-  const [palveluLinkit,        setPalveluLinkit]        = useState([])
-  const [palveluModaaliAuki,   setPalveluModaaliAuki]   = useState(false)
+  // Palvelut jotka käyttävät tätä pohjaa (1:N — read-only listaus)
+  const [pohjanPalvelut, setPohjanPalvelut] = useState([])
 
   useEffect(() => {
     let peruttu = false
@@ -72,8 +70,8 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
       if (!peruttu) setKenttakirjasto(kentat)
     })
     if (pohja?.id) {
-      haePalveluLinkitPohjalle(pohja.id).then((linkit) => {
-        if (!peruttu) setPalveluLinkit(linkit)
+      haePalvelutPohjalle(pohja.id).then((palvelut) => {
+        if (!peruttu) setPohjanPalvelut(palvelut)
       })
     }
     return () => { peruttu = true }
@@ -333,17 +331,9 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
         throw insertVirhe
       }
 
-      // 4. Päivitä palvelu-linkit (jos muuttuneet — yksinkertaisuuden vuoksi
-      //    tallennetaan aina version tallennuksen yhteydessä)
-      const linkitTallennukseen = palveluLinkit.map((l) => ({
-        palvelu_id: l.palvelu_id,
-        on_oletus:  l.on_oletus,
-      }))
-      const linkkiTulos = await paivitaPalveluLinkit(pohja.id, linkitTallennukseen)
-      if (linkkiTulos.virhe) {
-        console.error('[LomakepohjaEditori] Palvelu-linkkien tallennus epäonnistui:', linkkiTulos.virhe)
-        throw new Error(linkkiTulos.virhe)
-      }
+      // 4. Palvelu↔pohja-suhde (1:N) hallitaan Asetukset → Palvelut -näkymässä,
+      //    ei enää editorissa. Pohja päivittyy tällöin automaattisesti niissä
+      //    palveluissa joiden lomakepohja_id viittaa tähän pohjaan.
 
       console.log('[LomakepohjaEditori] Versio', seuraavaVersio, 'tallennettu onnistuneesti')
       setTallennettu(true)
@@ -452,38 +442,29 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
           </select>
         </div>
 
-        {/* Liitetyt palvelut */}
+        {/* Tätä pohjaa käyttävät palvelut (read-only — vaihto tehdään Asetukset → Palvelut) */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-            Liitetyt palvelut
+            Tätä pohjaa käyttävät palvelut
           </label>
           <div className="flex items-center gap-2 flex-wrap min-h-[40px] rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-            {palveluLinkit.length === 0 ? (
-              <span className="text-sm text-gray-400 italic">Ei liitettyjä palveluita</span>
+            {pohjanPalvelut.length === 0 ? (
+              <span className="text-sm text-gray-400 italic">Ei yhtään palvelua käyttää tätä pohjaa</span>
             ) : (
-              palveluLinkit.map((l) => (
+              pohjanPalvelut.map((p) => (
                 <span
-                  key={l.palvelu_id}
-                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${
-                    l.on_oletus ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-brand-50 text-brand-700 border border-brand-200'
-                  }`}
+                  key={p.id}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-brand-50 text-brand-700 border border-brand-200"
                 >
-                  {l.on_oletus && <span>⭐</span>}
-                  {l.palvelu_nimi || '(nimetön)'}
+                  {!p.aktiivinen && <span title="Palvelu ei aktiivinen">💤</span>}
+                  {p.nimi}
                 </span>
               ))
             )}
-            <button
-              type="button"
-              onClick={() => setPalveluModaaliAuki(true)}
-              className="ml-auto px-3 py-1 text-xs font-medium text-brand-700 bg-white hover:bg-brand-50 border border-brand-200 rounded-md transition-colors whitespace-nowrap"
-            >
-              Hallitse
-            </button>
           </div>
-          {palveluLinkit.some((l) => l.on_oletus) && (
-            <p className="text-xs text-gray-500">⭐ = pohja näkyy oletuksena tällä palvelulla</p>
-          )}
+          <p className="text-xs text-gray-500">
+            Liitäntä tehdään Asetukset → Palvelut. Yksi palvelu käyttää aina yhtä pohjaa.
+          </p>
         </div>
 
         {virhe && (
@@ -659,28 +640,6 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
           onValitse={(tunniste) => lisaaKenttaOsioon(lisayksenKohde, tunniste)}
           onUusiKenttaLuotu={(tunniste) => uusiKenttaLuotu(lisayksenKohde, tunniste)}
           onSulje={() => setLisayksenKohde(null)}
-        />
-      )}
-
-      {/* Liitä palveluihin -modaali */}
-      {palveluModaaliAuki && (
-        <LiitaPalveluihinModaali
-          alkuLinkit={palveluLinkit.map((l) => ({ palvelu_id: l.palvelu_id, on_oletus: l.on_oletus }))}
-          onTallenna={async (uudet) => {
-            // Päivitä tila näytöllä — tallennus tapahtuu vasta kun lomakepohja
-            // tallennetaan. Haetaan palvelujen nimet uudelle tilalle.
-            const { data: palvelutData } = await supabase
-              .from('palvelut')
-              .select('id, nimi')
-              .in('id', uudet.map((u) => u.palvelu_id))
-            const nimiMap = new Map((palvelutData ?? []).map((p) => [p.id, p.nimi]))
-            setPalveluLinkit(uudet.map((u) => ({
-              palvelu_id:   u.palvelu_id,
-              palvelu_nimi: nimiMap.get(u.palvelu_id) ?? '',
-              on_oletus:    u.on_oletus,
-            })))
-          }}
-          onSulje={() => setPalveluModaaliAuki(false)}
         />
       )}
 

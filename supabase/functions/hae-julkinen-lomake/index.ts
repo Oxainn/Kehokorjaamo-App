@@ -43,10 +43,10 @@ Deno.serve(async (req: Request) => {
       auth: { autoRefreshToken: false, persistSession: false },
     })
 
-    // ── 1. Palvelu ─────────────────────────────────────────────
+    // ── 1. Palvelu + sen lomakepohja (1:N — palvelut.lomakepohja_id) ───
     const { data: palvelu, error: palveluVirhe } = await supabase
       .from("palvelut")
-      .select("id, hoitaja_id, nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, aktiivinen")
+      .select("id, hoitaja_id, nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, aktiivinen, lomakepohja_id, lomakepohjat:lomakepohja_id(id, aktiivinen)")
       .eq("id", palveluId)
       .eq("aktiivinen", true)
       .single()
@@ -54,27 +54,13 @@ Deno.serve(async (req: Request) => {
     if (palveluVirhe || !palvelu) {
       return jsonResponse({ virhe: "Palvelua ei löydy tai se ei ole aktiivinen" }, 404)
     }
-
-    // ── 2. Oletuspohja palvelulle ──────────────────────────────
-    // Hae kaikki linkit ja suodata aktiiviset pohjat — joinilla saadut
-    // lomakepohjat-rivit ovat null jos pohja on inaktiivinen tai poistettu.
-    const { data: linkit, error: linkkiVirhe } = await supabase
-      .from("palvelu_lomake_linkit")
-      .select("pohja_id, on_oletus, lomakepohjat!inner(id, aktiivinen)")
-      .eq("palvelu_id", palveluId)
-      .eq("lomakepohjat.aktiivinen", true)
-      .order("on_oletus", { ascending: false })
-
-    if (linkkiVirhe) {
-      return jsonResponse({ virhe: "Palvelu-linkkien haku epäonnistui" }, 500)
-    }
-    if (!linkit || linkit.length === 0) {
+    if (!palvelu.lomakepohja_id || !palvelu.lomakepohjat?.aktiivinen) {
       return jsonResponse({
-        virhe: "Palvelulle ei ole liitetty aktiivista lomakepohjaa. Hoitajan pitää tehdä se editorissa.",
+        virhe: "Palvelulle ei ole asetettu aktiivista lomakepohjaa. Hoitajan pitää tehdä se asetuksissa.",
       }, 404)
     }
 
-    const pohjaId = linkit[0].pohja_id
+    const pohjaId = palvelu.lomakepohja_id
 
     // ── 3. Pohjan uusin aktiivinen versio ──────────────────────
     const { data: versio, error: versioVirhe } = await supabase

@@ -345,11 +345,13 @@ export const haeAsiakkaanSairaudet = async (asiakasId) => {
 }
 
 // ─── Palvelut ─────────────────────────────────────────────────────────
+// Suhde palvelu↔lomakepohja: 1:N (yksi palvelu → yksi pohja, sama pohja
+// voi olla monessa palvelussa). Pohjan id on palvelut.lomakepohja_id.
 
 export const haePalvelut = async () => {
   const { data, error } = await supabase
     .from('palvelut')
-    .select('id, nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, jarjestys, aktiivinen, luotu, paivitetty')
+    .select('id, nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, jarjestys, aktiivinen, lomakepohja_id, luotu, paivitetty, lomakepohjat:lomakepohja_id(id, nimi, aktiivinen)')
     .order('jarjestys', { ascending: true })
     .order('nimi', { ascending: true })
 
@@ -357,10 +359,13 @@ export const haePalvelut = async () => {
     console.error('Palveluiden haku epäonnistui:', error)
     return []
   }
-  return data ?? []
+  return (data ?? []).map((p) => ({
+    ...p,
+    lomakepohja: p.lomakepohjat ?? null,
+  }))
 }
 
-export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eur = null, varauslinkki_url = '' }) => {
+export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eur = null, varauslinkki_url = '', lomakepohja_id = null }) => {
   if (!nimi?.trim()) return { virhe: 'Nimi puuttuu' }
   const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
   if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
@@ -374,6 +379,7 @@ export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eu
       kesto_min:        kesto_min ?? null,
       hinta_eur:        hinta_eur ?? null,
       varauslinkki_url: varauslinkki_url?.trim() || null,
+      lomakepohja_id:   lomakepohja_id ?? null,
     })
     .select('id')
     .single()
@@ -385,7 +391,7 @@ export const luoPalvelu = async ({ nimi, kuvaus = '', kesto_min = null, hinta_eu
   return { id: data.id, virhe: null }
 }
 
-export const paivitaPalvelu = async (id, { nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, jarjestys, aktiivinen }) => {
+export const paivitaPalvelu = async (id, { nimi, kuvaus, kesto_min, hinta_eur, varauslinkki_url, jarjestys, aktiivinen, lomakepohja_id }) => {
   const muutokset = { paivitetty: new Date().toISOString() }
   if (nimi !== undefined)             muutokset.nimi = nimi.trim()
   if (kuvaus !== undefined)           muutokset.kuvaus = kuvaus?.trim() || null
@@ -394,6 +400,7 @@ export const paivitaPalvelu = async (id, { nimi, kuvaus, kesto_min, hinta_eur, v
   if (varauslinkki_url !== undefined) muutokset.varauslinkki_url = varauslinkki_url?.trim() || null
   if (jarjestys !== undefined)        muutokset.jarjestys = jarjestys
   if (aktiivinen !== undefined)       muutokset.aktiivinen = aktiivinen
+  if (lomakepohja_id !== undefined)   muutokset.lomakepohja_id = lomakepohja_id
 
   const { error } = await supabase
     .from('palvelut')
@@ -420,57 +427,26 @@ export const poistaPalvelu = async (id) => {
   return { virhe: null }
 }
 
-// Linkit pohjasta palveluihin: palauttaa [{ palvelu_id, palvelu_nimi, on_oletus }]
-export const haePalveluLinkitPohjalle = async (pohjaId) => {
-  const { data, error } = await supabase
-    .from('palvelu_lomake_linkit')
-    .select('palvelu_id, on_oletus, palvelut(id, nimi, aktiivinen)')
-    .eq('pohja_id', pohjaId)
-
-  if (error) {
-    console.error('Palvelu-linkkien haku epäonnistui:', error)
-    return []
-  }
-  return (data ?? []).map((l) => ({
-    palvelu_id: l.palvelu_id,
-    palvelu_nimi: l.palvelut?.nimi ?? '',
-    aktiivinen: l.palvelut?.aktiivinen ?? false,
-    on_oletus: l.on_oletus,
-  }))
+// Asettaa palvelulle lomakepohjan (1:N — yksinkertainen UPDATE).
+// pohjaId voi olla null jos halutaan irrottaa.
+export const asetaPalvelunLomake = async (palveluId, pohjaId) => {
+  return paivitaPalvelu(palveluId, { lomakepohja_id: pohjaId ?? null })
 }
 
-// Korvaa pohjan palvelulinkit annetulla listalla.
-// uudetLinkit: [{ palvelu_id, on_oletus }]
-export const paivitaPalveluLinkit = async (pohjaId, uudetLinkit) => {
-  // 1. Poista vanhat linkit
-  const { error: poistoVirhe } = await supabase
-    .from('palvelu_lomake_linkit')
-    .delete()
-    .eq('pohja_id', pohjaId)
+// Hakee palveluiden listan johon tämä pohja on liitetty (1:N — käänteinen suunta).
+// Käytetään editorin näkymässä jossa halutaan näyttää "tätä pohjaa käyttävät palvelut".
+export const haePalvelutPohjalle = async (pohjaId) => {
+  const { data, error } = await supabase
+    .from('palvelut')
+    .select('id, nimi, aktiivinen')
+    .eq('lomakepohja_id', pohjaId)
+    .order('nimi')
 
-  if (poistoVirhe) {
-    console.error('Vanhojen linkkien poisto epäonnistui:', poistoVirhe)
-    return { virhe: poistoVirhe.message }
+  if (error) {
+    console.error('Pohjan palveluiden haku epäonnistui:', error)
+    return []
   }
-
-  // 2. Lisää uudet
-  if (uudetLinkit.length === 0) return { virhe: null }
-
-  const rivit = uudetLinkit.map((l) => ({
-    pohja_id:   pohjaId,
-    palvelu_id: l.palvelu_id,
-    on_oletus:  !!l.on_oletus,
-  }))
-
-  const { error: lisaysVirhe } = await supabase
-    .from('palvelu_lomake_linkit')
-    .insert(rivit)
-
-  if (lisaysVirhe) {
-    console.error('Uusien linkkien lisäys epäonnistui:', lisaysVirhe)
-    return { virhe: lisaysVirhe.message }
-  }
-  return { virhe: null }
+  return data ?? []
 }
 
 // Luo uuden kentän kenttäkirjastoon (rivit kenttakirjasto + kentan_versiot).
