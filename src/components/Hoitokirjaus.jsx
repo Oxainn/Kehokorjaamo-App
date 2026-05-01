@@ -238,11 +238,29 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
     setTila('tallentaa')
     setVirhe(null)
 
+    // Validoi kesto: NaN ja vyörähtäneet arvot torjutaan ennen tallennusta
+    // jotta DB:hen ei mene mitä tahansa numeroksi yritetty merkkijono.
+    let kestoArvo = null
+    if (kesto !== '' && kesto !== null && kesto !== undefined) {
+      const n = Number(kesto)
+      if (Number.isNaN(n)) {
+        setVirhe('Hoidon kesto ei ole kelvollinen luku')
+        setTila('virhe')
+        return
+      }
+      if (n < 0 || n > 600) {
+        setVirhe('Hoidon kesto pitää olla välillä 0–600 minuuttia')
+        setTila('virhe')
+        return
+      }
+      kestoArvo = n
+    }
+
     const hoitokirjausPayload = {
       otsikko:              otsikko.trim() || null,
       hoidon_kulku:         mitaHoidettiin.trim() || null,
       hoitajan_kommentit:   hoitajanKommentit.trim() || null,
-      kesto_min:            kesto === '' ? null : Number(kesto),
+      kesto_min:            kestoArvo,
       lahtotilanne:         lahtotilanne.trim() || null,
       muista_ensi_kerralla: muistaEnsiKerralla.trim() || null,
       seuraava_kaynti_pvm:  seuraavaKayntiPvm || null,
