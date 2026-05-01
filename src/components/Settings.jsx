@@ -445,11 +445,10 @@ export default function Settings({ hoitajaId }) {
         }
       />
 
-      {/* Palvelut-näkymä on nyt yhdistetty "Palvelut & lomakkeet" -osioon yllä. */}
-
-      {/* TILAPÄINEN: vanha localStorage-pohjainen Palvelut-koodi piilotettu jotta
-          datat eivät ole päällekkäin. Koodi ja apufunktiot jäävät vielä
-          komponenttiin myöhempää siivousta varten. */}
+      {/* Palvelut-näkymä on yhdistetty "Palvelut & lomakkeet" -osioon yllä.
+          Allaoleva localStorage-pohjainen Palvelut-koodi on säilytetty
+          referenssinä piilossa ({false && ...}). Voidaan poistaa kun
+          M6:n yhteydessä Settings.jsx pilkotaan pienempiin tiedostoihin. */}
       {false && (
         <div style={{ display: 'none' }}>
           <div style={{display:'flex',flexDirection:'column',gap:'12px'}}>

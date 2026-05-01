@@ -316,8 +316,6 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
         nayttotyyli,
         osiot: osiot.map((o, i) => ({ ...o, jarjestys: i + 1 })),
       }
-      console.log('[LomakepohjaEditori] Tallennetaan versio', seuraavaVersio, 'pohjalle', pohja.id, '— osioita:', osiot.length, '— rakenne:', uusiRakenne)
-
       const { error: insertVirhe } = await supabase
         .from('lomakepohja_versiot')
         .insert({
@@ -335,7 +333,6 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
       //    ei enää editorissa. Pohja päivittyy tällöin automaattisesti niissä
       //    palveluissa joiden lomakepohja_id viittaa tähän pohjaan.
 
-      console.log('[LomakepohjaEditori] Versio', seuraavaVersio, 'tallennettu onnistuneesti')
       setTallennettu(true)
       // Scrollaa onnistumisilmoitus näkyviin + viive jotta käyttäjä näkee sen ennen palaamista
       setTimeout(() => palauteRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)

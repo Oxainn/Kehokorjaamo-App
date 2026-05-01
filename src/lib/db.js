@@ -396,7 +396,6 @@ let _sairausTyyppiCache = null
 
 export const haeSairausTyypit = async () => {
   if (_sairausTyyppiCache) return _sairausTyyppiCache
-  console.log('[haeSairausTyypit] kutsuttu (ei cachea)')
   const { data, error } = await supabase
     .from('sairaus_tyypit')
     .select('id, koodi, nimi, kontraindikaatio, ryhma, jarjestys, tarkenne_label, tarkenne_tyyppi')
@@ -407,10 +406,8 @@ export const haeSairausTyypit = async () => {
     console.error('[haeSairausTyypit] virhe:', error)
     return []
   }
-  const lista = data ?? []
-  console.log('[haeSairausTyypit] tulos:', lista.length, 'riviä — tallennettu cacheen')
-  _sairausTyyppiCache = lista
-  return lista
+  _sairausTyyppiCache = data ?? []
+  return _sairausTyyppiCache
 }
 
 export const varmistaTaiLuoVersio = async (asiakasId) => {

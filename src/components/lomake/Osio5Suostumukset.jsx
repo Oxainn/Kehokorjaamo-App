@@ -54,8 +54,7 @@ export default function Osio5Suostumukset({
       onTulostaPdf(arvo);
       return;
     }
-    console.log('PDF-tulostus pyydetty:', { suostumukset: arvo, asiakkaanNimi, paivamaara: tanaan });
-    naytaIlmoitus('PDF-tulostus tulossa myöhemmin. Data on konsolissa nähtävillä.');
+    naytaIlmoitus('PDF-tulostus tulossa myöhemmin.');
   }
 
   function kasitteleLahetys() {
@@ -63,8 +62,7 @@ export default function Osio5Suostumukset({
       onAllekirjoitusJaLaheta(arvo);
       return;
     }
-    console.log('Lähetys pyydetty:', { suostumukset: arvo, asiakkaanNimi, onUusiAsiakas, paivamaara: tanaan });
-    naytaIlmoitus('Lähetys ja tallennuslogiikka tulossa myöhemmin. Data on konsolissa nähtävillä.');
+    naytaIlmoitus('Lähetys ja tallennuslogiikka tulossa myöhemmin.');
   }
 
   // Voiko lähettää?
