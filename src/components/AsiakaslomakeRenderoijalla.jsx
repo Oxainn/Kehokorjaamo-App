@@ -106,8 +106,9 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
         return
       }
       setTila(TILA.ONNISTUI)
-      // Lyhyt viive jotta käyttäjä näkee onnistumisilmoituksen
-      setTimeout(onValmis, 1200)
+      // 2 sekunnin viive: pidempi kuin alkuperäinen 1.2 s jotta nopealla
+      // yhteydellä mobiilikäyttäjä ehtii rekisteröidä onnistumisviestin.
+      setTimeout(onValmis, 2000)
     } catch (e) {
       setTila(TILA.EPAONNISTUI)
       // Verkkovirhe: TypeError ("Failed to fetch") tai navigator.onLine = false.

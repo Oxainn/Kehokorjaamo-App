@@ -7,3 +7,13 @@
   body { background: white; }
   main { padding: 0 !important; }
 }
+
+/* Latauspulse — käytetään "Ladataan..." -teksteille jotta käyttäjä näkee
+   että jotain todella tapahtuu (vs. juuttunut tila). */
+@keyframes lataauspulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.5; }
+}
+.lataauspulse {
+  animation: lataauspulse 1.4s ease-in-out infinite;
+}

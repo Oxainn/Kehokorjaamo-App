@@ -128,7 +128,7 @@ export default function UudenAsiakkaanTarkistus({ asiakas, onValmis }) {
       return
     }
     setTila('onnistui')
-    setTimeout(onValmis, 1200)
+    setTimeout(onValmis, 2000)
   }
 
   if (lataa) {

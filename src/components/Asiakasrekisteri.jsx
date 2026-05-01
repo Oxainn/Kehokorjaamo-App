@@ -69,8 +69,8 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
     nimi?.trim()?.[0]?.toUpperCase() ?? '?'
 
   if (lataa) return (
-    <div style={{ textAlign: 'center', padding: '48px 16px', color: '#6b7280', fontSize: '14px' }}>
-      Haetaan asiakkaita...
+    <div className="lataauspulse" style={{ textAlign: 'center', padding: '48px 16px', color: '#6b7280', fontSize: '14px' }}>
+      Haetaan asiakkaita…
     </div>
   )
 
@@ -150,9 +150,10 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
                 style={{
                   background:   '#f3f4f6',
                   color:        '#374151',
-                  padding:      '4px 10px',
+                  padding:      '6px 12px',
+                  minHeight:    '32px',
                   borderRadius: '999px',
-                  fontSize:     '11px',
+                  fontSize:     '12px',
                   fontWeight:   500,
                   border:       'none',
                   cursor:       'pointer',

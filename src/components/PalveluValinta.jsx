@@ -66,7 +66,7 @@ export default function PalveluValinta() {
       </div>
 
       {tila === 'lataa' && (
-        <p style={{ textAlign: 'center', color: '#6b7280', fontSize: '14px', padding: '32px' }}>
+        <p className="lataauspulse" style={{ textAlign: 'center', color: '#6b7280', fontSize: '14px', padding: '32px' }}>
           Ladataan palveluja…
         </p>
       )}

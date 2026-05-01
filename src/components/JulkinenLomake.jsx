@@ -173,7 +173,7 @@ export default function JulkinenLomake({ palveluId }) {
   // ── Render ─────────────────────────────────────────────────────────────
 
   if (tila === 'lataa') {
-    return <div style={tilaTyyli}><p style={{ color: '#6b7280', fontSize: '14px' }}>Ladataan lomaketta…</p></div>
+    return <div style={tilaTyyli}><p className="lataauspulse" style={{ color: '#6b7280', fontSize: '14px' }}>Ladataan lomaketta…</p></div>
   }
 
   if (tila === 'virhe' && !palvelu) {
