@@ -124,6 +124,8 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
     }
   }
 
+  const onUusiAsiakas = !asiakas?.id
+
   // Lataa pohja paikallisesti jotta voimme suodattaa Suostumukset-osion
   // pois ennen kuin LomakeRenderoija saa rakenteen.
   const { rakenne: pohjaRakenne, kentat: pohjaKentat, lataa: lataaPohja, virhe: pohjaLatausVirhe } = useLomakepohja(pohjaId)
@@ -161,12 +163,40 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
         </div>
       )}
 
+      {/* Lähetys-nappi näkyy LomakeRenderoija:n sisällä vain uudelle asiakkaalle.
+          Olemassa olevalle näytetään erillinen "Tallenna muutokset"-nappi
+          alempana — "LÄHETÄ LOMAKE" -termi viittaa ensimmäiseen tallennukseen,
+          ei muokkaukseen. */}
       <LomakeRenderoija
         valmiitTiedot={{ rakenne: naytettavaRakenne, kentat: pohjaKentat }}
         vastaukset={vastaukset}
         onMuutos={setVastaukset}
-        onLahetys={tallenna}
+        onLahetys={onUusiAsiakas ? tallenna : null}
       />
+
+      {/* Tallenna muutokset -nappi olemassa olevan asiakkaan muokkauksessa */}
+      {!onUusiAsiakas && (
+        <button
+          type="button"
+          onClick={() => tallenna(vastaukset ?? {})}
+          disabled={tila === TILA.TALLENTAA}
+          style={{
+            width:        '100%',
+            minHeight:    '52px',
+            borderRadius: '12px',
+            border:       'none',
+            background:   '#1D9E75',
+            color:        'white',
+            fontSize:     '15px',
+            fontWeight:   700,
+            letterSpacing: '0.03em',
+            cursor:       tila === TILA.TALLENTAA ? 'wait' : 'pointer',
+            opacity:      tila === TILA.TALLENTAA ? 0.7 : 1,
+          }}
+        >
+          {tila === TILA.TALLENTAA ? 'Tallennetaan…' : 'Tallenna muutokset'}
+        </button>
+      )}
 
       {/* Käyntihistoria — näytetään vain jos asiakkaalla on suljettuja versioita */}
       {asiakas && <Kayntihistoria asiakas={asiakas} />}
