@@ -45,6 +45,48 @@ export const haeAsiakkaat = async () => {
   return data
 }
 
+// Hakee mitkä asiakkaat ovat rastittaneet vähintään yhden kontraindikaatio-
+// sairauden voimassa olevassa lomakkeessaan. Käytetään Asiakasrekisterin
+// kortin oranssin varoitusreunan näyttämiseen — hoitajan pitää nähdä yhdellä
+// silmäyksellä että hoitoa kannattaa harkita.
+//
+// Palauttaa Map<asiakas_id, sairauksien_nimet[]> jossa avainjoukon
+// pituus = niiden asiakkaiden lukumäärä, joilla on kontraindikaatioita.
+export const haeKontraindikaatiotAsiakkaille = async (asiakasIdt) => {
+  if (!Array.isArray(asiakasIdt) || asiakasIdt.length === 0) return new Map()
+
+  // Vaihe 1: hae kunkin asiakkaan voimassa oleva lomakeversion id
+  const { data: versiot, error: versioVirhe } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('id, asiakas_id')
+    .in('asiakas_id', asiakasIdt)
+    .is('voimassa_asti', null)
+
+  if (versioVirhe || !versiot || versiot.length === 0) return new Map()
+
+  // Vaihe 2: hae sairaudet näille versioille joiden sairaus_tyyppi.kontraindikaatio = true
+  const versioIdMap = new Map(versiot.map((v) => [v.id, v.asiakas_id]))
+  const { data: sairaudet, error: sairausVirhe } = await supabase
+    .from('lomake_sairaudet')
+    .select('lomake_versio_id, sairaus_tyyppi:sairaus_tyypit!inner(nimi, kontraindikaatio)')
+    .in('lomake_versio_id', [...versioIdMap.keys()])
+    .eq('on_voimassa', true)
+    .eq('sairaus_tyypit.kontraindikaatio', true)
+
+  if (sairausVirhe || !sairaudet) return new Map()
+
+  const tulos = new Map()
+  for (const s of sairaudet) {
+    const asiakasId = versioIdMap.get(s.lomake_versio_id)
+    if (!asiakasId) continue
+    const nimi = s.sairaus_tyyppi?.nimi
+    if (!nimi) continue
+    if (!tulos.has(asiakasId)) tulos.set(asiakasId, [])
+    tulos.get(asiakasId).push(nimi)
+  }
+  return tulos
+}
+
 // Hakee asiakkaan menneiden hoitokäyntien päivämäärät — kaikki suljetut
 // lomakeversiot (voimassa_asti IS NOT NULL) uusimmasta vanhimpaan.
 // Jokainen rivi vastaa yhtä mennyttä hoitokäyntiä; aktiivinen avoin

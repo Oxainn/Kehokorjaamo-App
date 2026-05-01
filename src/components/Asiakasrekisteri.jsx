@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
-import { haeKayntienPaivamaarat } from '../lib/db'
+import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille } from '../lib/db'
 import { muotoilePvm } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
 
@@ -20,6 +20,8 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
   const [lataa, setLataa]         = useState(true)
   // Map: asiakkaan id → 4 uusinta käyntiriviä [{ id, voimassa_alkaen }]
   const [kayntienMap, setKayntienMap] = useState({})
+  // Map: asiakkaan id → kontraindikaatio-sairauksien nimet (jos yhtään)
+  const [kontraindikaatiotMap, setKontraindikaatiotMap] = useState(new Map())
   // Avattu käynti-modaali — { lomakeVersioId, asiakas } tai null
   const [avoinKaynti,   setAvoinKaynti]   = useState(null)
 
@@ -43,13 +45,16 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
       const lista = data ?? []
       setAsiakkaat(lista)
 
-      // Hae jokaiselle 4 viimeisintä käyntipäivää rinnan
-      const kayntiTulokset = await Promise.all(
-        lista.map((a) => haeKayntienPaivamaarat(a.id, 4))
-      )
+      // Hae rinnan: jokaisen asiakkaan 4 viimeisintä käyntipäivää +
+      // kontraindikaatiot kaikille asiakkaille kerralla
+      const [kayntiTulokset, kontraindikaatiot] = await Promise.all([
+        Promise.all(lista.map((a) => haeKayntienPaivamaarat(a.id, 4))),
+        haeKontraindikaatiotAsiakkaille(lista.map((a) => a.id)),
+      ])
       const map = {}
       lista.forEach((a, i) => { map[a.id] = kayntiTulokset[i] ?? [] })
       setKayntienMap(map)
+      setKontraindikaatiotMap(kontraindikaatiot)
       setLataa(false)
     }
     haeAsiakkaat()
@@ -74,6 +79,13 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
 
   function AsiakasKortti({ a, korostettu }) {
     const kaynnit = kayntienMap[a.id] ?? []
+    const kontraindikaatiot = kontraindikaatiotMap.get(a.id) ?? []
+    const onKontraindikaatio = kontraindikaatiot.length > 0
+    // Värikoodi: korostettu (uusi asiakas) > kontraindikaatio > normaali
+    const taustavari = korostettu ? '#fffbeb' : (onKontraindikaatio ? '#fff7ed' : 'white')
+    const reunavari  = korostettu ? '1.5px solid #f59e0b'
+                     : onKontraindikaatio ? '1.5px solid #fb923c'
+                     : '1px solid #e2e8f0'
     return (
       <div
         style={{
@@ -82,8 +94,8 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
           gap:           '8px',
           padding:       '14px 16px',
           borderRadius:  '12px',
-          background: korostettu ? '#fffbeb' : 'white',
-          border:     korostettu ? '1.5px solid #f59e0b' : '1px solid #e2e8f0',
+          background:    taustavari,
+          border:        reunavari,
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -98,8 +110,17 @@ export default function Asiakasrekisteri({ onValitseAsiakas, hoitajaId, refresh 
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {a.nimi || '(nimetön)'}
+            <p style={{ fontSize: '15px', fontWeight: 600, color: '#111827', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{a.nimi || '(nimetön)'}</span>
+              {onKontraindikaatio && !korostettu && (
+                <span
+                  title={`Vaikuttaa hoitoon: ${kontraindikaatiot.join(', ')}`}
+                  style={{ fontSize: '14px', color: '#c2410c', flexShrink: 0 }}
+                  aria-label={`Varoitus: ${kontraindikaatiot.length} hoitoon vaikuttavaa sairautta`}
+                >
+                  ⚠️
+                </span>
+              )}
             </p>
             <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {[a.sahkoposti, a.puhelin].filter(Boolean).join(' · ') || '—'}
