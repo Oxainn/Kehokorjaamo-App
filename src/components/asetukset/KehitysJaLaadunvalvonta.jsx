@@ -13,6 +13,10 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { Responsive, WidthProvider } from 'react-grid-layout'
 import { supabase } from '../../services/supabase'
+// productboard-data AINA Live-DB:hen — eliminoi kahden DB:n synkkausongelmat.
+// Muut taulut (user_preferences, tarkistuskierrokset) pysyvät ympäristö-
+// kohtaisina, joten käytetään täsmäkutsuja molempiin clienteihin.
+import { productboardClient } from '../../lib/productboardClient'
 import { YMPARISTOT, haeViimeisinCommit, haeErotHaarat, pingaaUrl, GITHUB_REPO } from '../../lib/ymparistot'
 import { tunnistaYmparisto, YMPARISTO } from '../../lib/ymparisto'
 import SiirraLiveenModaali from './SiirraLiveenModaali'
@@ -170,7 +174,7 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
 
   const lataaPb = useCallback(async () => {
     if (!hoitajaId) return
-    const { data, error } = await supabase
+    const { data, error } = await productboardClient
       .from('productboard')
       .select('visio, ideat, todo, changelog')
       .eq('hoitaja_id', hoitajaId)
@@ -205,7 +209,7 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
   const tallennusRef = useRef(null)
   const tallennaPb = useCallback(async (uusi) => {
     if (!hoitajaId) return
-    const { error } = await supabase
+    const { error } = await productboardClient
       .from('productboard')
       .upsert({
         hoitaja_id: hoitajaId,

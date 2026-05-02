@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '../services/supabase'
+// productboard-data luetaan/kirjoitetaan AINA Live-DB:hen (eliminoi
+// kahden DB:n synkkausongelmat). Alias säilyttää alla olevan koodin
+// muuttumattomana — `supabase`-viittaukset osoittavat tässä tiedostossa
+// productboard-clientiin. Tämän tiedoston käyttö rajoittuu productboard-
+// tauluun, joten alias on turvallinen.
+import { productboardClient as supabase } from '../lib/productboardClient'
 import { uid, rakennaPbPäivitys } from '../utils/productboard'
 
 const STORAGE_KEY = 'kehokorjaamo_productboard'
