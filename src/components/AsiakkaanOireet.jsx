@@ -383,12 +383,12 @@ function VertailuOsio({ asiakasId, nykyisetMerkinnat }) {
         })}
       </div>
 
-      {/* Muutos-listat */}
+      {/* Muutos-listat — kompakti 3 lohkoa rivissä, klikkaus avaa täyden listan */}
       {muutokset && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-          <MuutosLohko nimi="📈 Parantuneet" lista={muutokset.parantuneet} vari="#16a34a" tyhjaTeksti="Ei parannuksia tähän käyntiin." />
-          <MuutosLohko nimi="📉 Pahentuneet" lista={muutokset.pahentuneet} vari="#dc2626" tyhjaTeksti="Ei uusia oireita." />
-          <MuutosLohko nimi="➡ Ennallaan"   lista={muutokset.ennallaan}   vari="#6b7280" tyhjaTeksti="Ei samoja oireita." />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+          <MuutosLohko nimi="📈 Parantuneet" lista={muutokset.parantuneet} vari="#16a34a" tyhjaTeksti="Ei parannuksia tähän käyntiin." kompakti />
+          <MuutosLohko nimi="📉 Pahentuneet" lista={muutokset.pahentuneet} vari="#dc2626" tyhjaTeksti="Ei uusia oireita." kompakti />
+          <MuutosLohko nimi="➡ Ennallaan"   lista={muutokset.ennallaan}   vari="#6b7280" tyhjaTeksti="Ei samoja oireita." kompakti vainLuku />
         </div>
       )}
 
@@ -398,29 +398,139 @@ function VertailuOsio({ asiakasId, nykyisetMerkinnat }) {
   )
 }
 
-function MuutosLohko({ nimi, lista, vari, tyhjaTeksti }) {
+function MuutosLohko({ nimi, lista, vari, tyhjaTeksti, kompakti = false, vainLuku = false }) {
+  const [modaaliAuki, setModaaliAuki] = useState(false)
+  const max = kompakti ? 3 : lista.length
+  const top = lista.slice(0, max)
+  const ylimaaraisia = lista.length - top.length
+
   return (
-    <div style={{
-      background:   `${vari}0d`,
-      border:       `1px solid ${vari}66`,
-      borderRadius: '10px',
-      padding:      '10px 12px',
-    }}>
-      <p style={{ fontSize: '12px', fontWeight: 700, color: vari, margin: '0 0 6px' }}>
-        {nimi} ({lista.length})
-      </p>
-      {lista.length === 0 ? (
-        <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0, fontStyle: 'italic' }}>{tyhjaTeksti}</p>
-      ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+    <>
+      <div style={{
+        background:    `${vari}0d`,
+        border:        `1px solid ${vari}66`,
+        borderRadius:  '10px',
+        padding:       '10px 12px',
+        display:       'flex',
+        flexDirection: 'column',
+        minHeight:     '110px',
+      }}>
+        <p style={{ fontSize: '12px', fontWeight: 700, color: vari, margin: '0 0 8px' }}>
+          {nimi} ({lista.length})
+        </p>
+
+        {lista.length === 0 ? (
+          <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0, fontStyle: 'italic' }}>{tyhjaTeksti}</p>
+        ) : vainLuku ? (
+          // Ennallaan-tyyppinen: iso lukumäärä, ei pitkää listaa (toistoa)
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: '32px', fontWeight: 700, color: vari, lineHeight: 1 }}>
+              {lista.length}
+            </span>
+            <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '4px' }}>
+              {lista.length === 1 ? 'alue ennallaan' : 'aluetta ennallaan'}
+            </span>
+          </div>
+        ) : (
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+            {top.map((m, i) => (
+              <li key={`${m.vyohykeId}-${i}`} style={{ fontSize: '12px', color: '#374151' }}>
+                • <strong>{m.nimi}</strong>
+                {m.muutos && <span style={{ color: '#6b7280', fontSize: '11px' }}> · {m.muutos}</span>}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {(ylimaaraisia > 0 || (vainLuku && lista.length > 0)) && (
+          <button
+            type="button"
+            onClick={() => setModaaliAuki(true)}
+            style={{
+              marginTop:    '8px',
+              padding:      0,
+              background:   'transparent',
+              border:       'none',
+              color:        vari,
+              fontSize:     '11px',
+              fontWeight:   600,
+              cursor:       'pointer',
+              alignSelf:    'flex-start',
+              textDecoration: 'underline',
+            }}
+          >
+            {ylimaaraisia > 0 ? `Näytä kaikki (${lista.length}) →` : 'Näytä lista →'}
+          </button>
+        )}
+      </div>
+
+      {modaaliAuki && (
+        <ListaModaali nimi={nimi} lista={lista} vari={vari} onSulje={() => setModaaliAuki(false)} />
+      )}
+    </>
+  )
+}
+
+function ListaModaali({ nimi, lista, vari, onSulje }) {
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onSulje() }}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '24px', zIndex: 1000,
+      }}
+    >
+      <div style={{
+        background:    'white',
+        borderRadius:  '12px',
+        maxWidth:      '480px',
+        width:         '100%',
+        maxHeight:     '85vh',
+        display:       'flex',
+        flexDirection: 'column',
+        overflow:      'hidden',
+      }}>
+        <div style={{
+          padding:        '14px 18px',
+          borderBottom:   '1px solid #f3f4f6',
+          display:        'flex',
+          alignItems:     'center',
+          justifyContent: 'space-between',
+        }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 700, color: vari, margin: 0 }}>
+            {nimi} ({lista.length})
+          </h3>
+          <button
+            type="button"
+            onClick={onSulje}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#6b7280' }}
+          >
+            ✕
+          </button>
+        </div>
+        <ul style={{
+          listStyle:  'none',
+          padding:    '12px 18px 18px',
+          margin:     0,
+          overflow:   'auto',
+          display:    'flex',
+          flexDirection: 'column',
+          gap:        '6px',
+        }}>
           {lista.map((m, i) => (
-            <li key={`${m.vyohykeId}-${i}`} style={{ fontSize: '12px', color: '#374151' }}>
-              • <strong>{m.nimi}</strong>
-              {m.muutos && <span style={{ color: '#6b7280', fontSize: '11px' }}> · {m.muutos}</span>}
+            <li key={`${m.vyohykeId}-${i}`} style={{
+              fontSize:     '13px',
+              color:        '#374151',
+              padding:      '4px 0',
+              borderBottom: '1px dashed #f3f4f6',
+            }}>
+              <strong>{m.nimi}</strong>
+              {m.muutos && <span style={{ color: '#6b7280', fontSize: '12px' }}> · {m.muutos}</span>}
             </li>
           ))}
         </ul>
-      )}
+      </div>
     </div>
   )
 }
