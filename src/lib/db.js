@@ -1670,3 +1670,57 @@ export const tallennaRenderoijastaLomake = async ({ vastaukset, asiakasIdJosOlem
     virhe:          null,
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// KA1 — Asentokuvat (4 per käynti: edesta/takaa/vasen/oikea)
+// ─────────────────────────────────────────────────────────────────────────
+
+export const haeAsentokuvat = async (hoitokayntiId) => {
+  if (!hoitokayntiId) return []
+  const { data, error } = await supabase
+    .from('asentokuvat')
+    .select('id, nakokulma, kuva_data, keypointit, kulmat, luotu')
+    .eq('hoitokaynti_id', hoitokayntiId)
+  if (error) {
+    console.error('Asentokuvien haku epäonnistui:', error)
+    return []
+  }
+  return data ?? []
+}
+
+// Tallenna tai päivitä yhden näkökulman kuva. Upsert hoitokaynti+nakokulma-
+// uniikilla rajoitteella → vanha vaihtuu uuteen.
+export const tallennaAsentokuva = async ({ hoitokayntiId, asiakasId, nakokulma, kuvaData }) => {
+  if (!hoitokayntiId || !asiakasId || !nakokulma || !kuvaData) {
+    return { virhe: 'Pakollisia tietoja puuttuu' }
+  }
+  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
+  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
+
+  const { data, error } = await supabase
+    .from('asentokuvat')
+    .upsert({
+      hoitokaynti_id: hoitokayntiId,
+      asiakas_id:     asiakasId,
+      hoitaja_id:     user.id,
+      nakokulma,
+      kuva_data:      kuvaData,
+    }, { onConflict: 'hoitokaynti_id,nakokulma' })
+    .select('id, nakokulma, kuva_data, luotu')
+    .single()
+  if (error) {
+    console.error('Asentokuvan tallennus epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { kuva: data, virhe: null }
+}
+
+export const poistaAsentokuva = async (kuvaId) => {
+  if (!kuvaId) return { virhe: 'Kuva-id puuttuu' }
+  const { error } = await supabase
+    .from('asentokuvat')
+    .delete()
+    .eq('id', kuvaId)
+  if (error) return { virhe: error.message }
+  return { virhe: null }
+}

@@ -32,6 +32,7 @@ import KehonkarttaVertailu from './KehonkarttaVertailu'
 import MittariSliideri from './MittariSliideri'
 import ItsehoitoValinnat from './ItsehoitoValinnat'
 import AILoydosAnalyysi from './AILoydosAnalyysi'
+import AsentoKuvat from './AsentoKuvat'
 import { MITTARIT } from '../data/linjausmittarit'
 
 const inputTyyli = {
@@ -594,6 +595,12 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
           asiakkaanKehonkartta={asiakkaanKehonkartta}
           asiakkaanOireet={asiakkaanOireet}
         />
+      </div>
+
+      {/* KA1 — Asentokuvat (4 kpl: edestä/takaa/vasen/oikea) */}
+      <div style={ryhmaTyyli}>
+        <h3 style={ryhmaOtsikko}>Asentokuvat</h3>
+        <AsentoKuvat hoitokayntiId={hoitokayntiId} asiakasId={asiakas?.id} />
       </div>
 
       {/* Mittaukset — Pala B3, 15 linjausmittaria */}
