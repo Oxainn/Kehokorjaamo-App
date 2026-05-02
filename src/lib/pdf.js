@@ -9,7 +9,7 @@
 // Pala B7: PDF laajennettu B-lomakkeen tiedoilla:
 //   - Hoitajan havainnot (BodyMap-merkinnät ryhmiteltynä alueittain)
 //   - Mittaustulokset (15 mittaria + vertailu edelliseen)
-//   - Hoitoraportti (lähtötilanne, hoidon kulku, "muista ensi kerralla"
+//   - Hoitoraportti (alkutilanne, hoidon kulku, "muista ensi kerralla"
 //     vain hoitajan tulostuksissa, jätetään pois GDPR-tietopaketista)
 //   - Itsehoito-ohjelma (B6, jo olemassa)
 //   - Jatkohoitosuunnitelma (seuraava käynti, sarjan tila, kommentti)
@@ -362,12 +362,12 @@ function rakennaMittauksetOsio(hoitokaynti, edellisetMittarit) {
   `
 }
 
-// Pala B7 — Hoitoraportti: kesto, lähtötilanne, hoidon kulku, "muista
+// Pala B7 — Hoitoraportti: kesto, alkutilanne, hoidon kulku, "muista
 // ensi kerralla". naytaMuistaEnsiKerralla=false jättää pois Muista-tekstin
 // (käytetään GDPR-tietopaketissa, hoitajan oma muistiinpano).
 function rakennaHoitoraporttiOsio(hoitokaynti, naytaMuistaEnsiKerralla) {
   if (!hoitokaynti) return ''
-  const lt = hoitokaynti.lahtotilanne
+  const lt = hoitokaynti.alkutilanne
   const hk = hoitokaynti.hoidon_kulku
   const me = hoitokaynti.muista_ensi_kerralla
   const ke = hoitokaynti.kesto_min
@@ -380,7 +380,7 @@ function rakennaHoitoraporttiOsio(hoitokaynti, naytaMuistaEnsiKerralla) {
   }
   if (lt) {
     ositkin.push(`
-      <h4>Hoidon lähtötilanne</h4>
+      <h4>Hoidon alkutilanne</h4>
       <div class="tekstilohko">${escapeHtml(lt)}</div>
     `)
   }

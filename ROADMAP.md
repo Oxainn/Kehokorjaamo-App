@@ -99,7 +99,7 @@ Asiakkaat täyttävät lomakkeen sähköisesti — joko etukäteen kotona tai ho
 **Toteutuneet palat (B1–B9b):**
 
 - 🟢 **B1** — Hoitokirjaus-näkymän pohja: käynnin perustiedot, A/B-lomake-terminologia, automaattinen kytkentä A-lomakkeen suljettuun versioon (snapshot)
-- 🟢 **B2** — BodyMap-havainnot (8 anatomista aluetta), hoitoraportti (lähtötilanne, kulku, "Muista ensi kerralla"-nosto), edellisen käynnin Muista-nosto seuraavalle
+- 🟢 **B2** — BodyMap-havainnot (8 anatomista aluetta), hoitoraportti (alkutilanne, kulku, "Muista ensi kerralla"-nosto), edellisen käynnin Muista-nosto seuraavalle
 - 🟢 **B3** — 15 linjausmittaria liukusäätimillä (lantion kulmat, Q-kulmat, niskan käännökset, navicular drop, akillesjänne)
 - 🟢 **B4** — Mittausarvojen vertailu edelliseen + parannus/heikennys-tulkinta (delta + tavoite-etäisyys)
 - 🟢 **B5** — Itsehoito-kirjasto editorinäkymä Asetuksiin (kohdealueet, toistot, frekvenssi, varoitukset)

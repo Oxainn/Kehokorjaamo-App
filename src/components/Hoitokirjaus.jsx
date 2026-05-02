@@ -1,8 +1,8 @@
 // Vaihe B — Pala B1+B2: Hoitokirjaus-näkymä (B-lomakkeen täyttö)
 //
-// Pala B1: perustiedot (otsikko, mitä hoidettiin, hoitajan kommentit)
-// Pala B2: BodyMap-havainnot + hoitoraportti (kesto, lähtötilanne, kulku,
-//          muista ensi kerralla) + edellisen käynnin "muista"-nosto
+// Pala B1: perustiedot (otsikko, alkutilanne, mitä hoidettiin, hoitajan kommentit)
+// Pala B2: BodyMap-havainnot + hoitoraportti (kesto, kulku, muista ensi kerralla)
+//          + edellisen käynnin "muista"-nosto
 //
 // Avautuu kun "+ Uusi käynti" suoritettiin (App.jsx setNakyma 'hoitokirjaus').
 // hoitokayntiId: id B-lomakkeesta (hoitokaynnit-rivistä) joka aiemmin
@@ -102,7 +102,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   const [hoitajanKommentit,  setHoitajanKommentit]  = useState('')
   // Pala B2 — hoitoraportti
   const [kesto,              setKesto]              = useState('')
-  const [lahtotilanne,       setLahtotilanne]       = useState('')
+  const [alkutilanne,        setAlkutilanne]        = useState('')
   const [muistaEnsiKerralla, setMuistaEnsiKerralla] = useState('')
   // Havainnot (BodyMap-löydökset)
   const [havainnot,          setHavainnot]          = useState([])
@@ -146,7 +146,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
 
   const mitaHoidettiinRef     = useAutoResize(mitaHoidettiin)
   const hoitajanKommentitRef  = useAutoResize(hoitajanKommentit)
-  const lahtotilanneRef       = useAutoResize(lahtotilanne)
+  const alkutilanneRef        = useAutoResize(alkutilanne)
   const muistaEnsiKerrallaRef = useAutoResize(muistaEnsiKerralla)
 
   useEffect(() => {
@@ -170,7 +170,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         setMitaHoidettiin(kaynti.hoidon_kulku ?? '')
         setHoitajanKommentit(kaynti.hoitajan_kommentit ?? '')
         setKesto(kaynti.kesto_min ?? '')
-        setLahtotilanne(kaynti.lahtotilanne ?? '')
+        setAlkutilanne(kaynti.alkutilanne ?? '')
         setMuistaEnsiKerralla(kaynti.muista_ensi_kerralla ?? '')
         setPvm(kaynti.pvm)
         // VB2 — talleta lähtöversio optimistista lukkoa varten
@@ -254,7 +254,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   useEffect(() => {
     if (lataa) return
     setLikainen(true)
-  }, [otsikko, mitaHoidettiin, hoitajanKommentit, kesto, lahtotilanne, muistaEnsiKerralla, mittarit, itsehoito, seuraavaKayntiPvm])
+  }, [otsikko, mitaHoidettiin, hoitajanKommentit, kesto, alkutilanne, muistaEnsiKerralla, mittarit, itsehoito, seuraavaKayntiPvm])
 
   // VB2 — varoita ikkunan suljessa jos tallentamattomia muutoksia
   useEffect(() => {
@@ -294,7 +294,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       hoidon_kulku:         mitaHoidettiin.trim() || null,
       hoitajan_kommentit:   hoitajanKommentit.trim() || null,
       kesto_min:            kestoArvo,
-      lahtotilanne:         lahtotilanne.trim() || null,
+      alkutilanne:          alkutilanne.trim() || null,
       muista_ensi_kerralla: muistaEnsiKerralla.trim() || null,
       seuraava_kaynti_pvm:  seuraavaKayntiPvm || null,
       tila:                 'valmis',
@@ -551,6 +551,17 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         </div>
 
         <div>
+          <label style={labelTyyli}>Alkutilanne</label>
+          <textarea
+            ref={alkutilanneRef}
+            value={alkutilanne}
+            onChange={(e) => setAlkutilanne(e.target.value)}
+            placeholder="Asiakkaan tilanne hoidon alkaessa…"
+            style={textareaTyyli}
+          />
+        </div>
+
+        <div>
           <label style={labelTyyli}>Mitä hoidettiin</label>
           <textarea
             ref={mitaHoidettiinRef}
@@ -627,17 +638,6 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
             onChange={(e) => setKesto(e.target.value)}
             placeholder="esim. 60"
             style={{ ...inputTyyli, maxWidth: '160px' }}
-          />
-        </div>
-
-        <div>
-          <label style={labelTyyli}>Lähtötilanne</label>
-          <textarea
-            ref={lahtotilanneRef}
-            value={lahtotilanne}
-            onChange={(e) => setLahtotilanne(e.target.value)}
-            placeholder="Asiakkaan tilanne hoidon alkaessa…"
-            style={textareaTyyli}
           />
         </div>
 
