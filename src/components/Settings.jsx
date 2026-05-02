@@ -6,6 +6,7 @@ import KehonkarttaKalibrointi from './asetukset/KehonkarttaKalibrointi'
 import KotisivunLinkit from './asetukset/KotisivunLinkit'
 import PalvelutJaLomakkeet from './asetukset/PalvelutJaLomakkeet'
 import ItsehoitoKirjasto from './asetukset/ItsehoitoKirjasto'
+import Versionhallinta from './asetukset/Versionhallinta'
 
 const STORAGE_KEY = 'kehokorjaamo_asetukset'
 
@@ -818,6 +819,12 @@ export default function Settings({ hoitajaId }) {
       <div style={{ borderLeft: '3px solid #185FA5', paddingLeft: '10px', marginTop: '8px' }}>
         <p style={{ fontSize: '11px', fontWeight: '700', color: '#0C447C', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Ohjelmahallinta</p>
       </div>
+
+      <AccordionOsio
+        id="versionhallinta" otsikko="Versionhallinta" ikoni="🚀"
+        auki={aukiOsio === 'versionhallinta'} onToggle={toggle}
+        lapset={<Versionhallinta />}
+      />
 
       <AccordionOsio
         id="tuotehallinta" otsikko="Tuotehallinta" ikoni="📋"
