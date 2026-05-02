@@ -367,7 +367,7 @@ function rakennaMittauksetOsio(hoitokaynti, edellisetMittarit) {
 // (käytetään GDPR-tietopaketissa, hoitajan oma muistiinpano).
 function rakennaHoitoraporttiOsio(hoitokaynti, naytaMuistaEnsiKerralla) {
   if (!hoitokaynti) return ''
-  const lt = hoitokaynti.alkutilanne
+  const lt = hoitokaynti.lahtotilanne
   const hk = hoitokaynti.hoidon_kulku
   const me = hoitokaynti.muista_ensi_kerralla
   const ke = hoitokaynti.kesto_min

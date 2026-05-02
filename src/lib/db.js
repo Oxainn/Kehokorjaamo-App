@@ -489,7 +489,7 @@ export const tallennaHoitokirjaus = async (hoitokayntiId, tiedot) => {
     // Pala B1
     'otsikko', 'hoidon_kulku', 'hoitajan_kommentit', 'tila',
     // Pala B2
-    'kesto_min', 'alkutilanne', 'muista_ensi_kerralla',
+    'kesto_min', 'lahtotilanne', 'muista_ensi_kerralla',
     // Pala B3 — linjausmittarit
     'lantion_kallistus_aste', 'lantion_sivuttainen_aste', 'lantion_kierto_aste',
     'olkapaiden_korkeusero_cm', 'paan_eteen_tyontyminen_cm',

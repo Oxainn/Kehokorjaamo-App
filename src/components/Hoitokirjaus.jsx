@@ -102,7 +102,9 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   const [hoitajanKommentit,  setHoitajanKommentit]  = useState('')
   // Pala B2 — hoitoraportti
   const [kesto,              setKesto]              = useState('')
-  const [alkutilanne,        setAlkutilanne]        = useState('')
+  // Sisäinen muuttuja "lahtotilanne" matchaa DB-saraketta. UI-label on
+  // "Alkutilanne" — DB-rename siirretty erilliseksi siivous-paloiksi.
+  const [lahtotilanne,       setLahtotilanne]       = useState('')
   const [muistaEnsiKerralla, setMuistaEnsiKerralla] = useState('')
   // Havainnot (BodyMap-löydökset)
   const [havainnot,          setHavainnot]          = useState([])
@@ -146,7 +148,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
 
   const mitaHoidettiinRef     = useAutoResize(mitaHoidettiin)
   const hoitajanKommentitRef  = useAutoResize(hoitajanKommentit)
-  const alkutilanneRef        = useAutoResize(alkutilanne)
+  const lahtotilanneRef       = useAutoResize(lahtotilanne)
   const muistaEnsiKerrallaRef = useAutoResize(muistaEnsiKerralla)
 
   useEffect(() => {
@@ -170,7 +172,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         setMitaHoidettiin(kaynti.hoidon_kulku ?? '')
         setHoitajanKommentit(kaynti.hoitajan_kommentit ?? '')
         setKesto(kaynti.kesto_min ?? '')
-        setAlkutilanne(kaynti.alkutilanne ?? '')
+        setLahtotilanne(kaynti.lahtotilanne ?? '')
         setMuistaEnsiKerralla(kaynti.muista_ensi_kerralla ?? '')
         setPvm(kaynti.pvm)
         // VB2 — talleta lähtöversio optimistista lukkoa varten
@@ -254,7 +256,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   useEffect(() => {
     if (lataa) return
     setLikainen(true)
-  }, [otsikko, mitaHoidettiin, hoitajanKommentit, kesto, alkutilanne, muistaEnsiKerralla, mittarit, itsehoito, seuraavaKayntiPvm])
+  }, [otsikko, mitaHoidettiin, hoitajanKommentit, kesto, lahtotilanne, muistaEnsiKerralla, mittarit, itsehoito, seuraavaKayntiPvm])
 
   // VB2 — varoita ikkunan suljessa jos tallentamattomia muutoksia
   useEffect(() => {
@@ -294,7 +296,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       hoidon_kulku:         mitaHoidettiin.trim() || null,
       hoitajan_kommentit:   hoitajanKommentit.trim() || null,
       kesto_min:            kestoArvo,
-      alkutilanne:          alkutilanne.trim() || null,
+      lahtotilanne:         lahtotilanne.trim() || null,
       muista_ensi_kerralla: muistaEnsiKerralla.trim() || null,
       seuraava_kaynti_pvm:  seuraavaKayntiPvm || null,
       tila:                 'valmis',
@@ -553,9 +555,9 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         <div>
           <label style={labelTyyli}>Alkutilanne</label>
           <textarea
-            ref={alkutilanneRef}
-            value={alkutilanne}
-            onChange={(e) => setAlkutilanne(e.target.value)}
+            ref={lahtotilanneRef}
+            value={lahtotilanne}
+            onChange={(e) => setLahtotilanne(e.target.value)}
             placeholder="Asiakkaan tilanne hoidon alkaessa…"
             style={textareaTyyli}
           />
