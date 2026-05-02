@@ -64,18 +64,28 @@ const oletusLayout = () => ({
     xxs: DEFAULT_XXS,
   },
   piilotetut: [],
+  paivitetty: new Date().toISOString(),
 })
 
 const lataaLocalLayout = () => {
   try {
     const tallennettu = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? 'null')
-    if (tallennettu?.layouts && Array.isArray(tallennettu.piilotetut)) return tallennettu
+    if (tallennettu?.layouts && Array.isArray(tallennettu.piilotetut)) {
+      // Vanha tallennus ilman paivitetty-leimaa → täydennä
+      if (!tallennettu.paivitetty) tallennettu.paivitetty = new Date(0).toISOString()
+      return tallennettu
+    }
   } catch { /* korruptoitunut localStorage — fallback default */ }
   return oletusLayout()
 }
 
+// Tallennettava data leimataan aina nykyhetkellä jotta pilvi-vertailu
+// (last-write-wins) toimii.
 const tallennaLocalLayout = (data) => {
-  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(data)) } catch { /* tilaa ei riittänyt */ }
+  try {
+    const leimallinen = { ...data, paivitetty: new Date().toISOString() }
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(leimallinen))
+  } catch { /* tilaa ei riittänyt */ }
 }
 
 const POLLAUS_VALI_MS = 30_000
@@ -155,7 +165,6 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
   // sitten Supabasesta taustalla — jos eroavat, kysy käyttäjältä.
   const [{ layouts, piilotetut }, setLayoutTila] = useState(() => lataaLocalLayout())
   const [resetVahvistusAuki, setResetVahvistusAuki] = useState(false)
-  const [pilviKonflikti, setPilviKonflikti] = useState(null)  // { pilviData } jos eroaa
   const localTallennusRef    = useRef(null)
   const supabaseTallennusRef = useRef(null)
 
@@ -231,8 +240,10 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
     supabaseTallennusRef.current = setTimeout(() => tallennaPilveen(data), SUPABASE_TALLENNUS_VIIVE_MS)
   }, [tallennaPilveen])
 
-  // DD5: lataa pilvi-versio mountissa ja vertaa localiin. Jos eroaa,
-  // kysy käyttäjältä.
+  // DD5 (yksinkertaistettu — last-write-wins): lataa pilvi-versio mountissa,
+  // vertaa updated_at-aikaleimaa locallin tallennukseen ja päivitä hiljaa
+  // jos pilvi on uudempi. Ei modaalia, ei käyttäjäkysymystä — eri välilehdet
+  // / ajoitusongelmat eivät enää häiritse.
   useEffect(() => {
     if (!hoitajaId) return
     let peruttu = false
@@ -244,10 +255,17 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
         .maybeSingle()
       if (peruttu || !data?.dev_dashboard_layout) return
       const local = lataaLocalLayout()
-      const pilvi = data.dev_dashboard_layout
-      // Jos pilvellä on data ja se eroaa localista → ehdota
-      if (JSON.stringify(local) !== JSON.stringify(pilvi)) {
-        setPilviKonflikti({ pilviData: pilvi, paivitetty: data.paivitetty })
+      const pilviAika = new Date(data.paivitetty ?? 0).getTime()
+      const localAika = new Date(local.paivitetty ?? 0).getTime()
+      // Jos pilvi on aidosti uudempi → päivitä paikallinen + näkymä
+      if (pilviAika > localAika) {
+        const pilvi = {
+          ...data.dev_dashboard_layout,
+          paivitetty: data.paivitetty,
+        }
+        setLayoutTila(pilvi)
+        // Tallenna localStorageen ilman uutta aikaleimaa (säilytetään pilvi-leima)
+        try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(pilvi)) } catch { /* sivuvaikutus ei kriittinen */ }
       }
     })()
     return () => { peruttu = true }
@@ -285,20 +303,6 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
     tallennaLocalLayout(oletus)
     tallennaPilveen(oletus)
     setResetVahvistusAuki(false)
-  }, [tallennaPilveen])
-
-  const hyvaksyPilvi = useCallback(() => {
-    if (!pilviKonflikti?.pilviData) { setPilviKonflikti(null); return }
-    setLayoutTila(pilviKonflikti.pilviData)
-    tallennaLocalLayout(pilviKonflikti.pilviData)
-    setPilviKonflikti(null)
-  }, [pilviKonflikti])
-
-  const hylkaaPilvi = useCallback(() => {
-    // Käytä localia + ylikirjoita pilveen omat asetukset
-    const data = lataaLocalLayout()
-    tallennaPilveen(data)
-    setPilviKonflikti(null)
   }, [tallennaPilveen])
 
   // Suodata pois piilotetut lohkot näkyvästä layoutista. useMemo pitää olla
@@ -465,20 +469,6 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
         </Modaali>
       )}
 
-      {/* DD5 — pilvi-konfliktimodaali */}
-      {pilviKonflikti && (
-        <Modaali otsikko="Toinen laite on muuttanut layoutia" onSulje={hylkaaPilvi} maxWidth="500px">
-          <p style={{ fontSize: '13px', color: '#374151', margin: 0, lineHeight: 1.5 }}>
-            Toisessa laitteessa on tehty muutoksia dashboardin layoutiin
-            ({sittenTeksti(pilviKonflikti.paivitetty)}).
-            Käytetäänkö pilvi-versio vai pidetäänkö tämän laitteen versio?
-          </p>
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px', flexWrap: 'wrap' }}>
-            <button type="button" onClick={hylkaaPilvi} style={napinTyyli('beige')}>Pidä tämän laitteen versio</button>
-            <button type="button" onClick={hyvaksyPilvi} style={napinTyyli('vihrea')}>Käytä pilvi-versiota</button>
-          </div>
-        </Modaali>
-      )}
     </div>
   )
 }
