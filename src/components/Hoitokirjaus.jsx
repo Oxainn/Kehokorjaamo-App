@@ -577,6 +577,15 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
         </div>
       </div>
 
+      {/* KA1 — Asentokuvat (4 kpl: edestä/takaa/vasen/oikea).
+          Sijoitettu Havainnot-kortin yläpuolelle: hoitaja ottaa kuvat
+          ensin asiakkaan saapuessa, näkee visuaalisesti epätasapainot
+          ja kirjaa Havainnot-kortissa kuvien tukemana. */}
+      <div style={ryhmaTyyli}>
+        <h3 style={ryhmaOtsikko}>Asentokuvat</h3>
+        <AsentoKuvat hoitokayntiId={hoitokayntiId} asiakasId={asiakas?.id} />
+      </div>
+
       {/* Havainnot — Pala B2 BodyMap + Pala B6.6 Vertailu + Pala B8 AI-analyysi */}
       <div style={ryhmaTyyli}>
         <h3 style={ryhmaOtsikko}>Havainnot</h3>
@@ -595,12 +604,6 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
           asiakkaanKehonkartta={asiakkaanKehonkartta}
           asiakkaanOireet={asiakkaanOireet}
         />
-      </div>
-
-      {/* KA1 — Asentokuvat (4 kpl: edestä/takaa/vasen/oikea) */}
-      <div style={ryhmaTyyli}>
-        <h3 style={ryhmaOtsikko}>Asentokuvat</h3>
-        <AsentoKuvat hoitokayntiId={hoitokayntiId} asiakasId={asiakas?.id} />
       </div>
 
       {/* Mittaukset — Pala B3, 15 linjausmittaria */}
