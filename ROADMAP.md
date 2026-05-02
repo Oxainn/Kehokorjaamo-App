@@ -10,6 +10,9 @@
 
 ## Tuotenäkemys
 
+**Yritys:** Kalevalapaja
+**Sovelluksen työnimi:** Kehokorjaamo-App
+
 Kehokorjaamo-App on **täysi alustatuote** joka korvaa kaiken hoitohuoneen pyörittämiseen tarvittavan: kotisivun, ajanvarauksen, asiakasrekisterin, hoitokirjaukset, maksut. Pitkän aikavälin tavoite on tehdä tästä **laajemmalle hoitaja-/terapeuttikunnalle myytävissä oleva tuote**.
 
 **Asiakastietolomake on tuotteen ydin.** Kaikki muut osat (rekisteri, ajanvaraus, portaali, maksut) rakentuvat sen ympärille.
@@ -113,6 +116,12 @@ Asiakkaat täyttävät lomakkeen sähköisesti — joko etukäteen kotona tai ho
 ---
 
 ## Vaihe C — Asiakasportaali
+
+**Lähestymistapa:** rakennetaan ja otetaan vaiheittain käyttöön, täsmennetään ja päivitetään visiota sen osalta kun aloitetaan. Visio kasvaa kohti "hoitajan vastaanottohuonetta" — turvasatama, tietopankki, oirekartoitus, hoitoassistentti, ohjaus manuaaliseen hoitoon. Tarkemmat palat määritellään aloituksen yhteydessä.
+
+(Alkuperäinen lyhyt määrittely säilyy alla referenssinä.)
+
+## Vaihe C (alkuperäinen referenssi)
 
 **Aikaarvio:** 2–3 viikkoa
 
