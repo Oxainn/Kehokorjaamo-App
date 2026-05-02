@@ -429,3 +429,198 @@ export function formatoiKulma(avain, arvo) {
   const numero = `${py(abs, 1)} ${sel.yksikko}`
   return merkkiTeksti ? `${numero} (${merkkiTeksti})` : numero
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// KA5 — Yhteenveto + sääntöpohjainen tulkinta
+// ─────────────────────────────────────────────────────────────────────────
+
+// Vakavuusrajat per kulma-tyyppi. Päivitettävissä yhdestä paikasta.
+//   _cm: cm-mitat (korkeusero, työntyminen)
+//   _aste: asteet (kallistus, kulma)
+const VAKAVUUSRAJAT = {
+  cm:   { keltainen: 1.0, punainen: 2.0 },
+  aste: { keltainen: 2.0, punainen: 5.0 },
+}
+
+export function arvioiVakavuus(avain, arvo) {
+  if (arvo == null || !isFinite(arvo)) return null
+  const abs = Math.abs(arvo)
+  let rajat
+  if (avain.endsWith('_cm')) rajat = VAKAVUUSRAJAT.cm
+  else if (avain.endsWith('_aste')) rajat = VAKAVUUSRAJAT.aste
+  else return null
+  if (abs >= rajat.punainen)  return 'punainen'
+  if (abs >= rajat.keltainen) return 'keltainen'
+  return 'vihrea'
+}
+
+export const VAKAVUUS_VARIT = {
+  punainen:  '#dc2626',
+  keltainen: '#eab308',
+  vihrea:    '#16a34a',
+}
+
+export const VAKAVUUS_EMOJI = {
+  punainen:  '🔴',
+  keltainen: '🟡',
+  vihrea:    '🟢',
+}
+
+// Yhdistä 4:n näkökulman kulmat yhdeksi käynnin yhteenvedoksi.
+// kuvat = { edesta?, takaa?, vasen?, oikea? } — kukin sisältää kulmat-objektin.
+//
+// Symmetriset mitat (olkapaiden_korkeusero_cm jne) löytyvät edestä JA takaa.
+// Ota numeerinen keskiarvo jos molemmat saatavilla, muuten käytä kumpaa
+// tahansa. Sivumitat tulevat sivu-näkökulmista.
+export function yhdistaKulmat(kuvat) {
+  if (!kuvat) return {}
+  const yhdistetty = {}
+  const summat = {}  // { avain: { summa, n } }
+
+  for (const nakokulma of ['edesta', 'takaa', 'vasen', 'oikea']) {
+    const kulmat = kuvat[nakokulma]?.kulmat
+    if (!kulmat || typeof kulmat !== 'object') continue
+    for (const [avain, arvo] of Object.entries(kulmat)) {
+      if (avain === 'kalibrointi') continue
+      if (typeof arvo !== 'number' || !isFinite(arvo)) continue
+      if (!summat[avain]) summat[avain] = { summa: 0, n: 0 }
+      summat[avain].summa += arvo
+      summat[avain].n += 1
+    }
+  }
+  for (const [avain, { summa, n }] of Object.entries(summat)) {
+    yhdistetty[avain] = py(summa / n, 1)
+  }
+  return yhdistetty
+}
+
+// Top-N löydökset vakavuusjärjestyksessä (punainen ensin, sitten keltainen,
+// vihreä lopuksi). Käytetään "Keskeisimmät epätasapainot" -laatikkoon.
+export function loydoksetVakavuusjarjestyksessa(kulmat, max = 8) {
+  const rivit = []
+  for (const avain of Object.keys(KULMA_SELITTEET)) {
+    if (!(avain in kulmat)) continue
+    const arvo = kulmat[avain]
+    if (arvo == null || !isFinite(arvo)) continue
+    const vakavuus = arvioiVakavuus(avain, arvo)
+    if (!vakavuus) continue
+    rivit.push({ avain, arvo, vakavuus })
+  }
+  const tj = { punainen: 0, keltainen: 1, vihrea: 2 }
+  rivit.sort((a, b) => {
+    const d = tj[a.vakavuus] - tj[b.vakavuus]
+    if (d !== 0) return d
+    return Math.abs(b.arvo) - Math.abs(a.arvo)
+  })
+  return rivit.slice(0, max)
+}
+
+// Sääntöpohjainen tulkintateksti yhdistetyistä kulmista. Yksinkertaisia
+// if-else patterneja — ei AI-kutsua.
+export function tulkitseLoydokset(kulmat) {
+  if (!kulmat || Object.keys(kulmat).length === 0) {
+    return 'Ei riittävästi mittaustietoa tulkintaan. Ota kuvat kaikista neljästä näkökulmasta.'
+  }
+  const lauseet = []
+
+  // Olkapäät
+  const oA = kulmat.olkapaiden_korkeusero_cm
+  if (oA != null && Math.abs(oA) >= 1.0) {
+    const puoli = oA > 0 ? 'oikea' : 'vasen'
+    const taso = Math.abs(oA) >= 2.0 ? 'selvä' : 'lievä'
+    lauseet.push(`${taso === 'selvä' ? 'Selvä' : 'Lievä'} olkapäiden korkeusero (${puoli} alempi, ${py(Math.abs(oA))} cm)`)
+  }
+
+  // Lantio
+  const lK = kulmat.lantion_kaltevuus_aste
+  const lE = kulmat.lantion_korkeusero_cm
+  if (lE != null && Math.abs(lE) >= 1.0) {
+    const puoli = lE > 0 ? 'oikealle' : 'vasemmalle'
+    lauseet.push(`Lantio kallistunut ${puoli} (${py(Math.abs(lE))} cm)`)
+  } else if (lK != null && Math.abs(lK) >= 2.0) {
+    const puoli = lK > 0 ? 'oikealle' : 'vasemmalle'
+    lauseet.push(`Lantion lievä kaltevuus ${puoli} (${py(Math.abs(lK))}°)`)
+  }
+
+  // Pään eteen työntyminen (sivunäkymät)
+  const pE = kulmat.paan_eteen_tyontyminen_cm
+  if (pE != null && pE >= 2.0) {
+    const taso = pE >= 4.0 ? 'selvä' : 'lievä'
+    lauseet.push(`${taso === 'selvä' ? 'Selvä' : 'Lievä'} pään eteen työntyminen (${py(pE)} cm) — viittaa mahdolliseen niska-hartiaseudun jännitykseen`)
+  }
+
+  // Olkapäiden eteen työntyminen
+  const oE = kulmat.olkapaan_eteen_tyontyminen_cm
+  if (oE != null && oE >= 2.0) {
+    lauseet.push(`Olkapäät työntyvät eteen (${py(oE)} cm) — mahdollinen rintarangan kyfoosi`)
+  }
+
+  // Skolioosi
+  const sk = kulmat.skolioosi_aste
+  if (sk != null && Math.abs(sk) >= 2.0) {
+    const puoli = sk > 0 ? 'oikealle' : 'vasemmalle'
+    lauseet.push(`Selän keskilinja poikkeaa ${puoli} ${py(Math.abs(sk))}°`)
+  }
+
+  // Jalkapituus-ero
+  const jp = kulmat.jalkapituus_ero_cm
+  if (jp != null && Math.abs(jp) >= 1.0) {
+    const puoli = jp > 0 ? 'oikea' : 'vasen'
+    lauseet.push(`Jalkapituus-eroa havaittavissa (${puoli} lyhyempi, ${py(Math.abs(jp))} cm)`)
+  }
+
+  // Polvet
+  const pK = kulmat.polvien_kaltevuus_aste
+  if (pK != null && Math.abs(pK) >= 3.0) {
+    lauseet.push(`Polvilinjassa epäsymmetriaa (${py(Math.abs(pK))}°)`)
+  }
+
+  if (lauseet.length === 0) {
+    return '💡 Asento on kokonaisuudessaan tasapainossa — ei merkittäviä poikkeamia mittauksissa.'
+  }
+
+  // Yhdistä lauseiksi
+  const eka = lauseet[0]
+  const muut = lauseet.slice(1)
+  let teksti = `💡 ${eka}.`
+  if (muut.length > 0) {
+    teksti += ' Lisäksi havaittavissa: ' + muut.map((l) => l.charAt(0).toLowerCase() + l.slice(1)).join('; ') + '.'
+  }
+  return teksti
+}
+
+// KA6 — laske kulma-muutokset kahden käynnin välillä.
+// nyt, ennen = yhdistettyjä kulmat-objekteja
+// Palauttaa: [{ avain, otsikko, ennen, nyt, muutos, suunta }]
+//   suunta: 'parannus' | 'pahennus' | 'ennallaan' | null
+export function laskeMuutokset(nyt, ennen) {
+  const rivit = []
+  const kaikkiAvaimet = new Set([
+    ...Object.keys(nyt ?? {}),
+    ...Object.keys(ennen ?? {}),
+  ])
+  for (const avain of Object.keys(KULMA_SELITTEET)) {
+    if (!kaikkiAvaimet.has(avain)) continue
+    const a = ennen?.[avain]
+    const b = nyt?.[avain]
+    if (typeof a !== 'number' && typeof b !== 'number') continue
+    const muutos = (typeof a === 'number' && typeof b === 'number') ? py(b - a, 1) : null
+    let suunta = null
+    if (muutos != null) {
+      // Parannus = absoluuttinen arvo lähestyy nollaa
+      const dAbs = Math.abs(b) - Math.abs(a)
+      if (Math.abs(dAbs) < 0.1) suunta = 'ennallaan'
+      else if (dAbs < 0)        suunta = 'parannus'
+      else                       suunta = 'pahennus'
+    }
+    rivit.push({
+      avain,
+      otsikko: KULMA_SELITTEET[avain].otsikko,
+      ennen:   a ?? null,
+      nyt:     b ?? null,
+      muutos,
+      suunta,
+    })
+  }
+  return rivit
+}

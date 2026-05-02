@@ -1769,3 +1769,66 @@ export const paivitaKeypointitJaKulmat = async (kuvaId, keypointit, kulmat) => {
   }
   return { virhe: null }
 }
+
+// KA6 — hae asiakkaan kaikki asentokuvat ryhmiteltynä käyntien mukaan.
+// Käytetään vertailuun (Vertailu-välilehti) ja aikajanaan.
+//
+// Palautusmuoto: array of { hoitokayntiId, otsikko, luotu, paivitetty,
+//                            kaynninTila, kuvat: { edesta?, takaa?, vasen?, oikea? } }
+// Sortataan uusin ensin.
+export const haeAsiakkaanAsentokuvaHistoria = async (asiakasId) => {
+  if (!asiakasId) return []
+  const { data, error } = await supabase
+    .from('asentokuvat')
+    .select('id, hoitokaynti_id, nakokulma, kuva_data, keypointit, kulmat, luotu, hoitokaynnit:hoitokaynti_id(id, otsikko, luotu, paivitetty, tila)')
+    .eq('asiakas_id', asiakasId)
+    .order('luotu', { ascending: false })
+  if (error) {
+    console.error('Asentokuvahistorian haku epäonnistui:', error)
+    return []
+  }
+  // Ryhmittele käynneittäin (säilyttäen järjestys: uusin ensin)
+  const ryhmat = new Map()
+  for (const r of data ?? []) {
+    const kid = r.hoitokaynti_id
+    if (!kid) continue
+    let ryhma = ryhmat.get(kid)
+    if (!ryhma) {
+      const k = r.hoitokaynnit ?? {}
+      ryhma = {
+        hoitokayntiId: kid,
+        otsikko:       k.otsikko ?? null,
+        luotu:         k.luotu ?? r.luotu,
+        paivitetty:    k.paivitetty ?? null,
+        kaynninTila:   k.tila ?? null,
+        kuvat:         {},
+      }
+      ryhmat.set(kid, ryhma)
+    }
+    // KA4-formaatti: keypointit voi olla {ai,nykyiset} tai array
+    const raw = r.keypointit
+    let nykyiset = null
+    let aiKp = null
+    if (Array.isArray(raw)) {
+      nykyiset = raw
+      aiKp = raw
+    } else if (raw && typeof raw === 'object') {
+      nykyiset = raw.nykyiset ?? raw.ai ?? null
+      aiKp = raw.ai ?? raw.nykyiset ?? null
+    }
+    ryhma.kuvat[r.nakokulma] = {
+      id:            r.id,
+      kuva_data:     r.kuva_data,
+      keypointit:    nykyiset,
+      ai_keypointit: aiKp,
+      kulmat:        r.kulmat ?? null,
+      luotu:         r.luotu,
+    }
+  }
+  // Järjestä uusin ensin (luotu desc)
+  return Array.from(ryhmat.values()).sort((a, b) => {
+    const ta = new Date(a.luotu).getTime()
+    const tb = new Date(b.luotu).getTime()
+    return tb - ta
+  })
+}
