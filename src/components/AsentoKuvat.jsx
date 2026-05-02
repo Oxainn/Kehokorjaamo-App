@@ -460,7 +460,7 @@ function AnalyysiTila({ tila, kuva }) {
 
 // Piirrä keypointit ja luuranko canvas-overlayna kuvan päälle.
 // Skaalataan kuvan luonnollisesta koosta canvas-display-kokoon.
-function piirraLuuranko(canvas, img, keypointit) {
+function piirraLuuranko(canvas, img, keypointit, draggedIdx = -1) {
   if (!canvas || !img || !keypointit?.length) return
   const ctx = canvas.getContext('2d')
   // Aseta canvas-koko vastaamaan kuvan näytettyä kokoa
@@ -498,20 +498,30 @@ function piirraLuuranko(canvas, img, keypointit) {
   }
   ctx.shadowBlur = 0
 
-  // Piirrä KAIKKI 17 keypointia confidence-värillä. KA2-fixin jälkeen
-  // näytetään myös huonot pisteet (punaisella) jotta käyttäjä tietää korjata
-  // ne KA4:ssä raahaamalla.
-  for (const kp of keypointit) {
+  // Piirrä KAIKKI 17 keypointia confidence-värillä. Raahattava piste
+  // korostetaan 1.7x suurempana ja sinisellä reunuksella jotta käyttäjä
+  // näkee mitä ollaan siirtämässä.
+  for (let i = 0; i < keypointit.length; i++) {
+    const kp = keypointit[i]
     const luokka = luokitaConfidence(kp.score)
     const vari = CONFIDENCE_VARIT[luokka]
     const x = kp.x * sx
     const y = kp.y * sy
+    const onRaahattava = i === draggedIdx
+    const sade = onRaahattava ? 10 : 6
+    if (onRaahattava) {
+      // Halo dragattavan pisteen ympärille
+      ctx.beginPath()
+      ctx.arc(x, y, sade + 8, 0, Math.PI * 2)
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.25)'  // sininen halo
+      ctx.fill()
+    }
     ctx.beginPath()
-    ctx.arc(x, y, 6, 0, Math.PI * 2)
+    ctx.arc(x, y, sade, 0, Math.PI * 2)
     ctx.fillStyle = vari
     ctx.fill()
-    ctx.lineWidth = 2
-    ctx.strokeStyle = 'white'
+    ctx.lineWidth = onRaahattava ? 3 : 2
+    ctx.strokeStyle = onRaahattava ? '#1d4ed8' : 'white'
     ctx.stroke()
   }
 }
@@ -550,7 +560,14 @@ function SuurennusModaali({
     e.target.value = ''
   }
 
-  // Piirrä luuranko kun kuva ladattu / keypointit muuttuvat
+  // Pointer-tooltip: { screenX, screenY, kpX, kpY } | null.
+  // screenX/Y = clientX/Y → käytetään position: fixed -tooltipiin.
+  // kpX/Y = pisteen sijainti alkuperäisessä kuvakoordinaatistossa (px).
+  // Näytetään raahatun pisteen yläpuolella jotta käyttäjä näkee koordinaatit
+  // vaikka sormi peittäisi varsinaisen pisteen.
+  const [tooltip, setTooltip] = useState(null)
+
+  // Piirrä luuranko kun kuva ladattu / keypointit muuttuvat / drag tila vaihtuu
   useEffect(() => {
     const img = imgRef.current
     if (!img) return
@@ -567,7 +584,7 @@ function SuurennusModaali({
         c.style.height = `${rect.height}px`
         return
       }
-      piirraLuuranko(c, img, paikallisetKp)
+      piirraLuuranko(c, img, paikallisetKp, draggedIdx ?? -1)
     }
     if (img.complete && img.naturalWidth > 0) {
       piirra()
@@ -577,18 +594,19 @@ function SuurennusModaali({
     const ro = new ResizeObserver(piirra)
     ro.observe(img)
     return () => ro.disconnect()
-  }, [paikallisetKp, naytaLuuranko])
+  }, [paikallisetKp, naytaLuuranko, draggedIdx])
 
-  // Hit-test: löydä lähin keypoint canvas-koordinaatissa, ottaen huomioon
-  // skaalauksen alkuperäisestä kuvakoosta canvasin näytökokoon.
-  function loydaKeypoint(canvasX, canvasY) {
+  // Hit-test: löydä lähin keypoint canvas-koordinaatissa. Sormella tarvitaan
+  // selvästi suurempi alue (W3C suositus 44 px) — hiirellä riittää pienempi.
+  function loydaKeypoint(canvasX, canvasY, pointerType) {
     if (!paikallisetKp || !imgRef.current) return -1
     const img = imgRef.current
     const sx = canvasRef.current.width / img.naturalWidth
     const sy = canvasRef.current.height / img.naturalHeight
     let parasIdx = -1
     let parasEt  = Infinity
-    const KYNNYS = 18  // pikseleitä canvasilla
+    // 22 px hiirellä, 32 px sormella/kynällä → sormen kärki ulottuu pisteeseen
+    const KYNNYS = (pointerType === 'mouse') ? 22 : 32
     for (let i = 0; i < paikallisetKp.length; i++) {
       const kp = paikallisetKp[i]
       const dx = kp.x * sx - canvasX
@@ -613,15 +631,24 @@ function SuurennusModaali({
     if (!paikallisetKp || !onPaivitaKeypointit) return
     const xy = canvasXY(e)
     if (!xy) return
-    const idx = loydaKeypoint(xy.x, xy.y)
+    const idx = loydaKeypoint(xy.x, xy.y, e.pointerType)
     if (idx < 0) return
     e.preventDefault()
-    canvasRef.current.setPointerCapture(e.pointerId)
+    try { canvasRef.current.setPointerCapture(e.pointerId) } catch { /* ignore */ }
     setDraggedIdx(idx)
+    // Aseta tooltip heti tarttumisen yhteydessä
+    const kp = paikallisetKp[idx]
+    setTooltip({
+      screenX: e.clientX,
+      screenY: e.clientY,
+      kpX:     Math.round(kp.x),
+      kpY:     Math.round(kp.y),
+    })
   }
 
   function onPointerMove(e) {
     if (draggedIdx == null) return
+    e.preventDefault()  // estä sivun vieritys iOSissa raahauksen aikana
     const c = canvasRef.current
     const img = imgRef.current
     if (!c || !img) return
@@ -633,22 +660,31 @@ function SuurennusModaali({
     const cy = Math.max(0, Math.min(rect.height, y))
     const sx = c.width / img.naturalWidth
     const sy = c.height / img.naturalHeight
+    const kpX = cx / sx
+    const kpY = cy / sy
     setPaikallisetKp((prev) => {
       const u = prev.slice()
       u[draggedIdx] = {
         ...u[draggedIdx],
-        x: cx / sx,
-        y: cy / sy,
+        x: kpX,
+        y: kpY,
         score: 1.0,  // manuaalisesti asetettu = täysi varmuus
       }
       return u
+    })
+    setTooltip({
+      screenX: e.clientX,
+      screenY: e.clientY,
+      kpX:     Math.round(kpX),
+      kpY:     Math.round(kpY),
     })
   }
 
   async function onPointerUp(e) {
     if (draggedIdx == null) return
-    canvasRef.current?.releasePointerCapture(e.pointerId)
+    try { canvasRef.current?.releasePointerCapture(e.pointerId) } catch { /* ignore */ }
     setDraggedIdx(null)
+    setTooltip(null)
     if (paikallisetKp && onPaivitaKeypointit) {
       // Tallenna DB:hen ja päivitä parent-state. ai_keypointit pysyy alkup.
       onPaivitaKeypointit(paikallisetKp, aiKp ?? paikallisetKp)
@@ -665,9 +701,10 @@ function SuurennusModaali({
   const [hover, setHover] = useState(false)
   function onPointerHover(e) {
     if (!paikallisetKp || !onPaivitaKeypointit) return
+    if (e.pointerType !== 'mouse') return  // ei hover-tilaa sormella
     const xy = canvasXY(e)
     if (!xy) return
-    setHover(loydaKeypoint(xy.x, xy.y) >= 0)
+    setHover(loydaKeypoint(xy.x, xy.y, e.pointerType) >= 0)
   }
 
   const onKeypointit = !!paikallisetKp
@@ -768,6 +805,7 @@ function SuurennusModaali({
               onPointerDown={onPointerDown}
               onPointerMove={(e) => { onPointerMove(e); onPointerHover(e) }}
               onPointerUp={onPointerUp}
+              onPointerCancel={onPointerUp}
               onPointerLeave={() => setHover(false)}
               style={{
                 position:      'absolute',
@@ -779,6 +817,28 @@ function SuurennusModaali({
                 touchAction:   'none',
               }}
             />
+            {/* KA4-fix: kelluva tooltip raahauksen aikana — sormi peittää
+                varsinaisen pisteen, joten näytetään koordinaatit ylhäällä */}
+            {tooltip && (
+              <div style={{
+                position:      'fixed',
+                left:          `${tooltip.screenX + 18}px`,
+                top:           `${tooltip.screenY - 56}px`,
+                pointerEvents: 'none',
+                background:    'rgba(15, 23, 42, 0.92)',
+                color:         'white',
+                padding:       '4px 10px',
+                borderRadius:  '6px',
+                fontSize:      '12px',
+                fontWeight:    600,
+                fontFamily:    'monospace',
+                boxShadow:     '0 4px 12px rgba(0,0,0,0.3)',
+                zIndex:        1100,
+                whiteSpace:    'nowrap',
+              }}>
+                x: {tooltip.kpX}, y: {tooltip.kpY}
+              </div>
+            )}
           </div>
 
           {/* KA3: Kulmat-lista */}
