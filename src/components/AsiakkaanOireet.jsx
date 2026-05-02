@@ -113,13 +113,23 @@ function Yhteenveto({ kehonkartta, rivit, topPerOire, tulkinta }) {
         </div>
       </div>
 
-      {/* 4 oirelaatikkoa yhdessä rivissä — auto-fit minmax: 4 leveällä,
-          2x2 keskikoolla, 1 sarake kapealla */}
-      <div style={{
-        display:             'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap:                 '16px',
-      }}>
+      {/* 4 oirelaatikkoa rinnakkain isolla näytöllä, 2x2 tabletilla,
+          allekkain mobiililla. Käytetään media queryä koska auto-fit
+          minmax ei luotettavasti tuottanut 4 saraketta riittävän aikaisin. */}
+      <style>{`
+        .oirelaatikot-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 16px;
+        }
+        @media (min-width: 640px) {
+          .oirelaatikot-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (min-width: 1024px) {
+          .oirelaatikot-grid { grid-template-columns: repeat(4, 1fr); }
+        }
+      `}</style>
+      <div className="oirelaatikot-grid">
         {Object.entries(OIRETYYPIT).map(([tyyppi, meta]) => (
           <TopLaatikko
             key={tyyppi}
@@ -209,8 +219,18 @@ function TopLaatikko({ tyyppi, meta, rivit }) {
       border:       `1px solid ${meta.vari}66`,
       borderRadius: '10px',
       padding:      '10px 12px',
+      minWidth:     0,  // sallii flex/grid-childille truncate-toiminnan
     }}>
-      <p style={{ fontSize: '12px', fontWeight: 700, color: meta.vari, margin: '0 0 6px' }}>
+      <p style={{
+        fontSize:      '11px',
+        fontWeight:    700,
+        color:         meta.vari,
+        margin:        '0 0 6px',
+        letterSpacing: '0.02em',
+        whiteSpace:    'nowrap',
+        overflow:      'hidden',
+        textOverflow:  'ellipsis',
+      }}>
         {meta.emoji} {meta.nimi.toUpperCase()} ({rivit.length})
       </p>
       {rivit.length === 0 ? (
@@ -218,7 +238,17 @@ function TopLaatikko({ tyyppi, meta, rivit }) {
       ) : (
         <ol style={{ margin: 0, padding: '0 0 0 18px', fontSize: '12px', color: '#374151', lineHeight: 1.5 }}>
           {top3.map((r, i) => (
-            <li key={`${r.vyohyke.id}-${i}`}>{r.vyohyke.nimi}</li>
+            <li
+              key={`${r.vyohyke.id}-${i}`}
+              title={r.vyohyke.nimi}
+              style={{
+                whiteSpace:   'nowrap',
+                overflow:     'hidden',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {r.vyohyke.nimi}
+            </li>
           ))}
         </ol>
       )}
