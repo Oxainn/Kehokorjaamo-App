@@ -3,10 +3,11 @@ import { supabase } from '../services/supabase'
 import { normalisoiAsiakas } from '../utils/asiakas'
 import { haeUusienAsiakkaidenMaara, aloitaUusiKaynti, haeAsiakkaanKontraindikaatiot } from '../lib/db'
 
-// Dev: kiinteä TESTI-asiakas B-lomakkeen iterointia varten. Luotu Supabaseen
-// käsin, näkyy rekisterissä nimellä "TESTI Asiakas — Älä koske". Ei
-// tuotantokäyttöä — vain "🧪 Testaa B-lomake" -nappi käyttää tätä.
-const TESTI_ASIAKAS_ID = 'ff3b27bc-57b1-428a-9e31-d71aa78255f3'
+// Dev: TESTI-asiakas haetaan sähköpostilla jotta sama koodi toimii sekä
+// Live- että Kehitys-DB:ssä (id:t eroavat tietokantojen välillä). Näkyy
+// rekisterissä nimellä "TESTI Asiakas — Älä koske". Vain "🧪 Testaa
+// B-lomake" -nappi käyttää tätä — ei tuotantokäyttöä.
+const TESTI_ASIAKAS_SAHKOPOSTI = 'testi@example.com'
 import { useOnline } from '../hooks/useOnline'
 import { useEscKey } from '../hooks/useEscKey'
 import { jononKoko } from '../lib/offlineDB'
@@ -147,20 +148,25 @@ export default function App() {
   // Käyttää olemassa olevaa luonnosta jos sellainen on, muuten kutsuu
   // aloitaUusiKaynti:tä normaaliin tapaan. Vahvistus-modaali ohitetaan.
   const avaaTestiBLomake = useCallback(async () => {
+    if (!hoitajaId) {
+      alert('Kirjaudu ensin sisään.')
+      return
+    }
     const { data: testi, error: asErr } = await supabase
       .from('asiakkaat')
       .select('*')
-      .eq('id', TESTI_ASIAKAS_ID)
+      .eq('hoitaja_id', hoitajaId)
+      .eq('sahkoposti', TESTI_ASIAKAS_SAHKOPOSTI)
       .maybeSingle()
     if (asErr || !testi) {
-      alert('TESTI-asiakasta ei löydy DB:stä (id ' + TESTI_ASIAKAS_ID + '). Luo ensin testiasiakas.')
+      alert('TESTI-asiakasta ei löydy DB:stä sähköpostilla "' + TESTI_ASIAKAS_SAHKOPOSTI + '". Luo ensin testiasiakas tähän DB:hen.')
       return
     }
 
     const { data: olemassa } = await supabase
       .from('hoitokaynnit')
       .select('id')
-      .eq('asiakas_id', TESTI_ASIAKAS_ID)
+      .eq('asiakas_id', testi.id)
       .eq('tila', 'luonnos')
       .order('luotu', { ascending: false })
       .limit(1)
@@ -168,7 +174,7 @@ export default function App() {
 
     let hkId = olemassa?.id ?? null
     if (!hkId) {
-      const tulos = await aloitaUusiKaynti(TESTI_ASIAKAS_ID)
+      const tulos = await aloitaUusiKaynti(testi.id)
       if (tulos.virhe) {
         alert('TESTI-käynnin luonti epäonnistui: ' + tulos.virhe)
         return
@@ -184,7 +190,7 @@ export default function App() {
     setHoitokayntiId(hkId)
     setTestimoodi(true)
     setNakyma('hoitokirjaus')
-  }, [])
+  }, [hoitajaId])
 
   // Auto-avaa /dev/b-lomake-reitiltä kerran kun kirjautuminen on valmis.
   useEffect(() => {
