@@ -57,3 +57,19 @@ export function ymparistoVarit(y) {
   }
   return { background: '#9ca3af', color: 'white', border: '1px solid #6b7280' }
 }
+
+// Vastapari-ympäristö navigointia varten:
+// LIVE → KEHITYS, KEHITYS → LIVE. LOCAL → KEHITYS oletuksena.
+// Palauttaa { teksti, url } tai null jos vastaparia ei ole.
+export function vastapariYmparisto(y) {
+  if (y === YMPARISTO.LIVE) {
+    return { teksti: 'KEHITYS', url: 'https://kehokorjaamo-kehitys.vercel.app' }
+  }
+  if (y === YMPARISTO.KEHITYS) {
+    return { teksti: 'LIVE', url: 'https://kehokorjaamo-app.vercel.app' }
+  }
+  if (y === YMPARISTO.LOCAL) {
+    return { teksti: 'KEHITYS', url: 'https://kehokorjaamo-kehitys.vercel.app' }
+  }
+  return null
+}

@@ -20,7 +20,7 @@ import UudenAsiakkaanTarkistus from './UudenAsiakkaanTarkistus'
 import Hoitokirjaus from './Hoitokirjaus'
 import JulkinenLomake from './JulkinenLomake'
 import PalveluValinta from './PalveluValinta'
-import { tunnistaYmparisto, ymparistoTeksti, ymparistoVarit, YMPARISTO } from '../lib/ymparisto'
+import { tunnistaYmparisto, ymparistoTeksti, ymparistoVarit, vastapariYmparisto, YMPARISTO } from '../lib/ymparisto'
 
 const ylaNav = [
   { id: 'rekisteri',    nimi: 'Asiakasrekisteri',  ikoni: '👥' },
@@ -334,29 +334,42 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px' }}>Kehokorjaamo</span>
             {/* D1 — Ympäristö-indikaattori (LIVE / KEHITYS / LOCAL).
-                Klikkaus johtaa Versionhallinta-sivulle (toistaiseksi Asetukset). */}
+                Klikkaus avaa vastapari-ympäristön uudessa välilehdessä:
+                LIVE → KEHITYS, KEHITYS → LIVE. */}
             {(() => {
               const y = tunnistaYmparisto()
               const varit = ymparistoVarit(y)
               const teksti = ymparistoTeksti(y)
+              const vp = vastapariYmparisto(y)
               return (
-                <button
-                  onClick={() => setNakyma('asetukset')}
-                  title={`Ympäristö: ${teksti} — klikkaa avataksesi versionhallinnan`}
+                <a
+                  href={vp?.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={vp ? `Avaa ${vp.teksti}-versio uudessa välilehdessä` : `Ympäristö: ${teksti}`}
                   style={{
                     ...varit,
-                    fontSize:      '11px',
-                    padding:       '4px 10px',
-                    minHeight:     '24px',
-                    borderRadius:  '6px',
-                    fontWeight:    700,
-                    letterSpacing: '0.05em',
-                    cursor:        'pointer',
-                    textTransform: 'uppercase',
+                    fontSize:       '11px',
+                    padding:        '4px 8px 4px 10px',
+                    minHeight:      '24px',
+                    borderRadius:   '6px',
+                    fontWeight:     700,
+                    letterSpacing:  '0.05em',
+                    cursor:         vp ? 'pointer' : 'default',
+                    textTransform:  'uppercase',
+                    textDecoration: 'none',
+                    display:        'inline-flex',
+                    alignItems:     'center',
+                    gap:            '4px',
                   }}
+                  onMouseEnter={(e) => { if (vp) e.currentTarget.style.opacity = '0.85' }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1' }}
                 >
-                  {teksti}
-                </button>
+                  <span>{teksti}</span>
+                  {vp && (
+                    <span aria-hidden="true" style={{ fontSize: '10px', opacity: 0.85 }}>↗</span>
+                  )}
+                </a>
               )
             })()}
           </div>
