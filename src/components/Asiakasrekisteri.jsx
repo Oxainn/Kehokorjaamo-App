@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
-import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas, haeHoitosarjanPituus } from '../lib/db'
+import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas } from '../lib/db'
 import { muotoilePvm, muodostaCSV, lataaTiedosto, jaaNimi } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
 import PikamuokkausModaali from './PikamuokkausModaali'
@@ -40,8 +40,6 @@ export default function Asiakasrekisteri({
   const [pikamuokattava, setPikamuokattava] = useState(null)
   // Arkistoitujen asiakkaiden määrä (näkyy normaalin näkymän "🗄 Arkisto (X)" -linkissä)
   const [arkistoMaara, setArkistoMaara] = useState(0)
-  // Pala B6.5 — sarjan pituus pillereiden N/M-merkintää varten
-  const [sarjanPituus, setSarjanPituus] = useState(null)
   // Lokaali "refresh" arkistotilassa kun palautus muuttaa listan
   const [paikallinenRefresh, setPaikallinenRefresh] = useState(0)
 
@@ -69,18 +67,16 @@ export default function Asiakasrekisteri({
       // Hae rinnan: jokaisen asiakkaan 4 viimeisintä käyntipäivää,
       // kontraindikaatiot kaikille asiakkaille kerralla, ja arkistoitujen
       // kokonaismäärä (jälkimmäinen vain normaalitilassa, ei arkistossa).
-      const [kayntiTulokset, kontraindikaatiot, arkistoMaaraTulos, sarjaPit] = await Promise.all([
+      const [kayntiTulokset, kontraindikaatiot, arkistoMaaraTulos] = await Promise.all([
         Promise.all(lista.map((a) => haeKayntienPaivamaarat(a.id, 4))),
         haeKontraindikaatiotAsiakkaille(lista.map((a) => a.id)),
         arkistoTila ? Promise.resolve(0) : haeArkistoidunMaara(hoitajaId),
-        haeHoitosarjanPituus(),
       ])
       const map = {}
       lista.forEach((a, i) => { map[a.id] = kayntiTulokset[i] ?? [] })
       setKayntienMap(map)
       setKontraindikaatiotMap(kontraindikaatiot)
       setArkistoMaara(arkistoMaaraTulos)
-      setSarjanPituus(sarjaPit)
       setLataa(false)
     }
     haeAsiakkaat()
@@ -253,15 +249,10 @@ export default function Asiakasrekisteri({
           }}>
             {kaynnit.map((k) => {
               const pvm = muotoilePvm(k.voimassa_alkaen, '—')
-              // Pala B6.5: pillerin alkuun "N/M" jos sarjan pituus on tiedossa,
-              // muuten "N" pelkästään
-              const numero = k.kayntinumero
-                ? (sarjanPituus ? `${k.kayntinumero}/${sarjanPituus}` : `#${k.kayntinumero}`)
-                : null
               const lyhytOtsikko = k.otsikko && k.otsikko.length > 18
                 ? `${k.otsikko.slice(0, 16)}…`
                 : (k.otsikko || '')
-              const osat = [numero, pvm, lyhytOtsikko].filter(Boolean)
+              const osat = [pvm, lyhytOtsikko].filter(Boolean)
               const sisalto = osat.join(' · ')
               return (
                 <button

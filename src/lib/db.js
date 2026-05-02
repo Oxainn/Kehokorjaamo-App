@@ -164,7 +164,7 @@ export const haeAsiakkaanOireet = async (asiakasId) => {
 // Käytetään Asiakasrekisterin pillerinäkymässä jossa näytetään 4 uusinta.
 // Käyntihistoria-listalla rajoitus jätetään null:ksi → kaikki käynnit.
 //
-// Pala B6.5: jokainen rivi sisältää kayntinumero-kentän — N/M-laskenta
+// Jokainen rivi sisältää kayntinumero-kentän — juokseva numerointi
 // koko historian järjestyksessä (vanhin = 1).
 export const haeKayntienPaivamaarat = async (asiakasId, rajoitus = null) => {
   if (!asiakasId) return []
@@ -435,12 +435,12 @@ export const aloitaUusiKaynti = async (asiakasId) => {
   }
 }
 
-// Hoitokäyntien lukumäärä asiakkaalle — käytetään hoitokirjaus-näkymän
-// "Käynti X / Y" -laskurissa.
+// Hoitokäyntien lukumäärä asiakkaalle — käytetään hoitokirjauksen
+// "Käynti N" -juoksevassa numerossa.
 //
-// Pala B6.5: laskuri sulkee pois 'odottaa_kayntia'-rivit (tyhjät B-lomakkeet
-// jotka odottavat ensimmäistä käyntiä). N = tehdyt käynnit + nykyinen
-// luonnos = todellinen käyntinumero kun käyttäjä on hoitokirjauksessa.
+// Laskuri sulkee pois 'odottaa_kayntia'-rivit (tyhjät B-lomakkeet jotka
+// odottavat ensimmäistä käyntiä). N = tehdyt käynnit + nykyinen luonnos
+// = todellinen käyntinumero kun käyttäjä on hoitokirjauksessa.
 export const haeAsiakkaanKayntienMaara = async (asiakasId) => {
   if (!asiakasId) return 0
   const { count, error } = await supabase
@@ -453,25 +453,6 @@ export const haeAsiakkaanKayntienMaara = async (asiakasId) => {
     return 0
   }
   return count ?? 0
-}
-
-// Hakee hoitajan aktiivisten palvelujen ensimmäisen hoitosarjan_pituuden.
-// Yksinkertaistus: yhden hoitajan tuotteissa oletamme yhden pääpalvelun.
-// Pala B6.5 — käytetään käyntinumeron M-osana ("Käynti N/M").
-export const haeHoitosarjanPituus = async () => {
-  const { data, error } = await supabase
-    .from('palvelut')
-    .select('hoitosarjan_pituus')
-    .eq('aktiivinen', true)
-    .not('hoitosarjan_pituus', 'is', null)
-    .order('jarjestys', { ascending: true, nullsFirst: false })
-    .limit(1)
-    .maybeSingle()
-  if (error) {
-    console.error('Hoitosarjan pituuden haku epäonnistui:', error)
-    return null
-  }
-  return data?.hoitosarjan_pituus ?? null
 }
 
 // Tallentaa hoitokirjauksen tiedot. Pala B2:ssa laajennettu kattamaan
@@ -498,7 +479,7 @@ export const tallennaHoitokirjaus = async (hoitokayntiId, tiedot) => {
     'jalkapituus_ero_cm',
     'navicular_drop_vasen_mm', 'navicular_drop_oikea_mm',
     'akillesjanteen_kulma_vasen_aste', 'akillesjanteen_kulma_oikea_aste',
-    // Pala B6.5 — jatkohoitosuunnitelma
+    // Jatkohoitosuunnitelma
     'seuraava_kaynti_pvm',
   ]
   for (const k of sallitut) {

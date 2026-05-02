@@ -12,7 +12,7 @@
 //   - Hoitoraportti (alkutilanne, hoidon kulku, "muista ensi kerralla"
 //     vain hoitajan tulostuksissa, jätetään pois GDPR-tietopaketista)
 //   - Itsehoito-ohjelma (B6, jo olemassa)
-//   - Jatkohoitosuunnitelma (seuraava käynti, sarjan tila, kommentti)
+//   - Jatkohoitosuunnitelma (seuraava käynti, käyntinumero, kommentti)
 
 import html2pdf from 'html2pdf.js'
 import { muotoilePvm } from './muotoilu'
@@ -402,29 +402,18 @@ function rakennaHoitoraporttiOsio(hoitokaynti, naytaMuistaEnsiKerralla) {
   `
 }
 
-// Pala B7 — Jatkohoitosuunnitelma: seuraava käynti + sarjan tila +
+// Pala B7 — Jatkohoitosuunnitelma: seuraava käynti + käyntinumero +
 // hoitajan kommentit.
-function rakennaJatkohoitoOsio(hoitokaynti, kayntinumero, sarjanPituus) {
+function rakennaJatkohoitoOsio(hoitokaynti, kayntinumero) {
   if (!hoitokaynti) return ''
   const seur = hoitokaynti.seuraava_kaynti_pvm
   const kom  = hoitokaynti.hoitajan_kommentit
   if (!seur && !kom && kayntinumero == null) return ''
 
-  let sarjaTeksti = ''
-  if (kayntinumero != null) {
-    if (sarjanPituus && kayntinumero > sarjanPituus) {
-      sarjaTeksti = `Sarja päättynyt — ylläpitohoito (käynti ${kayntinumero})`
-    } else if (sarjanPituus) {
-      sarjaTeksti = `Käynti ${kayntinumero} / ${sarjanPituus}`
-    } else {
-      sarjaTeksti = `Käynti ${kayntinumero}`
-    }
-  }
-
   return `
     <h3>Jatkohoitosuunnitelma</h3>
     ${seur ? `<p class="jatko-rivi"><strong>Seuraava käynti:</strong> ${escapeHtml(muotoilePvm(seur))}</p>` : ''}
-    ${sarjaTeksti ? `<p class="jatko-rivi"><strong>Sarjan tila:</strong> ${escapeHtml(sarjaTeksti)}</p>` : ''}
+    ${kayntinumero != null ? `<p class="jatko-rivi"><strong>Käynti:</strong> ${escapeHtml(String(kayntinumero))}</p>` : ''}
     ${kom ? `
       <h4>Hoitajan kommentti</h4>
       <div class="tekstilohko">${escapeHtml(kom)}</div>
@@ -443,7 +432,6 @@ function rakennaKayntiOsio({
   edellisetMittarit = null,
   itsehoitoValinnat = [],
   kayntinumero = null,
-  sarjanPituus = null,
   naytaMuistaEnsiKerralla = true,
 }) {
   const v = versio
@@ -469,7 +457,7 @@ function rakennaKayntiOsio({
       ${rakennaMittauksetOsio(hoitokaynti, edellisetMittarit)}
       ${rakennaHoitoraporttiOsio(hoitokaynti, naytaMuistaEnsiKerralla)}
       ${rakennaItsehoitoLohko(itsehoitoValinnat)}
-      ${rakennaJatkohoitoOsio(hoitokaynti, kayntinumero, sarjanPituus)}
+      ${rakennaJatkohoitoOsio(hoitokaynti, kayntinumero)}
 
       ${onAllekirjoitusKuva ? `
         <h3>Allekirjoitus</h3>
@@ -579,8 +567,7 @@ async function tulostaPDF(html, tiedostonimi) {
 //   havainnot:         havainnot-taulun rivit
 //   edellisetMittarit: { sarake: arvo } | null
 //   itsehoitoValinnat: B6 — käyntiin liitetyt itsehoitovalinnat
-//   kayntinumero:      N (monesko käynti tämä on)
-//   sarjanPituus:      M (palvelun hoitosarjan pituus)
+//   kayntinumero:      N (monesko käynti tämä on, juokseva numerointi)
 export async function tulostaKaynti({
   asiakas,
   versio,
@@ -590,7 +577,6 @@ export async function tulostaKaynti({
   edellisetMittarit = null,
   itsehoitoValinnat = [],
   kayntinumero = null,
-  sarjanPituus = null,
 }) {
   const sairausNimet = (sairaudet ?? []).map((s) => s.nimi).filter(Boolean)
   const pvm = versio?.voimassa_alkaen ? muotoilePvm(versio.voimassa_alkaen) : ''
@@ -616,7 +602,6 @@ export async function tulostaKaynti({
       edellisetMittarit,
       itsehoitoValinnat,
       kayntinumero,
-      sarjanPituus,
       naytaMuistaEnsiKerralla: true,
     })}
 
@@ -636,7 +621,7 @@ export async function tulostaKaynti({
 // kaynnit: lista uusin ensin, jokainen elementti:
 //   { versio, sairaudet, hoitokaynti?, havainnot?, edellisetMittarit?,
 //     itsehoitoValinnat?, kayntinumero? }
-export async function tulostaTietopaketti({ asiakas, kaynnit, sarjanPituus = null }) {
+export async function tulostaTietopaketti({ asiakas, kaynnit }) {
   const tanaan = new Date().toLocaleDateString('fi-FI').replace(/\./g, '-')
   const kaynnitHtml = (kaynnit ?? []).map((k, indeksi) => {
     const sairausNimet = (k.sairaudet ?? []).map((s) => s.nimi).filter(Boolean)
@@ -658,7 +643,6 @@ export async function tulostaTietopaketti({ asiakas, kaynnit, sarjanPituus = nul
       edellisetMittarit: k.edellisetMittarit ?? null,
       itsehoitoValinnat: k.itsehoitoValinnat ?? [],
       kayntinumero:      k.kayntinumero ?? null,
-      sarjanPituus,
       // GDPR: hoitajan oma muistiinpano jätetään asiakkaan kopiosta pois.
       naytaMuistaEnsiKerralla: false,
     })
