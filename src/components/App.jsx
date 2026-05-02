@@ -66,12 +66,46 @@ export default function App() {
     const error = url.searchParams.get('error')
     const code  = url.searchParams.get('code')
     const state = url.searchParams.get('state')
+    /* eslint-disable no-console */
+    console.log('[app debug] OAuth-callback useEffect:', {
+      href:   window.location.href,
+      search: window.location.search,
+      hash:   window.location.hash,
+      code:   code ? `${code.slice(0, 8)}…(${code.length})` : null,
+      state:  state ? `${state.slice(0, 8)}…(${state.length})` : null,
+      error,
+    })
+    /* eslint-enable no-console */
     if (error || code || state) {
-      setTimeout(() => window.history.replaceState({}, '', '/'), 100)
+      // ÄLÄ heti pyyhi URLia — annetaan Supabasen detectSessionInUrl-flown
+      // ehtiä lukea code. 100 ms saattoi olla liian aggressiivinen jos
+      // PKCE-exchange kestää pidempään (esim. hidas Edge Function).
+      setTimeout(() => {
+        // eslint-disable-next-line no-console
+        console.log('[app debug] replaceState — pyyhin URL-parametrit')
+        window.history.replaceState({}, '', '/')
+      }, 2000)
       if (error) {
         console.error('OAuth-virhe:', error)
         setLataaAuth(false)
         setKayttaja(null)
+      }
+      // Manuaalinen fallback: jos code on URLissa mutta detectSessionInUrl
+      // ei ole vielä käsitellyt sitä, kokeillaan eksplisiittisesti. Saamme
+      // myös try/catch:llä paremman virheviestin kuin sisäinen heitto.
+      if (code && !error) {
+        ;(async () => {
+          try {
+            // eslint-disable-next-line no-console
+            console.log('[app debug] manuaalinen exchangeCodeForSession kokeillaan…')
+            const tulos = await supabase.auth.exchangeCodeForSession(code)
+            // eslint-disable-next-line no-console
+            console.log('[app debug] exchangeCodeForSession OK:', { hasSession: !!tulos.data?.session, error: tulos.error })
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('[app debug] exchangeCodeForSession heitti:', e.name, e.message, e.stack)
+          }
+        })()
       }
     }
   }, [])
