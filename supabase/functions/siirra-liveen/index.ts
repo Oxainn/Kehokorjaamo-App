@@ -7,7 +7,9 @@
 //   Header: Authorization: Bearer <user JWT>
 //   Body: {
 //     vahvistukset: { testattu: bool, ei_hoitoa: bool, migraatiot_ok: bool },
-//     migraatiot_ajettu_kasin: bool  // jos true, ohitetaan migraatiotarkistus
+//     migraatiot_ajettu_kasin: bool, // jos true, ohitetaan migraatiotarkistus
+//     viimeinen_commit_sha?: string  // valinnainen: julkaise vain tähän
+//                                    // commitiin asti (eikä kehityksen HEAD)
 //   }
 // Vastaus: { onnistui, julkaisuId, mergeSha?, virhe? }
 //
@@ -45,6 +47,7 @@ interface Vahvistukset {
 interface PyynnonBody {
   vahvistukset:            Vahvistukset
   migraatiot_ajettu_kasin: boolean
+  viimeinen_commit_sha?:   string
 }
 
 interface GithubCommit {
@@ -114,9 +117,26 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ virhe: `GitHub compare-API: ${compareRes.status}` }, 502)
     }
     const compareData = await compareRes.json()
-    const commits: GithubCommit[] = compareData.commits ?? []
-    if (commits.length === 0) {
+    const kaikkiCommits: GithubCommit[] = compareData.commits ?? []
+    if (kaikkiCommits.length === 0) {
       return jsonResponse({ virhe: "Ei muutoksia julkaistavaksi — main ja kehitys ovat samalla commitilla" }, 400)
+    }
+
+    // Valinnainen rajaus: julkaise vain tähän commitiin asti. Commits on
+    // kronologisessa järjestyksessä (vanhin ensin), joten leikataan tähän
+    // SHA:han asti mukaan lukien. Jos SHA:ta ei löydy commit-listalta,
+    // virhe — käyttäjä yrittää julkaista jotain mitä ei ole olemassa.
+    let commits: GithubCommit[] = kaikkiCommits
+    let mergeHead = "kehitys"
+    if (body.viimeinen_commit_sha) {
+      const targetIdx = kaikkiCommits.findIndex((c) => c.sha === body.viimeinen_commit_sha || c.sha.startsWith(body.viimeinen_commit_sha))
+      if (targetIdx === -1) {
+        return jsonResponse({
+          virhe: `viimeinen_commit_sha (${body.viimeinen_commit_sha}) ei löydy main...kehitys-erotuksesta`,
+        }, 400)
+      }
+      commits = kaikkiCommits.slice(0, targetIdx + 1)
+      mergeHead = kaikkiCommits[targetIdx].sha
     }
 
     // 4) Aloita audit-rivi
@@ -154,7 +174,7 @@ Deno.serve(async (req: Request) => {
         },
         body: JSON.stringify({
           base:           "main",
-          head:           "kehitys",
+          head:           mergeHead,
           commit_message: mergeViesti,
         }),
       }

@@ -43,12 +43,26 @@ export default function SiirraLiveenModaali({ erot, onSulje, onValmis }) {
   const [testattu,        setTestattu]        = useState(false)
   const [eiHoitoa,        setEiHoitoa]        = useState(false)
   const [migraatiotOk,    setMigraatiotOk]    = useState(false)
+  // valittuRajaSha = viimeinen julkaistava commit. null = oletus (kaikki).
+  const [valittuRajaSha,  setValittuRajaSha]  = useState(null)
   const [tila,            setTila]            = useState('idle')  // idle | lahetetaan | onnistui | virhe
   const [virhe,           setVirhe]           = useState(null)
   const [tulos,           setTulos]           = useState(null)
 
   const kaikkiVahvistettu = testattu && eiHoitoa && migraatiotOk
   const eroaKpl = erot?.length ?? 0
+
+  // GitHub compare API palauttaa commits vanhin ensin → käännetään uusin
+  // ylimmäksi UI:ssa.
+  const erotUusinEnsin = (erot ?? []).slice().reverse()
+
+  // Jos käyttäjä on klikannut rivin, se SHA on raja. Muuten oletus = uusin
+  // (kaikki valittuna). Indeksi näytön järjestyksessä (uusin = 0).
+  const rajaIdx = valittuRajaSha
+    ? erotUusinEnsin.findIndex((c) => c.sha === valittuRajaSha)
+    : 0
+  const valittuKpl = erotUusinEnsin.length - Math.max(0, rajaIdx)
+  const onMuokattu = valittuRajaSha != null && rajaIdx > 0
 
   async function julkaise() {
     setTila('lahetetaan')
@@ -65,6 +79,11 @@ export default function SiirraLiveenModaali({ erot, onSulje, onValmis }) {
           migraatiot_ok: migraatiotOk,
         },
         migraatiot_ajettu_kasin: migraatiotOk,
+      }
+      // Lisää rajaus-SHA vain jos käyttäjä on muuttanut oletusta. Tällöin
+      // vanhempi Edge Function -versio toimii silti taaksepäin yhteensopivasti.
+      if (onMuokattu && valittuRajaSha) {
+        body.viimeinen_commit_sha = valittuRajaSha
       }
       const { data, error } = await supabase.functions.invoke('siirra-liveen', { body })
       if (error) {
@@ -100,29 +119,75 @@ export default function SiirraLiveenModaali({ erot, onSulje, onValmis }) {
           Vercel deployaa Liven automaattisesti ~1-2 minuutin sisällä.
         </p>
 
-        {/* Lista commiteja */}
+        {/* Lista commiteja — klikkaa rivi valitaksesi mihin asti julkaistaan.
+            Uusin ylhäällä; klikkaus valitsee sen ja kaikki vanhemmat (alapuolella). */}
         <div style={{
           background:   '#f9fafb',
           border:       '1px solid #e5e7eb',
           borderRadius: '10px',
-          padding:      '12px 14px',
-          maxHeight:    '200px',
+          padding:      '10px 8px 10px 14px',
+          maxHeight:    '260px',
           overflowY:    'auto',
         }}>
-          <p style={{ fontSize: '12px', fontWeight: 600, color: '#374151', margin: '0 0 8px' }}>
-            Julkaistavat commitit ({eroaKpl} kpl):
-          </p>
-          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {(erot ?? []).map((c) => (
-              <li key={c.sha} style={{ fontSize: '12px', display: 'grid', gridTemplateColumns: '70px 1fr auto', gap: '8px', alignItems: 'baseline' }}>
-                <span style={{ fontFamily: 'monospace', color: '#6b7280' }}>{lyhytSha(c.sha)}</span>
-                <span style={{ color: '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.viesti}>
-                  {c.viesti}
-                </span>
-                <span style={{ color: '#9ca3af', fontSize: '11px' }}>{muotoilePvm(c.pvm)}</span>
-              </li>
-            ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px', paddingRight: '6px' }}>
+            <p style={{ fontSize: '12px', fontWeight: 600, color: '#374151', margin: 0 }}>
+              Julkaistavat commitit ({valittuKpl} / {eroaKpl}):
+            </p>
+            {onMuokattu && (
+              <button
+                type="button"
+                onClick={() => setValittuRajaSha(null)}
+                disabled={lukittu}
+                style={{
+                  background: 'transparent', border: 'none', color: '#6366f1',
+                  fontSize: '11px', cursor: lukittu ? 'not-allowed' : 'pointer',
+                  padding: 0, textDecoration: 'underline',
+                }}
+              >
+                ↺ Nollaa (kaikki)
+              </button>
+            )}
+          </div>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            {erotUusinEnsin.map((c, i) => {
+              const onValittu = i >= rajaIdx
+              const onRaja = i === rajaIdx
+              return (
+                <li
+                  key={c.sha}
+                  onClick={() => !lukittu && setValittuRajaSha(c.sha)}
+                  title={onValittu ? `Julkaistaan tähän asti — klikkaa toista valitaksesi rajan` : `Klikkaa valitaksesi tämä viimeiseksi julkaistavaksi`}
+                  style={{
+                    fontSize:     '12px',
+                    display:      'grid',
+                    gridTemplateColumns: '20px 70px 1fr auto',
+                    gap:          '8px',
+                    alignItems:   'baseline',
+                    padding:      '5px 8px',
+                    borderRadius: '6px',
+                    background:   onValittu ? '#ecfdf5' : 'transparent',
+                    color:        onValittu ? '#111827' : '#9ca3af',
+                    opacity:      onValittu ? 1 : 0.55,
+                    cursor:       lukittu ? 'not-allowed' : 'pointer',
+                    border:       onRaja ? '1px solid #16a34a' : '1px solid transparent',
+                    transition:   'background 0.1s',
+                  }}
+                >
+                  <span style={{ textAlign: 'center', fontSize: '13px' }}>
+                    {onValittu ? '☑' : '☐'}
+                  </span>
+                  <span style={{ fontFamily: 'monospace', color: onValittu ? '#166534' : 'inherit' }}>{lyhytSha(c.sha)}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={c.viesti}>
+                    {c.viesti}
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'inherit', opacity: 0.7 }}>{muotoilePvm(c.pvm)}</span>
+                </li>
+              )
+            })}
           </ul>
+          <p style={{ fontSize: '11px', color: '#6b7280', margin: '8px 0 0', paddingRight: '6px', fontStyle: 'italic' }}>
+            💡 Klikkaa commit-riviä → julkaistaan se ja kaikki sitä vanhemmat. Uudemmat (ylhäällä) jäävät kehitykseen.
+          </p>
         </div>
 
         {/* Migraatiot — tämä versio EI aja niitä automaattisesti */}
@@ -175,6 +240,13 @@ export default function SiirraLiveenModaali({ erot, onSulje, onValmis }) {
             ✓ Onnistui! Vercel deployaa Liven nyt.<br />
             Merge SHA: <code style={{ fontFamily: 'monospace' }}>{lyhytSha(tulos.mergeSha)}</code><br />
             Julkaistu {tulos.committeja} commit{tulos.committeja === 1 ? '' : 'tia'}.
+            {onMuokattu && (
+              <>
+                <br /><span style={{ fontSize: '12px' }}>
+                  Uudemmat commit:t jäivät kehitykseen — voit julkaista ne erikseen myöhemmin.
+                </span>
+              </>
+            )}
           </div>
         )}
         {tila === 'virhe' && virhe && (
