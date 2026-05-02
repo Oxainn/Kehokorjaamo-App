@@ -22,10 +22,13 @@ import 'react-resizable/css/styles.css'
 
 const ResponsiveGrid = WidthProvider(Responsive)
 
-// localStorage-avain mukautetulle layoutille
-const LAYOUT_KEY = 'kehokorjaamo_dev_dashboard_layout_v1'
+// localStorage-avain mukautetulle layoutille (v3: nollaa vanhat layoutit
+// jotta DD1-DD6:n minW/minH-rajoitteet eivät rikkoudu)
+const LAYOUT_KEY = 'kehokorjaamo_dev_dashboard_layout_v3'
+const SUPABASE_TALLENNUS_VIIVE_MS = 2000
+const LOCAL_TALLENNUS_VIIVE_MS    = 500
 
-// Lohkojen ID-listat ja default-layout (12-sarakkeinen ruudukko, rowHeight=30)
+// Lohkojen ID-listat ja default-layout (12-sarakkeinen ruudukko, rowHeight=50)
 const LOHKOT = [
   { id: 'ymparistot',   nimi: 'Ympäristöt',          ikoni: '🌐' },
   { id: 'tarkistus',    nimi: 'Tarkistuskierros',    ikoni: '🔍' },
@@ -36,30 +39,43 @@ const LOHKOT = [
   { id: 'aktiivisuus',  nimi: 'Kehitysaktiivisuus',  ikoni: '📈' },
 ]
 
-// Default-asetelma: 12-saraketteen pohjautuva, lg-breakpointti.
-// Pienemmillä näytöillä (md/sm) jokainen lohko menee omaksi riviksi.
+// Default-asetelma DD1-spec:n mukaan: 12-sarakkeinen, rowHeight=50px,
+// minW/minH varmistavat että teksti edes mahtuu pienessäkin lohkossa.
 const DEFAULT_LG = [
-  { i: 'ymparistot',  x: 0, y: 0,  w: 6, h: 14 },
-  { i: 'tarkistus',   x: 6, y: 0,  w: 6, h: 10 },
-  { i: 'todo',        x: 0, y: 14, w: 6, h: 12 },
-  { i: 'ehdotukset',  x: 6, y: 10, w: 6, h: 10 },
-  { i: 'changelog',   x: 0, y: 26, w: 6, h: 8 },
-  { i: 'visio',       x: 6, y: 20, w: 6, h: 10 },
-  { i: 'aktiivisuus', x: 0, y: 34, w: 12, h: 5 },
+  { i: 'ymparistot',  x: 0, y: 0,  w: 6, h: 8, minW: 4, minH: 5 },
+  { i: 'tarkistus',   x: 6, y: 0,  w: 6, h: 6, minW: 4, minH: 4 },
+  { i: 'todo',        x: 0, y: 8,  w: 6, h: 7, minW: 4, minH: 4 },
+  { i: 'ehdotukset',  x: 6, y: 6,  w: 6, h: 6, minW: 4, minH: 4 },
+  { i: 'changelog',   x: 0, y: 15, w: 6, h: 5, minW: 4, minH: 3 },
+  { i: 'visio',       x: 6, y: 12, w: 6, h: 6, minW: 4, minH: 3 },
+  { i: 'aktiivisuus', x: 0, y: 20, w: 12, h: 4, minW: 6, minH: 3 },
 ]
-const DEFAULT_MD = DEFAULT_LG.map((l) => ({ ...l, w: l.w === 12 ? 10 : Math.min(l.w + 1, 10), x: 0 }))
-const DEFAULT_SM = DEFAULT_LG.map((l, i) => ({ ...l, w: 6, x: 0, y: i * 10 }))
+const DEFAULT_MD = DEFAULT_LG.map((l) => ({ ...l, w: Math.min(l.w, 10), x: l.x % 10 }))
+const DEFAULT_SM = DEFAULT_LG.map((l, i) => ({ ...l, w: 6, x: 0, y: i * 6 }))
+const DEFAULT_XS = DEFAULT_LG.map((l, i) => ({ ...l, w: 4, x: 0, y: i * 6, minW: 3 }))
+const DEFAULT_XXS = DEFAULT_LG.map((l, i) => ({ ...l, w: 2, x: 0, y: i * 6, minW: 2 }))
 
-const lataaLayout = () => {
+const oletusLayout = () => ({
+  layouts: {
+    lg: DEFAULT_LG,
+    md: DEFAULT_MD,
+    sm: DEFAULT_SM,
+    xs: DEFAULT_XS,
+    xxs: DEFAULT_XXS,
+  },
+  piilotetut: [],
+})
+
+const lataaLocalLayout = () => {
   try {
     const tallennettu = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? 'null')
-    if (tallennettu?.layouts && tallennettu?.piilotetut !== undefined) return tallennettu
+    if (tallennettu?.layouts && Array.isArray(tallennettu.piilotetut)) return tallennettu
   } catch { /* korruptoitunut localStorage — fallback default */ }
-  return { layouts: { lg: DEFAULT_LG, md: DEFAULT_MD, sm: DEFAULT_SM }, piilotetut: [] }
+  return oletusLayout()
 }
 
-const tallennaLayout = (data) => {
-  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(data)) } catch { /* tilaa ei riittänyt — sivuvaikutus ei kriittinen */ }
+const tallennaLocalLayout = (data) => {
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(data)) } catch { /* tilaa ei riittänyt */ }
 }
 
 const POLLAUS_VALI_MS = 30_000
@@ -135,8 +151,13 @@ const numeroPalluraTyyli = (vari = '#9ca3af') => ({
 export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
   const [pb, setPb] = useState(null)
   const [virhe, setVirhe] = useState(null)
-  // Layout-tila ja piilotetut lohkot (persistoitu localStorageen)
-  const [{ layouts, piilotetut }, setLayoutTila] = useState(() => lataaLayout())
+  // Layout-tila + piilotetut lohkot. Lataa ensin localStoragesta (nopea),
+  // sitten Supabasesta taustalla — jos eroavat, kysy käyttäjältä.
+  const [{ layouts, piilotetut }, setLayoutTila] = useState(() => lataaLocalLayout())
+  const [resetVahvistusAuki, setResetVahvistusAuki] = useState(false)
+  const [pilviKonflikti, setPilviKonflikti] = useState(null)  // { pilviData } jos eroaa
+  const localTallennusRef    = useRef(null)
+  const supabaseTallennusRef = useRef(null)
 
   const lataaPb = useCallback(async () => {
     if (!hoitajaId) return
@@ -194,37 +215,91 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
     })
   }, [tallennaPb])
 
-  // Layout-muutosten talletus localStorageen onLayoutChange-eventillä
+  // Tallennus debounced: localStorage 500ms, Supabase 2s. Molemmat
+  // peruuntuvat seuraavalla kutsulla kunnes käyttäjä lakkaa muokkaamasta.
+  const tallennaPilveen = useCallback(async (data) => {
+    if (!hoitajaId) return
+    await supabase
+      .from('user_preferences')
+      .upsert({ user_id: hoitajaId, dev_dashboard_layout: data, paivitetty: new Date().toISOString() }, { onConflict: 'user_id' })
+  }, [hoitajaId])
+
+  const ajastaTallennus = useCallback((data) => {
+    clearTimeout(localTallennusRef.current)
+    localTallennusRef.current = setTimeout(() => tallennaLocalLayout(data), LOCAL_TALLENNUS_VIIVE_MS)
+    clearTimeout(supabaseTallennusRef.current)
+    supabaseTallennusRef.current = setTimeout(() => tallennaPilveen(data), SUPABASE_TALLENNUS_VIIVE_MS)
+  }, [tallennaPilveen])
+
+  // DD5: lataa pilvi-versio mountissa ja vertaa localiin. Jos eroaa,
+  // kysy käyttäjältä.
+  useEffect(() => {
+    if (!hoitajaId) return
+    let peruttu = false
+    ;(async () => {
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('dev_dashboard_layout, paivitetty')
+        .eq('user_id', hoitajaId)
+        .maybeSingle()
+      if (peruttu || !data?.dev_dashboard_layout) return
+      const local = lataaLocalLayout()
+      const pilvi = data.dev_dashboard_layout
+      // Jos pilvellä on data ja se eroaa localista → ehdota
+      if (JSON.stringify(local) !== JSON.stringify(pilvi)) {
+        setPilviKonflikti({ pilviData: pilvi, paivitetty: data.paivitetty })
+      }
+    })()
+    return () => { peruttu = true }
+  }, [hoitajaId])
+
   const onLayoutChange = useCallback((_currentLayout, allLayouts) => {
     setLayoutTila((prev) => {
       const uusi = { ...prev, layouts: allLayouts }
-      tallennaLayout(uusi)
+      ajastaTallennus(uusi)
       return uusi
     })
-  }, [])
+  }, [ajastaTallennus])
 
   const piilota = useCallback((id) => {
     setLayoutTila((prev) => {
       const uusi = { ...prev, piilotetut: [...prev.piilotetut.filter((p) => p !== id), id] }
-      tallennaLayout(uusi)
+      ajastaTallennus(uusi)
       return uusi
     })
-  }, [])
+  }, [ajastaTallennus])
 
   const palauta = useCallback((id) => {
     setLayoutTila((prev) => {
       const uusi = { ...prev, piilotetut: prev.piilotetut.filter((p) => p !== id) }
-      tallennaLayout(uusi)
+      ajastaTallennus(uusi)
       return uusi
     })
-  }, [])
+  }, [ajastaTallennus])
 
-  const palautaOletus = useCallback(() => {
-    if (!confirm('Palautetaanko alkuperäinen järjestys ja koot?')) return
-    const oletus = { layouts: { lg: DEFAULT_LG, md: DEFAULT_MD, sm: DEFAULT_SM }, piilotetut: [] }
+  const palautaOletus = useCallback(() => setResetVahvistusAuki(true), [])
+
+  const vahvistaPalautus = useCallback(() => {
+    const oletus = oletusLayout()
     setLayoutTila(oletus)
-    tallennaLayout(oletus)
-  }, [])
+    tallennaLocalLayout(oletus)
+    tallennaPilveen(oletus)
+    setResetVahvistusAuki(false)
+  }, [tallennaPilveen])
+
+  const hyvaksyPilvi = useCallback(() => {
+    if (!pilviKonflikti?.pilviData) { setPilviKonflikti(null); return }
+    setLayoutTila(pilviKonflikti.pilviData)
+    tallennaLocalLayout(pilviKonflikti.pilviData)
+    setPilviKonflikti(null)
+  }, [pilviKonflikti])
+
+  const hylkaaPilvi = useCallback(() => {
+    // Käytä localia + ylikirjoita pilveen omat asetukset
+    const data = lataaLocalLayout()
+    tallennaPilveen(data)
+    setPilviKonflikti(null)
+  }, [tallennaPilveen])
 
   // Suodata pois piilotetut lohkot näkyvästä layoutista. useMemo pitää olla
   // ennen aikaista returnia jotta hookkien järjestys pysyy stabiilina.
@@ -261,6 +336,39 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
 
   return (
     <div style={{ width: '100%' }}>
+      {/* DD6 — visuaalinen palaute drag/resize:lle */}
+      <style>{`
+        .react-grid-item {
+          transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+        }
+        .react-grid-item:hover .rgl-drag-handle span:first-child {
+          color: #1D9E75;
+        }
+        .react-grid-item.react-draggable-dragging {
+          z-index: 10;
+          box-shadow: 0 12px 24px rgba(59, 130, 246, 0.25) !important;
+          opacity: 0.95;
+        }
+        .react-grid-item.react-draggable-dragging > div {
+          border-color: #93c5fd !important;
+        }
+        .react-grid-item.resizing {
+          opacity: 0.85;
+          box-shadow: 0 8px 16px rgba(59, 130, 246, 0.2) !important;
+        }
+        .react-grid-placeholder {
+          background: #93c5fd !important;
+          opacity: 0.4 !important;
+          border-radius: 12px !important;
+        }
+        .react-resizable-handle {
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+        .react-grid-item:hover .react-resizable-handle {
+          opacity: 1;
+        }
+      `}</style>
       {/* Yläpalkki: piilotetut + reset */}
       <div style={{
         display:        'flex',
@@ -322,14 +430,17 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
 
       <ResponsiveGrid
         layouts={naytettavatLayouts}
-        breakpoints={{ lg: 1024, md: 720, sm: 0 }}
-        cols={{ lg: 12, md: 10, sm: 6 }}
-        rowHeight={30}
+        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+        cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+        rowHeight={50}
         margin={[12, 12]}
         containerPadding={[0, 0]}
         draggableHandle=".rgl-drag-handle"
         onLayoutChange={onLayoutChange}
         compactType="vertical"
+        preventCollision={false}
+        isDraggable
+        isResizable
       >
         {naytettavat.map((l) => (
           <div key={l.id} style={{ background: 'transparent' }}>
@@ -339,6 +450,35 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
           </div>
         ))}
       </ResponsiveGrid>
+
+      {/* DD6 — vahvistusmodaali resetille (oma sovellus-modaali confirm():n sijaan) */}
+      {resetVahvistusAuki && (
+        <Modaali otsikko="Palautetaanko oletuslayout?" onSulje={() => setResetVahvistusAuki(false)} maxWidth="440px">
+          <p style={{ fontSize: '13px', color: '#374151', margin: 0, lineHeight: 1.5 }}>
+            Kaikki lohkojen sijainnit, koot ja piilotukset palautetaan
+            alkuperäisiin oletusarvoihin. Toiminto tallentuu myös pilveen.
+          </p>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px' }}>
+            <button type="button" onClick={() => setResetVahvistusAuki(false)} style={napinTyyli('beige')}>Peru</button>
+            <button type="button" onClick={vahvistaPalautus} style={napinTyyli('vihrea')}>↻ Palauta oletus</button>
+          </div>
+        </Modaali>
+      )}
+
+      {/* DD5 — pilvi-konfliktimodaali */}
+      {pilviKonflikti && (
+        <Modaali otsikko="Toinen laite on muuttanut layoutia" onSulje={hylkaaPilvi} maxWidth="500px">
+          <p style={{ fontSize: '13px', color: '#374151', margin: 0, lineHeight: 1.5 }}>
+            Toisessa laitteessa on tehty muutoksia dashboardin layoutiin
+            ({sittenTeksti(pilviKonflikti.paivitetty)}).
+            Käytetäänkö pilvi-versio vai pidetäänkö tämän laitteen versio?
+          </p>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '8px', flexWrap: 'wrap' }}>
+            <button type="button" onClick={hylkaaPilvi} style={napinTyyli('beige')}>Pidä tämän laitteen versio</button>
+            <button type="button" onClick={hyvaksyPilvi} style={napinTyyli('vihrea')}>Käytä pilvi-versiota</button>
+          </div>
+        </Modaali>
+      )}
     </div>
   )
 }
