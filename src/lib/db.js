@@ -471,14 +471,15 @@ export const tallennaHoitokirjaus = async (hoitokayntiId, tiedot) => {
     'otsikko', 'hoidon_kulku', 'hoitajan_kommentit', 'tila',
     // Pala B2
     'kesto_min', 'lahtotilanne', 'muista_ensi_kerralla',
-    // Pala B3 — linjausmittarit
+    // Pala B3 — linjausmittarit (9 aktiivista)
+    // Legacy-sarakkeet (paan_eteen_tyontyminen_cm, skolioosin_kierto_aste,
+    // niskan_kaannos_vasen/oikea_aste, akillesjanteen_kulma_vasen/oikea_aste)
+    // poistettu UI:sta 2026-05-02 — DB-sarake säilyy mutta ei kirjoiteta uutta.
     'lantion_kallistus_aste', 'lantion_sivuttainen_aste', 'lantion_kierto_aste',
-    'olkapaiden_korkeusero_cm', 'paan_eteen_tyontyminen_cm',
-    'q_kulma_vasen_aste', 'q_kulma_oikea_aste', 'skolioosin_kierto_aste',
-    'niskan_kaannos_vasen_aste', 'niskan_kaannos_oikea_aste',
+    'olkapaiden_korkeusero_cm',
+    'q_kulma_vasen_aste', 'q_kulma_oikea_aste',
     'jalkapituus_ero_cm',
     'navicular_drop_vasen_mm', 'navicular_drop_oikea_mm',
-    'akillesjanteen_kulma_vasen_aste', 'akillesjanteen_kulma_oikea_aste',
     // Jatkohoitosuunnitelma
     'seuraava_kaynti_pvm',
   ]
@@ -581,7 +582,7 @@ export const haeEdellisetMittarit = async (asiakasId, paitsiId = null) => {
   if (!asiakasId) return null
   let query = supabase
     .from('hoitokaynnit')
-    .select('lantion_kallistus_aste, lantion_sivuttainen_aste, lantion_kierto_aste, olkapaiden_korkeusero_cm, paan_eteen_tyontyminen_cm, q_kulma_vasen_aste, q_kulma_oikea_aste, skolioosin_kierto_aste, niskan_kaannos_vasen_aste, niskan_kaannos_oikea_aste, jalkapituus_ero_cm, navicular_drop_vasen_mm, navicular_drop_oikea_mm, akillesjanteen_kulma_vasen_aste, akillesjanteen_kulma_oikea_aste, pvm')
+    .select('lantion_kallistus_aste, lantion_sivuttainen_aste, lantion_kierto_aste, olkapaiden_korkeusero_cm, q_kulma_vasen_aste, q_kulma_oikea_aste, jalkapituus_ero_cm, navicular_drop_vasen_mm, navicular_drop_oikea_mm, pvm')
     .eq('asiakas_id', asiakasId)
     .neq('tila', 'odottaa_kayntia')
     .not('pvm', 'is', null)

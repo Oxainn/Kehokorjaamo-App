@@ -220,11 +220,9 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
           // Pala B7 — kerää edellisen käynnin mittariarvot { sarake: arvo }
           const mittariSarakkeet = [
             'lantion_kallistus_aste','lantion_sivuttainen_aste','lantion_kierto_aste',
-            'olkapaiden_korkeusero_cm','paan_eteen_tyontyminen_cm',
-            'q_kulma_vasen_aste','q_kulma_oikea_aste','skolioosin_kierto_aste',
-            'niskan_kaannos_vasen_aste','niskan_kaannos_oikea_aste',
+            'olkapaiden_korkeusero_cm',
+            'q_kulma_vasen_aste','q_kulma_oikea_aste',
             'jalkapituus_ero_cm','navicular_drop_vasen_mm','navicular_drop_oikea_mm',
-            'akillesjanteen_kulma_vasen_aste','akillesjanteen_kulma_oikea_aste',
           ]
           const edellMitt = {}
           for (const s of mittariSarakkeet) edellMitt[s] = edell[s] ?? null
