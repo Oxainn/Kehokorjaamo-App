@@ -350,11 +350,15 @@ export default function App() {
               const varit = ymparistoVarit(y)
               const teksti = ymparistoTeksti(y)
               const vp = vastapariYmparisto(y)
-              // Siirtymiskytkimen reuna käyttää vastapari-ympäristön väriä
-              // jotta käyttäjälle on selvää minne klikkaus johtaa.
-              const kytkimenReuna = vp?.teksti === 'LIVE' ? '#15803d'
-                                  : vp?.teksti === 'KEHITYS' ? '#d97706'
-                                  : '#9ca3af'
+              // Siirtymiskytkimen täyttö = kohdeympäristön väri jotta
+              // käyttäjä näkee heti mihin klikkaus vie:
+              //   Avaa LIVE → vihreä täyttö (LIVE-väri)
+              //   Avaa KEHITYS → oranssi täyttö (KEHITYS-väri)
+              const kytkimenTyyli = vp?.teksti === 'LIVE'
+                ? { taustaPaa: '#16a34a', taustaHover: '#15803d', teksti: 'white',   reuna: '#15803d' }
+                : vp?.teksti === 'KEHITYS'
+                ? { taustaPaa: '#f59e0b', taustaHover: '#d97706', teksti: '#7c2d12', reuna: '#d97706' }
+                : { taustaPaa: '#9ca3af', taustaHover: '#6b7280', teksti: 'white',   reuna: '#6b7280' }
               return (
                 <>
                   {/* A) Indikaattori — ei klikattava */}
@@ -390,18 +394,19 @@ export default function App() {
                         padding:        '4px 8px 4px 10px',
                         minHeight:      '24px',
                         borderRadius:   '6px',
-                        border:         `1px solid ${kytkimenReuna}`,
-                        background:     'rgba(255, 255, 255, 0.08)',
-                        color:          'white',
-                        fontWeight:     600,
+                        border:         `1px solid ${kytkimenTyyli.reuna}`,
+                        background:     kytkimenTyyli.taustaPaa,
+                        color:          kytkimenTyyli.teksti,
+                        fontWeight:     700,
                         cursor:         'pointer',
                         textDecoration: 'none',
                         display:        'inline-flex',
                         alignItems:     'center',
                         gap:            '4px',
+                        letterSpacing:  '0.02em',
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)' }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)' }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = kytkimenTyyli.taustaHover }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = kytkimenTyyli.taustaPaa }}
                     >
                       <span>→ Avaa {vp.teksti}</span>
                       <span aria-hidden="true" style={{ fontSize: '10px', opacity: 0.85 }}>↗</span>
