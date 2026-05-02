@@ -136,6 +136,14 @@ Käyttöön otettu erillinen kehitys-ympäristö jotta Live-asiakasdataan ei vah
 
 ## Tehdyt päätökset
 
+### 2026-05-02 — Versionhallinta-dashboard otettu käyttöön (D1–D5)
+
+**Päätös:** Asetuksiin uusi Versionhallinta-osio, joka näyttää Live + Kehitys -ympäristöjen tilan rinnakkain ja tarjoaa yhden klikkauksen "Siirrä Liveen" -toiminnon GitHub-mergen + audit-lokin kanssa. Mukana myös rollback (Vercelin Promote previous deployment) sekä 30s status-pollaus + hälytykset. Edge Functionit deployattu Kehitys-Supabaseen, koska Oxa on yleensä siellä kirjautuneena kun siirtää Liveen.
+
+**Miksi:** Käsin tehtynä julkaisu vaati monta vaihetta (git checkout main, git pull, git merge kehitys, git push, odota Vercel) eikä audit-lokia ollut. Yhden klikkauksen toiminto + 3-checkbox vahvistus + audit nopeuttaa ja vähentää virheitä. Live-puolelta toiminto piilotettu — dev-työkalu ei kuulu tuotantokäyttäjille.
+
+**Turvallisuus:** Vain admin (oxainn@gmail.com) saa suorittaa, kaikki vahvistukset pakollisia, audit-loki tallennetaan julkaisut-tauluun (Kehitys-DB).
+
 ### 2026-05-01 — Palvelu↔lomake-suhde 1:N (oli N:M)
 
 **Päätös:** Suhde palvelusta lomakepohjaan muutettu yksisuuntaiseksi 1:N:ksi. Yksi palvelu käyttää aina yhtä lomaketta. Sama lomake voi olla useassa palvelussa. Tekninen toteutus: `palvelut.lomakepohja_id` (FK), aiempi `palvelu_lomake_linkit`-välitaulu poistettu. `on_oletus`-konsepti hylätty (ei tarvita kun palvelulla on aina yksi lomake).
