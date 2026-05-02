@@ -534,8 +534,11 @@ export default function App() {
         </div>
       </nav>
 
-      {/* SISÄLTÖALUE */}
-      <main style={{ flex: 1, maxWidth: '960px', width: '100%', margin: '0 auto', padding: '24px 16px' }}>
+      {/* SISÄLTÖALUE — leveä jotta Asetukset-dashboard pääsee koko näytön
+          leveydelle isoilla monitoreilla. Pienillä näytöillä width: 100%
+          toimii jouseksi. Lomakekentät ja listanrivit eivät leviä rumasti
+          koska niillä on omat container-luokat. */}
+      <main style={{ flex: 1, maxWidth: '1600px', width: '100%', margin: '0 auto', padding: '24px 16px' }}>
 
         {/* REKISTERI */}
         {nakyma === 'rekisteri' && (
