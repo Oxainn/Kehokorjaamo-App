@@ -18,8 +18,12 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../services/supabase'
-import { YMPARISTOT, haeViimeisinCommit, haeErotHaarat, GITHUB_REPO } from '../../lib/ymparistot'
+import { YMPARISTOT, haeViimeisinCommit, haeErotHaarat, pingaaUrl, GITHUB_REPO } from '../../lib/ymparistot'
 import { tunnistaYmparisto } from '../../lib/ymparisto'
+
+// D4: status-pollausväli ja hälytysrajat
+const POLLAUS_VALI_MS = 30_000
+const JULKAISEMATON_VAROITUS_PV = 5
 
 const muotoilePvm = (iso) => {
   if (!iso) return '—'
@@ -43,8 +47,40 @@ function StatusPallo({ ok, latautuu }) {
   )
 }
 
-function YmparistoPaneeli({ avain, ymparisto, omaYmparisto, commit, virhe }) {
+// D4: yksittäisen hälytyksen rendaus
+function HalytysRivi({ vakavuus, teksti }) {
+  // vakavuus: 'kriittinen' | 'varoitus' | 'ok' | 'info'
+  const tyyli = {
+    kriittinen: { background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', merkki: '🔴' },
+    varoitus:   { background: '#fffbeb', border: '1px solid #fcd34d', color: '#78350f', merkki: '🟡' },
+    ok:         { background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', merkki: '🟢' },
+    info:       { background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', merkki: 'ℹ️' },
+  }[vakavuus] ?? { background: '#f3f4f6', border: '1px solid #e5e7eb', color: '#374151', merkki: '·' }
+
+  return (
+    <div style={{
+      ...tyyli,
+      borderRadius: '8px',
+      padding:      '8px 12px',
+      fontSize:     '13px',
+      display:      'flex',
+      alignItems:   'center',
+      gap:          '8px',
+      lineHeight:   1.4,
+    }}>
+      <span>{tyyli.merkki}</span>
+      <span>{teksti}</span>
+    </div>
+  )
+}
+
+function YmparistoPaneeli({ avain, ymparisto, omaYmparisto, commit, virhe, pingTila }) {
   const onOma = avain === omaYmparisto
+  // D4: paneelin status-pallo huomioi sekä commit-haun että ping-tilan
+  const ylhaalla  = pingTila === 'ylhaalla'
+  const alhaalla  = pingTila === 'alhaalla'
+  const palloOk   = !virhe && !alhaalla
+  const palloLatautuu = !commit && !virhe && !ylhaalla && !alhaalla
   return (
     <div style={{
       flex:         '1 1 320px',
@@ -59,7 +95,7 @@ function YmparistoPaneeli({ avain, ymparisto, omaYmparisto, commit, virhe }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <StatusPallo ok={!virhe} latautuu={!commit && !virhe} />
+          <StatusPallo ok={palloOk} latautuu={palloLatautuu} />
           <h3 style={{
             fontSize:   '14px',
             fontWeight: 700,
@@ -93,6 +129,14 @@ function YmparistoPaneeli({ avain, ymparisto, omaYmparisto, commit, virhe }) {
       </p>
 
       <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <RiviPari
+          label="Tila"
+          arvo={
+            pingTila === 'ylhaalla' ? <span style={{ color: '#22c55e' }}>✓ vastaa</span>
+            : pingTila === 'alhaalla' ? <span style={{ color: '#ef4444' }}>✗ ei vastaa</span>
+            : <span style={{ color: '#9ca3af', fontStyle: 'italic' }}>tarkistetaan…</span>
+          }
+        />
         <RiviPari label="URL" arvo={ymparisto.url.replace('https://', '')} />
         <RiviPari label="Haara" arvo={ymparisto.githubBranch} />
         <RiviPari
@@ -145,6 +189,11 @@ export default function Versionhallinta() {
   const [virheet,       setVirheet]       = useState({ live: null, kehitys: null, erot: null })
   const [paivitettyAt,  setPaivitettyAt]  = useState(null)
   const [omaAsiakkaita, setOmaAsiakkaita] = useState(null)
+  // D4: ping-tila kummallekin URLille — 'ylhaalla' | 'alhaalla' | null (tarkistetaan)
+  const [pingLive,    setPingLive]    = useState(null)
+  const [pingKehitys, setPingKehitys] = useState(null)
+  // D4: oman Supabasen tila
+  const [omaSupabaseOk, setOmaSupabaseOk] = useState(null)
 
   const lataa = useCallback(async () => {
     setVirheet({ live: null, kehitys: null, erot: null })
@@ -174,40 +223,80 @@ export default function Versionhallinta() {
       .select('*', { count: 'exact', head: true })
       .then(({ count, error }) => {
         if (peruttu) return
-        if (!error) setOmaAsiakkaita(count ?? 0)
+        if (error) setOmaSupabaseOk(false)
+        else { setOmaAsiakkaita(count ?? 0); setOmaSupabaseOk(true) }
       })
     return () => { peruttu = true }
   }, [])
 
+  // D4: status-pollaus 30s välein. Aktivoituu kun komponentti mountattu
+  // (Versionhallinta-accordion auki) ja siivotaan unmountissa.
+  useEffect(() => {
+    let peruttu = false
+    async function pingaa() {
+      const [liveTulos, kehitysTulos] = await Promise.all([
+        pingaaUrl(YMPARISTOT.live.url),
+        pingaaUrl(YMPARISTOT.kehitys.url),
+      ])
+      if (peruttu) return
+      setPingLive(liveTulos.ok ? 'ylhaalla' : 'alhaalla')
+      setPingKehitys(kehitysTulos.ok ? 'ylhaalla' : 'alhaalla')
+    }
+    pingaa()
+    const intervalli = setInterval(pingaa, POLLAUS_VALI_MS)
+    return () => { peruttu = true; clearInterval(intervalli) }
+  }, [])
+
   useEffect(() => { lataa() }, [lataa])
+
+  // D4: rakenna hälytyslista nykyisestä tilasta
+  const halytykset = []
+  if (pingLive === 'alhaalla') {
+    halytykset.push({ vakavuus: 'kriittinen', teksti: 'LIVE ei vastaa — kehokorjaamo-app.vercel.app on tavoittamattomissa.' })
+  }
+  if (pingKehitys === 'alhaalla') {
+    halytykset.push({ vakavuus: 'varoitus', teksti: 'KEHITYS ei vastaa — kehokorjaamo-kehitys.vercel.app on tavoittamattomissa.' })
+  }
+  if (omaSupabaseOk === false) {
+    halytykset.push({ vakavuus: 'kriittinen', teksti: `Supabase-yhteys virhe (${YMPARISTOT[omaYmparisto]?.nimi ?? omaYmparisto.toUpperCase()}) — DB-kyselyt eivät onnistu.` })
+  }
+  // Julkaisematon yli 5 päivää
+  if (erot && erot.length > 0) {
+    const vanhin = erot[0]?.pvm  // GitHub compare palauttaa vanhin ensin
+    if (vanhin) {
+      const ika = (Date.now() - new Date(vanhin).getTime()) / (1000 * 60 * 60 * 24)
+      if (ika >= JULKAISEMATON_VAROITUS_PV) {
+        halytykset.push({
+          vakavuus: 'varoitus',
+          teksti: `Kehityksessä ${erot.length} julkaisematonta committia, vanhin ${Math.floor(ika)} päivää sitten.`,
+        })
+      }
+    }
+  }
+  if (halytykset.length === 0 && pingLive && pingKehitys && omaSupabaseOk !== false) {
+    halytykset.push({ vakavuus: 'ok', teksti: 'OK — kaikki ympäristöt vastaavat normaalisti.' })
+  }
 
   const eroaKpl = erot?.length ?? 0
   const onEroja = eroaKpl > 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Hälytys-paneeli (placeholder D4:lle) */}
-      <div style={{
-        background:   '#f0fdf4',
-        border:       '1px solid #bbf7d0',
-        borderRadius: '10px',
-        padding:      '10px 14px',
-        fontSize:     '13px',
-        color:        '#166534',
-        display:      'flex',
-        alignItems:   'center',
-        gap:          '8px',
-      }}>
-        <span>🟢</span>
-        <span>OK — ei aktiivisia hälytyksiä. Live + Kehitys vastaavat. Status-pollaus tulossa D4-vaiheessa.</span>
+      {/* D4: hälytyslista — pollaus 30s välein */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        {halytykset.map((h, i) => (
+          <HalytysRivi key={i} vakavuus={h.vakavuus} teksti={h.teksti} />
+        ))}
       </div>
 
       {/* Päivityspainike + aikaleima */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>
           {paivitettyAt
-            ? <>Päivitetty: {muotoilePvm(paivitettyAt.toISOString())}</>
+            ? <>Commit-data päivitetty: {muotoilePvm(paivitettyAt.toISOString())}</>
             : 'Ladataan tila…'}
+          {' · '}
+          <span>Status-pollaus joka {Math.round(POLLAUS_VALI_MS / 1000)} s</span>
           {' · '}
           <span>Oma ympäristö: <strong>{YMPARISTOT[omaYmparisto]?.nimi ?? omaYmparisto.toUpperCase()}</strong></span>
           {omaAsiakkaita != null && (
@@ -240,6 +329,7 @@ export default function Versionhallinta() {
           omaYmparisto={omaYmparisto}
           commit={liveCommit}
           virhe={virheet.live}
+          pingTila={pingLive}
         />
         <YmparistoPaneeli
           avain="kehitys"
@@ -247,6 +337,7 @@ export default function Versionhallinta() {
           omaYmparisto={omaYmparisto}
           commit={kehitysCommit}
           virhe={virheet.kehitys}
+          pingTila={pingKehitys}
         />
       </div>
 

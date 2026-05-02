@@ -51,6 +51,27 @@ export async function haeViimeisinCommit(branch) {
   }
 }
 
+// Pingaa URL — selvittää vastaako serveri. Käytetään no-cors-moodia
+// koska emme tarvitse vastauksen sisältöä (reagoidaan vain onnistuiko
+// fetch). HTTP-statusta ei nähdä, mutta verkon yli-/alas-tila riittää.
+export async function pingaaUrl(url, timeoutMs = 8000) {
+  const ctrl = new AbortController()
+  const timeout = setTimeout(() => ctrl.abort(), timeoutMs)
+  try {
+    await fetch(url, {
+      method: 'GET',
+      mode:   'no-cors',
+      cache:  'no-store',
+      signal: ctrl.signal,
+    })
+    return { ok: true, virhe: null }
+  } catch (e) {
+    return { ok: false, virhe: e.name === 'AbortError' ? 'aikakatkaisu' : (e.message ?? 'verkkovirhe') }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 // Erot kahden haaran välillä — Kehityksessä commit X, ei vielä main:ssa
 export async function haeErotHaarat(perusHaara, vertaaHaara) {
   const res = await fetch(
