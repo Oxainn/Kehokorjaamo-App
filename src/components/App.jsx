@@ -110,9 +110,13 @@ export default function App() {
   }, [])
 
   const hoitajaId = kayttaja?.id
-  // Admin-rajaus dev-työkaluille (ympäristö-kytkin, Versionhallinta).
-  // Vaihe C asiakasportaalin yhteydessä laajennetaan hoitaja-rooliin.
+  // Admin-rajaus + ympäristö-rajaus dev-työkaluille.
+  // showDevTools yhdistää nämä: dev-työkalut näkyvät vain Oxalle
+  // Kehitys-ympäristössä. Live-puolella piilossa kaikilta — myös Oxalta —
+  // koska Liven puolelta ei kuulu testata testidatalla.
+  // Vaihe C asiakasportaalin yhteydessä isAdmin laajennetaan hoitaja-rooliin.
   const isAdmin = kayttaja?.email === 'oxainn@gmail.com'
+  const showDevTools = isAdmin && tunnistaYmparisto() === YMPARISTO.KEHITYS
 
   // Avain joka pakottaa AsiakaslomakeRenderoijalla:n uudelleenrenderöinnin
   // (esitäytön uudelleenladauksen) kun "Uusi käynti" suljetaan ja avataan.
@@ -408,25 +412,30 @@ export default function App() {
             })()}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {/* DEV — testaa B-lomake suoraan TESTI-asiakkaalla */}
-            <button
-              onClick={avaaTestiBLomake}
-              title="Avaa B-lomake TESTI-asiakkaan kontekstissa (dev-työkalu — ohittaa vahvistuksen)"
-              style={{
-                fontSize:     '12px',
-                padding:      '6px 12px',
-                minHeight:    '32px',
-                borderRadius: '20px',
-                border:       '1px solid #fbbf24',
-                background:   '#f59e0b',
-                color:        '#7c2d12',
-                fontWeight:   700,
-                cursor:       'pointer',
-                letterSpacing: '0.02em',
-              }}
-            >
-              🧪 Testaa B-lomake · DEV
-            </button>
+            {/* DEV — testaa B-lomake suoraan TESTI-asiakkaalla.
+                Näkyy vain Kehitys-ympäristössä admin-käyttäjälle.
+                Live-puolelta piilossa (myös Oxalta) — sieltä ei kuuluu
+                testata testidatalla. */}
+            {showDevTools && (
+              <button
+                onClick={avaaTestiBLomake}
+                title="Avaa B-lomake TESTI-asiakkaan kontekstissa (dev-työkalu — ohittaa vahvistuksen)"
+                style={{
+                  fontSize:     '12px',
+                  padding:      '6px 12px',
+                  minHeight:    '32px',
+                  borderRadius: '20px',
+                  border:       '1px solid #fbbf24',
+                  background:   '#f59e0b',
+                  color:        '#7c2d12',
+                  fontWeight:   700,
+                  cursor:       'pointer',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                🧪 Testaa B-lomake · DEV
+              </button>
+            )}
             {/* Pala B9b — online/offline-indikaattori + jonon koko */}
             <span
               title={online ? 'Yhteys palvelimeen on päällä' : 'Ei verkkoyhteyttä — muutokset tallentuvat selaimeen ja synkronoidaan kun yhteys palaa'}
@@ -742,7 +751,7 @@ export default function App() {
 
         {/* ASETUKSET */}
         {nakyma === 'asetukset' && (
-          <Settings hoitajaId={hoitajaId} isAdmin={isAdmin} />
+          <Settings hoitajaId={hoitajaId} isAdmin={isAdmin} showDevTools={showDevTools} />
         )}
 
       </main>
