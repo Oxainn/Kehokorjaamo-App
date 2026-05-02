@@ -1,11 +1,13 @@
-// Asiakkaan oireet -näkymä — visuaalinen yhteenveto + ryhmitelty lista
-// + vertailu aiempiin käynteihin.
+// Asiakkaan oireet -näkymä — visuaalinen yhteenveto + vertailu aiempiin
+// käynteihin.
 //
 // Korvaa nykyisen pitkän litteän listan (KehonkarttaVertailu.jsx:n sisäinen
-// AsiakkaanOireet-funktio) kolmiosaisella näkymällä:
+// AsiakkaanOireet-funktio) kaksiosaisella näkymällä:
 //   OSA 1 — yhteenveto: kompakti kehonkartta-piirros + 4 top-laatikkoa + tulkinta
-//   OSA 2 — suodatin + ryhmitelty accordion-lista anatomisten alueiden mukaan
-//   OSA 3 — vertailu aiempiin käynteihin: aikajana + muutos-listat + graafi
+//   OSA 2 — vertailu aiempiin käynteihin: aikajana + muutos-listat + graafi
+//
+// Aiempi anatominen ryhmittely + suodatinpalkki poistettu — yhteenveto-osio
+// antaa saman tiedon yhdellä silmäyksellä ilman pitkää listaa.
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../services/supabase'
@@ -17,28 +19,6 @@ const OIRETYYPIT = {
   lihasjannitys: { nimi: 'Lihasjännitys', vari: '#f97316', emoji: '🟠' },
   puutuminen:    { nimi: 'Puutuminen',    vari: '#3b82f6', emoji: '🟡' },
   tunnottomuus:  { nimi: 'Tunnottomuus',  vari: '#9ca3af', emoji: '⚪' },
-}
-
-// Anatomiset ryhmät — vyöhykkeet jaetaan näiden mukaan (avainsana-matchaus
-// vyöhykkeen nimestä). Järjestys = renderöintijärjestys.
-const RYHMAT = [
-  { id: 'niska',     nimi: 'Niska & kaula',                avainsanat: ['niska', 'kaula', 'takaraivo', 'pää', 'otsa', 'leuka'] },
-  { id: 'ylaselka',  nimi: 'Selkä — yläosa & hartiat',     avainsanat: ['lapaluu', 'yläselkä', 'olkapää', 'olkapaa', 'hartia'] },
-  { id: 'alaselka',  nimi: 'Selkä — alaosa & lanneranka',  avainsanat: ['keskiselkä', 'lannelihas', 'alaselkä', 'lanneranka', 'risti', 'sij'] },
-  { id: 'ylaraajat', nimi: 'Yläraajat',                    avainsanat: ['olkavarsi', 'kyynärpää', 'kyynärvarsi', 'käsi', 'sormi', 'ranne'] },
-  { id: 'lantio',    nimi: 'Lantio & vatsa',               avainsanat: ['lantio', 'pakara', 'lonkka', 'vatsa', 'asis', 'rinta'] },
-  { id: 'alaraajat', nimi: 'Alaraajat',                    avainsanat: ['reisi', 'polvi', 'sääri', 'saari', 'nilkka', 'jalkaterä', 'jalkatera', 'kantaluu', 'pohje', 'akilles', 'holvi'] },
-]
-
-// Etsi vyöhykkeen anatominen ryhmä avainsana-matchauksella.
-function vyohykkeenRyhma(vyohyke) {
-  if (!vyohyke?.nimi) return null
-  const nimi = vyohyke.nimi.toLowerCase()
-  const tek = (vyohyke.tekninen ?? '').toLowerCase()
-  for (const r of RYHMAT) {
-    if (r.avainsanat.some((s) => nimi.includes(s) || tek.includes(s))) return r.id
-  }
-  return null  // ei matchia → "Muut"
 }
 
 const muotoilePvm = (iso) => {
@@ -82,20 +62,6 @@ export default function AsiakkaanOireet({ asiakasId, kehonkartta }) {
   // Sääntöpohjainen tulkinta
   const tulkinta = useMemo(() => generoiTulkinta(topPerOire), [topPerOire])
 
-  // OSA 2: suodatin + ryhmittely
-  const [suodatin, setSuodatin] = useState('kaikki')
-
-  const ryhmitelty = useMemo(() => {
-    const haku = suodatin === 'kaikki' ? rivit : rivit.filter((r) => r.oireet.includes(suodatin))
-    const ryhmiin = {}
-    for (const r of haku) {
-      const ryhmaId = vyohykkeenRyhma(r.vyohyke) ?? 'muut'
-      if (!ryhmiin[ryhmaId]) ryhmiin[ryhmaId] = []
-      ryhmiin[ryhmaId].push(r)
-    }
-    return ryhmiin
-  }, [rivit, suodatin])
-
   if (rivit.length === 0) {
     return (
       <p style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic', padding: '12px 0' }}>
@@ -109,10 +75,7 @@ export default function AsiakkaanOireet({ asiakasId, kehonkartta }) {
       {/* OSA 1 — yhteenveto */}
       <Yhteenveto kehonkartta={kehonkartta} rivit={rivit} topPerOire={topPerOire} tulkinta={tulkinta} />
 
-      {/* OSA 2 — suodatin + ryhmitelty lista */}
-      <RyhmiteltyOsio ryhmitelty={ryhmitelty} suodatin={suodatin} setSuodatin={setSuodatin} topPerOire={topPerOire} />
-
-      {/* OSA 3 — vertailu aiempiin käynteihin */}
+      {/* OSA 2 — vertailu aiempiin käynteihin */}
       {asiakasId && <VertailuOsio asiakasId={asiakasId} nykyisetMerkinnat={merkinnat} />}
     </div>
   )
@@ -268,134 +231,8 @@ function KompaktiKehonkartta({ merkinnat }) {
 // OSA 2 — Suodatin + ryhmitelty lista
 // ─────────────────────────────────────────────────────────────────────────
 
-function RyhmiteltyOsio({ ryhmitelty, suodatin, setSuodatin, topPerOire }) {
-  const [avoinnaRyhmat, setAvoinnaRyhmat] = useState(() => new Set(RYHMAT.map((r) => r.id).concat('muut')))
-
-  const togglRyhma = (id) => {
-    setAvoinnaRyhmat((prev) => {
-      const u = new Set(prev)
-      if (u.has(id)) u.delete(id)
-      else u.add(id)
-      return u
-    })
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {/* Suodatin */}
-      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-        <SuodatinNappi nimi="Kaikki" maara={Object.values(ryhmitelty).reduce((s, l) => s + l.length, 0)} valittu={suodatin === 'kaikki'} onValitse={() => setSuodatin('kaikki')} />
-        {Object.entries(OIRETYYPIT).map(([tyyppi, meta]) => (
-          <SuodatinNappi
-            key={tyyppi}
-            nimi={`${meta.emoji} ${meta.nimi}`}
-            maara={topPerOire[tyyppi]?.length ?? 0}
-            valittu={suodatin === tyyppi}
-            vari={meta.vari}
-            onValitse={() => setSuodatin(tyyppi)}
-          />
-        ))}
-      </div>
-
-      {/* Ryhmät */}
-      {[...RYHMAT, { id: 'muut', nimi: 'Muut' }].map((ryhma) => {
-        const lista = ryhmitelty[ryhma.id] ?? []
-        if (lista.length === 0) return null
-        const auki = avoinnaRyhmat.has(ryhma.id)
-        return (
-          <div key={ryhma.id} style={{
-            background:   'white',
-            border:       '1px solid #e5e7eb',
-            borderRadius: '10px',
-            overflow:     'hidden',
-          }}>
-            <button
-              type="button"
-              onClick={() => togglRyhma(ryhma.id)}
-              style={{
-                width:        '100%',
-                display:      'flex',
-                alignItems:   'center',
-                justifyContent: 'space-between',
-                padding:      '10px 14px',
-                background:   auki ? '#f9fafb' : 'white',
-                border:       'none',
-                cursor:       'pointer',
-                fontSize:     '13px',
-                fontWeight:   600,
-                color:        '#374151',
-              }}
-            >
-              <span>{auki ? '▼' : '▶'} {ryhma.nimi} ({lista.length})</span>
-            </button>
-            {auki && (
-              <div style={{ padding: '6px 14px 12px', borderTop: '1px solid #f3f4f6', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {lista.map((r) => (
-                  <div key={r.vyohyke.id} style={{
-                    display:      'flex',
-                    alignItems:   'center',
-                    gap:          '8px',
-                    padding:      '6px 0',
-                    borderBottom: '1px dashed #f3f4f6',
-                    fontSize:     '13px',
-                  }}>
-                    <span style={{ flex: 1, color: '#111827' }}>
-                      <strong>{r.vyohyke.nimi}</strong>
-                      {r.vyohyke.tekninen && <span style={{ color: '#9ca3af', fontSize: '11px' }}> · {r.vyohyke.tekninen}</span>}
-                    </span>
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                      {r.oireet.map((o, i) => <OirePilleri key={`${o}-${i}`} tyyppi={o} />)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function SuodatinNappi({ nimi, maara, valittu, onValitse, vari = '#6b7280' }) {
-  return (
-    <button
-      type="button"
-      onClick={onValitse}
-      style={{
-        padding:      '4px 10px',
-        borderRadius: '999px',
-        border:       valittu ? `1.5px solid ${vari}` : '1px solid #e5e7eb',
-        background:   valittu ? `${vari}1a` : 'white',
-        color:        valittu ? vari : '#6b7280',
-        fontSize:     '11px',
-        fontWeight:   valittu ? 700 : 500,
-        cursor:       'pointer',
-      }}
-    >
-      {nimi} {maara > 0 && `· ${maara}`}
-    </button>
-  )
-}
-
-function OirePilleri({ tyyppi }) {
-  const meta = OIRETYYPIT[tyyppi] ?? { nimi: tyyppi, vari: '#9ca3af' }
-  return (
-    <span style={{
-      fontSize:     '10px',
-      padding:      '2px 8px',
-      borderRadius: '999px',
-      background:   `${meta.vari}1a`,
-      color:        meta.vari,
-      fontWeight:   500,
-    }}>
-      {meta.nimi}
-    </span>
-  )
-}
-
 // ─────────────────────────────────────────────────────────────────────────
-// OSA 3 — Vertailu aiempiin käynteihin
+// OSA 2 — Vertailu aiempiin käynteihin
 // ─────────────────────────────────────────────────────────────────────────
 
 function VertailuOsio({ asiakasId, nykyisetMerkinnat }) {
