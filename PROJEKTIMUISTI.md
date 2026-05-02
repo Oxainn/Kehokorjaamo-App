@@ -25,6 +25,19 @@ Käyttöön otettu erillinen kehitys-ympäristö jotta Live-asiakasdataan ei vah
 - "Siirrä Liveen" = `git merge kehitys → main` + tarvittaessa vastaava migraatio Live-DB:hen
 - "Pidä Testissä" = älä yhdistä Liveen vielä
 
+**Mihin kummassakin tehdään muutoksia:**
+
+| Toiminta | Live | Kehitys |
+|--|--|--|
+| Koodimuutokset | Vain kun siirretään valmis ominaisuus (PR/merge) | Aina ensin — `kehitys`-haaraan |
+| Schema-migraatiot | Vain mergen yhteydessä (yhtä aikaa koodin kanssa) | `supabase/migrations/`-kansiosta — testataan tässä ensin |
+| Testidata (testikäyttäjät, mock-asiakkaat) | EI KOSKAAN | Vapaasti — uusittavissa |
+| Asiakas-/hoitajadata | Tuotanto — älä koske | Vapaasti — vain testihoitaja + testiasiakkaita |
+| Tuotehallinta-merkinnät | Live-productboard (oikea changelog) | Ei tarvetta erikseen — pidetään yhtenä Live:ssä |
+| Ympäristömuuttujat (Vercel) | `kehokorjaamo-app`-projektissa | `kehokorjaamo-kehitys`-projektissa, eri Supabase-creds |
+
+**Hoitaja-spesifit alustustiedot Kehityksessä** (lomakepohjat, kenttäkirjasto, palvelut, itsehoito-kirjasto): luodaan käsin Supabase SQL Editorista skripteillä jotka löytyvät `supabase/migrations-kehitys/`-kansiosta. Skripteissä on placeholder `__OXAN_KEHITYS_HOITAJA_ID__` joka korvataan Oxan Kehitys-tilin UUID:llä ennen ajoa.
+
 **Miksi:** B-lomakkeen iterointi vaati testidataa Live-DB:ssä, mikä riskeerasi oikeiden asiakastietojen sotkeutumisen. Erillinen ympäristö ratkaisee tämän pysyvästi.
 
 ---
