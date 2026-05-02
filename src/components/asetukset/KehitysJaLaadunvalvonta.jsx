@@ -11,11 +11,56 @@
 // sarakkeet menevät päällekkäin.
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
+import { Responsive, WidthProvider } from 'react-grid-layout'
 import { supabase } from '../../services/supabase'
 import { YMPARISTOT, haeViimeisinCommit, haeErotHaarat, pingaaUrl, GITHUB_REPO } from '../../lib/ymparistot'
 import { tunnistaYmparisto, YMPARISTO } from '../../lib/ymparisto'
 import SiirraLiveenModaali from './SiirraLiveenModaali'
 import RollbackModaali from './RollbackModaali'
+import 'react-grid-layout/css/styles.css'
+import 'react-resizable/css/styles.css'
+
+const ResponsiveGrid = WidthProvider(Responsive)
+
+// localStorage-avain mukautetulle layoutille
+const LAYOUT_KEY = 'kehokorjaamo_dev_dashboard_layout_v1'
+
+// Lohkojen ID-listat ja default-layout (12-sarakkeinen ruudukko, rowHeight=30)
+const LOHKOT = [
+  { id: 'ymparistot',   nimi: 'Ympäristöt',          ikoni: '🌐' },
+  { id: 'tarkistus',    nimi: 'Tarkistuskierros',    ikoni: '🔍' },
+  { id: 'todo',         nimi: 'Välttämättömät tehtävät', ikoni: '📋' },
+  { id: 'ehdotukset',   nimi: 'Koodaajan ehdotukset', ikoni: '💡' },
+  { id: 'changelog',    nimi: 'Changelog',           ikoni: '📝' },
+  { id: 'visio',        nimi: 'Visio ja periaatteet', ikoni: '🎯' },
+  { id: 'aktiivisuus',  nimi: 'Kehitysaktiivisuus',  ikoni: '📈' },
+]
+
+// Default-asetelma: 12-saraketteen pohjautuva, lg-breakpointti.
+// Pienemmillä näytöillä (md/sm) jokainen lohko menee omaksi riviksi.
+const DEFAULT_LG = [
+  { i: 'ymparistot',  x: 0, y: 0,  w: 6, h: 14 },
+  { i: 'tarkistus',   x: 6, y: 0,  w: 6, h: 10 },
+  { i: 'todo',        x: 0, y: 14, w: 6, h: 12 },
+  { i: 'ehdotukset',  x: 6, y: 10, w: 6, h: 10 },
+  { i: 'changelog',   x: 0, y: 26, w: 6, h: 8 },
+  { i: 'visio',       x: 6, y: 20, w: 6, h: 10 },
+  { i: 'aktiivisuus', x: 0, y: 34, w: 12, h: 5 },
+]
+const DEFAULT_MD = DEFAULT_LG.map((l) => ({ ...l, w: l.w === 12 ? 10 : Math.min(l.w + 1, 10), x: 0 }))
+const DEFAULT_SM = DEFAULT_LG.map((l, i) => ({ ...l, w: 6, x: 0, y: i * 10 }))
+
+const lataaLayout = () => {
+  try {
+    const tallennettu = JSON.parse(localStorage.getItem(LAYOUT_KEY) ?? 'null')
+    if (tallennettu?.layouts && tallennettu?.piilotetut !== undefined) return tallennettu
+  } catch { /* korruptoitunut localStorage — fallback default */ }
+  return { layouts: { lg: DEFAULT_LG, md: DEFAULT_MD, sm: DEFAULT_SM }, piilotetut: [] }
+}
+
+const tallennaLayout = (data) => {
+  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(data)) } catch { /* tilaa ei riittänyt — sivuvaikutus ei kriittinen */ }
+}
 
 const POLLAUS_VALI_MS = 30_000
 const muotoilePvm = (iso) => iso ? new Date(iso).toLocaleString('fi-FI', { dateStyle: 'short', timeStyle: 'short' }) : '—'
@@ -90,6 +135,8 @@ const numeroPalluraTyyli = (vari = '#9ca3af') => ({
 export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
   const [pb, setPb] = useState(null)
   const [virhe, setVirhe] = useState(null)
+  // Layout-tila ja piilotetut lohkot (persistoitu localStorageen)
+  const [{ layouts, piilotetut }, setLayoutTila] = useState(() => lataaLayout())
 
   const lataaPb = useCallback(async () => {
     if (!hoitajaId) return
@@ -147,6 +194,50 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
     })
   }, [tallennaPb])
 
+  // Layout-muutosten talletus localStorageen onLayoutChange-eventillä
+  const onLayoutChange = useCallback((_currentLayout, allLayouts) => {
+    setLayoutTila((prev) => {
+      const uusi = { ...prev, layouts: allLayouts }
+      tallennaLayout(uusi)
+      return uusi
+    })
+  }, [])
+
+  const piilota = useCallback((id) => {
+    setLayoutTila((prev) => {
+      const uusi = { ...prev, piilotetut: [...prev.piilotetut.filter((p) => p !== id), id] }
+      tallennaLayout(uusi)
+      return uusi
+    })
+  }, [])
+
+  const palauta = useCallback((id) => {
+    setLayoutTila((prev) => {
+      const uusi = { ...prev, piilotetut: prev.piilotetut.filter((p) => p !== id) }
+      tallennaLayout(uusi)
+      return uusi
+    })
+  }, [])
+
+  const palautaOletus = useCallback(() => {
+    if (!confirm('Palautetaanko alkuperäinen järjestys ja koot?')) return
+    const oletus = { layouts: { lg: DEFAULT_LG, md: DEFAULT_MD, sm: DEFAULT_SM }, piilotetut: [] }
+    setLayoutTila(oletus)
+    tallennaLayout(oletus)
+  }, [])
+
+  // Suodata pois piilotetut lohkot näkyvästä layoutista. useMemo pitää olla
+  // ennen aikaista returnia jotta hookkien järjestys pysyy stabiilina.
+  const naytettavatLayouts = useMemo(() => {
+    const piiloSet = new Set(piilotetut)
+    const suodata = (lst) => (lst ?? []).filter((l) => !piiloSet.has(l.i))
+    return {
+      lg: suodata(layouts.lg),
+      md: suodata(layouts.md),
+      sm: suodata(layouts.sm),
+    }
+  }, [layouts, piilotetut])
+
   if (!pb) {
     return (
       <div style={{ padding: '24px', color: '#6b7280', fontSize: '14px' }}>
@@ -156,42 +247,155 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
     )
   }
 
+  const lohkoMap = {
+    ymparistot:  <YmparistotPaneeli />,
+    tarkistus:   <TarkistusPaneeli kayttajaId={hoitajaId} />,
+    todo:        <TodoPaneeli pb={pb} pbHetiTallennus={pbHetiTallennus} />,
+    ehdotukset:  <EhdotuksetPaneeli pb={pb} pbHetiTallennus={pbHetiTallennus} />,
+    changelog:   <ChangelogPaneeli pb={pb} />,
+    visio:       <VisioPaneeli pb={pb} pbDebouncedTallennus={pbDebouncedTallennus} />,
+    aktiivisuus: <AktiivisuusPaneeli />,
+  }
+
+  const naytettavat = LOHKOT.filter((l) => !piilotetut.includes(l.id))
+
   return (
-    <div style={{
-      display:      'flex',
-      flexDirection: 'column',
-      gap:          '16px',
-      width:        '100%',
-    }}>
-      {/* OSA 1 — Ympäristöt + Tarkistuskierros */}
-      <div style={kaksiSaraketta}>
-        <YmparistotPaneeli />
-        <TarkistusPaneeli kayttajaId={hoitajaId} />
+    <div style={{ width: '100%' }}>
+      {/* Yläpalkki: piilotetut + reset */}
+      <div style={{
+        display:        'flex',
+        alignItems:     'center',
+        justifyContent: 'space-between',
+        gap:            '12px',
+        marginBottom:   '12px',
+        flexWrap:       'wrap',
+        fontSize:       '12px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', color: '#6b7280' }}>
+          {piilotetut.length > 0 ? (
+            <>
+              <span>Piilotetut:</span>
+              {piilotetut.map((id) => {
+                const l = LOHKOT.find((x) => x.id === id)
+                if (!l) return null
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => palauta(id)}
+                    title={`Palauta ${l.nimi}`}
+                    style={{
+                      padding:      '3px 10px',
+                      borderRadius: '999px',
+                      border:       '1px dashed #d1d5db',
+                      background:   '#f9fafb',
+                      color:        '#6b7280',
+                      fontSize:     '11px',
+                      cursor:       'pointer',
+                    }}
+                  >
+                    {l.ikoni} {l.nimi}
+                  </button>
+                )
+              })}
+            </>
+          ) : (
+            <span style={{ fontStyle: 'italic' }}>Vedä otsikkorivistä siirtääksesi lohkoa · vedä reunasta muuttaaksesi kokoa</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={palautaOletus}
+          style={{
+            padding:      '4px 12px',
+            borderRadius: '6px',
+            border:       '1px solid #e5e7eb',
+            background:   'white',
+            color:        '#6b7280',
+            fontSize:     '11px',
+            cursor:       'pointer',
+          }}
+        >
+          ↺ Palauta oletusasetukset
+        </button>
       </div>
 
-      {/* OSA 2 — TODO + Ehdotukset */}
-      <div style={kaksiSaraketta}>
-        <TodoPaneeli pb={pb} pbHetiTallennus={pbHetiTallennus} />
-        <EhdotuksetPaneeli pb={pb} pbHetiTallennus={pbHetiTallennus} />
-      </div>
-
-      {/* OSA 3 — Changelog + Visio */}
-      <div style={kaksiSaraketta}>
-        <ChangelogPaneeli pb={pb} />
-        <VisioPaneeli pb={pb} pbDebouncedTallennus={pbDebouncedTallennus} />
-      </div>
-
-      {/* OSA 4 — Kehitysaktiivisuus */}
-      <AktiivisuusPaneeli />
+      <ResponsiveGrid
+        layouts={naytettavatLayouts}
+        breakpoints={{ lg: 1024, md: 720, sm: 0 }}
+        cols={{ lg: 12, md: 10, sm: 6 }}
+        rowHeight={30}
+        margin={[12, 12]}
+        containerPadding={[0, 0]}
+        draggableHandle=".rgl-drag-handle"
+        onLayoutChange={onLayoutChange}
+        compactType="vertical"
+      >
+        {naytettavat.map((l) => (
+          <div key={l.id} style={{ background: 'transparent' }}>
+            <Lohko nimi={l.nimi} ikoni={l.ikoni} onPiilota={() => piilota(l.id)}>
+              {lohkoMap[l.id]}
+            </Lohko>
+          </div>
+        ))}
+      </ResponsiveGrid>
     </div>
   )
 }
 
-// Responsive 2-sarakkeinen grid: lg+ = 2 sar., alle = 1 sar.
-const kaksiSaraketta = {
-  display:             'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-  gap:                 '16px',
+// Lohko-kääre: drag-handle + piilota-nappi + sisältö (skrollattava jos
+// pitkempi kuin lohkon korkeus)
+function Lohko({ nimi, ikoni, onPiilota, children }) {
+  return (
+    <div style={{
+      ...korttiTyyli,
+      height:   '100%',
+      padding:  '0',
+      gap:      '0',
+      overflow: 'hidden',
+    }}>
+      <div className="rgl-drag-handle" style={{
+        display:        'flex',
+        alignItems:     'center',
+        justifyContent: 'space-between',
+        padding:        '8px 14px',
+        borderBottom:   '1px solid #f3f4f6',
+        cursor:         'grab',
+        userSelect:     'none',
+        background:     '#fafafa',
+      }}>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: '#374151', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ color: '#9ca3af', cursor: 'grab' }}>⋮⋮</span>
+          <span>{ikoni}</span>
+          <span>{nimi}</span>
+        </span>
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onPiilota() }}
+          onMouseDown={(e) => e.stopPropagation()}
+          title="Piilota lohko"
+          style={{
+            background:    'transparent',
+            border:        'none',
+            cursor:        'pointer',
+            color:         '#9ca3af',
+            fontSize:      '14px',
+            padding:       '4px 6px',
+            borderRadius:  '4px',
+          }}
+        >
+          👁
+        </button>
+      </div>
+      <div style={{
+        flex:     '1 1 auto',
+        padding:  '12px 14px',
+        overflow: 'auto',
+      }}>
+        {children}
+      </div>
+    </div>
+  )
 }
 
 // ─────────────────────────────────────────────────────────────────────────
