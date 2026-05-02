@@ -149,7 +149,7 @@ function VarausKortti({ label, name, value, onChange, placeholder, ohje }) {
   )
 }
 
-export default function Settings({ hoitajaId }) {
+export default function Settings({ hoitajaId, isAdmin = false, showDevTools = false }) {
   const [aukiOsio, setAukiOsio] = useState(null)
   const toggle = (id) => setAukiOsio(prev => prev === id ? null : id)
   const [devInput, setDevInput]   = useState('')
@@ -821,10 +821,9 @@ export default function Settings({ hoitajaId }) {
         <p style={{ fontSize: '11px', fontWeight: '700', color: '#0C447C', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Ohjelmahallinta</p>
       </div>
 
-      {/* Versionhallinta on dev-työkalu — näkyy vain Kehitys + Local ympäristöissä.
-          Live-puolelta piilotettu kokonaan jotta tuotantokäyttäjät eivät näe
-          tätä eivätkä pääse kutsumaan Edge Functioneita käsin. */}
-      {tunnistaYmparisto() !== YMPARISTO.LIVE && (
+      {/* Versionhallinta on dev-työkalu — näkyy vain showDevTools=true
+          (Kehitys-ympäristö + admin-käyttäjä). */}
+      {showDevTools && (
         <AccordionOsio
           id="versionhallinta" otsikko="Versionhallinta" ikoni="🚀"
           auki={aukiOsio === 'versionhallinta'} onToggle={toggle}
@@ -838,7 +837,8 @@ export default function Settings({ hoitajaId }) {
         lapset={<ProductBoard hoitajaId={hoitajaId} hideHeader />}
       />
 
-      {/* ── 6: Kehittäjätyökalut ─────────────────────────────────────────── */}
+      {/* ── 6: Kehittäjätyökalut — vain Kehitys + admin (showDevTools) ───── */}
+      {showDevTools && (
       <AccordionOsio
         id="devtools" otsikko="Kehittäjätyökalut" ikoni="🛠️"
         auki={aukiOsio === 'devtools'} onToggle={toggle}
@@ -1023,6 +1023,7 @@ VALMIS: Tehtävän teksti tässä
           </div>
         }
       />
+      )}
 
       {/* ── Kehonkartan kalibrointi ───────────────────────────────────────── */}
       <AccordionOsio

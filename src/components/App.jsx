@@ -20,7 +20,7 @@ import UudenAsiakkaanTarkistus from './UudenAsiakkaanTarkistus'
 import Hoitokirjaus from './Hoitokirjaus'
 import JulkinenLomake from './JulkinenLomake'
 import PalveluValinta from './PalveluValinta'
-import { tunnistaYmparisto, ymparistoTeksti, ymparistoVarit, YMPARISTO } from '../lib/ymparisto'
+import { tunnistaYmparisto, ymparistoTeksti, ymparistoVarit, vastapariYmparisto, YMPARISTO } from '../lib/ymparisto'
 
 const ylaNav = [
   { id: 'rekisteri',    nimi: 'Asiakasrekisteri',  ikoni: '👥' },
@@ -110,6 +110,13 @@ export default function App() {
   }, [])
 
   const hoitajaId = kayttaja?.id
+  // Admin-rajaus + ympäristö-rajaus dev-työkaluille.
+  // showDevTools yhdistää nämä: dev-työkalut näkyvät vain Oxalle
+  // Kehitys-ympäristössä. Live-puolella piilossa kaikilta — myös Oxalta —
+  // koska Liven puolelta ei kuulu testata testidatalla.
+  // Vaihe C asiakasportaalin yhteydessä isAdmin laajennetaan hoitaja-rooliin.
+  const isAdmin = kayttaja?.email === 'oxainn@gmail.com'
+  const showDevTools = isAdmin && tunnistaYmparisto() === YMPARISTO.KEHITYS
 
   // Avain joka pakottaa AsiakaslomakeRenderoijalla:n uudelleenrenderöinnin
   // (esitäytön uudelleenladauksen) kun "Uusi käynti" suljetaan ja avataan.
@@ -333,53 +340,102 @@ export default function App() {
         <div className="max-w-5xl mx-auto" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px' }}>Kehokorjaamo</span>
-            {/* D1 — Ympäristö-indikaattori (LIVE / KEHITYS / LOCAL).
-                Klikkaus johtaa Versionhallinta-sivulle (toistaiseksi Asetukset). */}
+            {/* Ympäristö-indikaattori + erillinen siirtymiskytkin.
+                Indikaattori on pelkkä infoa (ei klikattava), kytkin avaa
+                vastapari-ympäristön uudessa välilehdessä. Tämä korvaa
+                aiemman "klikattava chip" -ratkaisun jossa Live-puolen
+                klikkaus laukesi vahingossa Asetukset-näkymään. */}
             {(() => {
               const y = tunnistaYmparisto()
               const varit = ymparistoVarit(y)
               const teksti = ymparistoTeksti(y)
+              const vp = vastapariYmparisto(y)
+              // Siirtymiskytkimen reuna käyttää vastapari-ympäristön väriä
+              // jotta käyttäjälle on selvää minne klikkaus johtaa.
+              const kytkimenReuna = vp?.teksti === 'LIVE' ? '#15803d'
+                                  : vp?.teksti === 'KEHITYS' ? '#d97706'
+                                  : '#9ca3af'
               return (
-                <button
-                  onClick={() => setNakyma('asetukset')}
-                  title={`Ympäristö: ${teksti} — klikkaa avataksesi versionhallinnan`}
-                  style={{
-                    ...varit,
-                    fontSize:      '11px',
-                    padding:       '4px 10px',
-                    minHeight:     '24px',
-                    borderRadius:  '6px',
-                    fontWeight:    700,
-                    letterSpacing: '0.05em',
-                    cursor:        'pointer',
-                    textTransform: 'uppercase',
-                  }}
-                >
-                  {teksti}
-                </button>
+                <>
+                  {/* A) Indikaattori — ei klikattava */}
+                  <span
+                    title={`Ympäristö: ${teksti}`}
+                    style={{
+                      ...varit,
+                      fontSize:       '11px',
+                      padding:        '4px 10px',
+                      minHeight:      '24px',
+                      borderRadius:   '6px',
+                      fontWeight:     700,
+                      letterSpacing:  '0.05em',
+                      cursor:         'default',
+                      textTransform:  'uppercase',
+                      display:        'inline-flex',
+                      alignItems:     'center',
+                    }}
+                  >
+                    {teksti}
+                  </span>
+                  {/* B) Siirtymiskytkin — vain admin-käyttäjälle. Avaa
+                       vastapari-ympäristön uudessa välilehdessä. */}
+                  {vp && isAdmin && (
+                    <a
+                      href={vp.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title={`Avaa ${vp.teksti}-versio uudessa välilehdessä`}
+                      style={{
+                        fontSize:       '11px',
+                        padding:        '4px 8px 4px 10px',
+                        minHeight:      '24px',
+                        borderRadius:   '6px',
+                        border:         `1px solid ${kytkimenReuna}`,
+                        background:     'rgba(255, 255, 255, 0.08)',
+                        color:          'white',
+                        fontWeight:     600,
+                        cursor:         'pointer',
+                        textDecoration: 'none',
+                        display:        'inline-flex',
+                        alignItems:     'center',
+                        gap:            '4px',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.18)' }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)' }}
+                    >
+                      <span>→ Avaa {vp.teksti}</span>
+                      <span aria-hidden="true" style={{ fontSize: '10px', opacity: 0.85 }}>↗</span>
+                    </a>
+                  )}
+                </>
               )
             })()}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            {/* DEV — testaa B-lomake suoraan TESTI-asiakkaalla */}
-            <button
-              onClick={avaaTestiBLomake}
-              title="Avaa B-lomake TESTI-asiakkaan kontekstissa (dev-työkalu — ohittaa vahvistuksen)"
-              style={{
-                fontSize:     '12px',
-                padding:      '6px 12px',
-                minHeight:    '32px',
-                borderRadius: '20px',
-                border:       '1px solid #fbbf24',
-                background:   '#f59e0b',
-                color:        '#7c2d12',
-                fontWeight:   700,
-                cursor:       'pointer',
-                letterSpacing: '0.02em',
-              }}
-            >
-              🧪 Testaa B-lomake · DEV
-            </button>
+            {/* DEV — testaa B-lomake suoraan TESTI-asiakkaalla.
+                Näkyy vain Kehitys-ympäristössä admin-käyttäjälle.
+                Live-puolelta piilossa (myös Oxalta) — sieltä ei kuuluu
+                testata testidatalla. */}
+            {showDevTools && (
+              <button
+                onClick={avaaTestiBLomake}
+                title="Avaa B-lomake TESTI-asiakkaan kontekstissa (dev-työkalu — ohittaa vahvistuksen)"
+                style={{
+                  fontSize:     '12px',
+                  padding:      '6px 12px',
+                  minHeight:    '32px',
+                  borderRadius: '20px',
+                  border:       '1px solid #fbbf24',
+                  background:   '#f59e0b',
+                  color:        '#7c2d12',
+                  fontWeight:   700,
+                  cursor:       'pointer',
+                  letterSpacing: '0.02em',
+                }}
+              >
+                🧪 Testaa B-lomake · DEV
+              </button>
+            )}
             {/* Pala B9b — online/offline-indikaattori + jonon koko */}
             <span
               title={online ? 'Yhteys palvelimeen on päällä' : 'Ei verkkoyhteyttä — muutokset tallentuvat selaimeen ja synkronoidaan kun yhteys palaa'}
@@ -695,7 +751,7 @@ export default function App() {
 
         {/* ASETUKSET */}
         {nakyma === 'asetukset' && (
-          <Settings hoitajaId={hoitajaId} />
+          <Settings hoitajaId={hoitajaId} isAdmin={isAdmin} showDevTools={showDevTools} />
         )}
 
       </main>
