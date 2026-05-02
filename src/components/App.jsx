@@ -213,7 +213,7 @@ export default function App() {
             : <JulkinenLomake palveluId={julkinenPalveluId} />}
         </main>
         <footer style={{ background: 'white', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '12px', color: '#9ca3af', padding: '16px' }}>
-          © {new Date().getFullYear()} Kehokorjaamo
+          © {new Date().getFullYear()} Kalevalapaja
         </footer>
       </div>
     )
@@ -555,7 +555,7 @@ export default function App() {
       </main>
 
       <footer style={{ background: 'white', borderTop: '1px solid #e2e8f0', textAlign: 'center', fontSize: '12px', color: '#9ca3af', padding: '16px' }}>
-        © {new Date().getFullYear()} Kehokorjaamo – kaikki oikeudet pidätetään
+        © {new Date().getFullYear()} Kalevalapaja – kaikki oikeudet pidätetään
       </footer>
     </div>
   )
