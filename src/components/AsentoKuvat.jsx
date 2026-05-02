@@ -32,6 +32,7 @@ import {
   CONFIDENCE_VARIT,
   luokitaConfidence,
 } from '../lib/poseAnalysis'
+import { Vertailu, Aikajana } from './AsentoVertailu'
 
 const NAKOKULMAT = [
   { id: 'edesta', nimi: 'Edestä' },
@@ -94,6 +95,7 @@ export default function AsentoKuvat({ hoitokayntiId, asiakasId, asiakasPituusCm 
   const [analyysi, setAnalyysi] = useState({})  // { edesta: 'analyysi'|'valmis'|'virhe', ... }
   const [valittu, setValittu] = useState(null)  // suurennusmodaalin avain
   const [virhe, setVirhe] = useState(null)
+  const [valilehti, setValilehti] = useState('tama')  // KA6: tama | vertailu | aikajana
 
   useEffect(() => {
     if (!hoitokayntiId) return
@@ -226,29 +228,44 @@ export default function AsentoKuvat({ hoitokayntiId, asiakasId, asiakasPituusCm 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-      <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
-        Ota 4 kokovartalokuvaa: edestä, takaa, vasemmalta sivulta, oikealta sivulta.
-        Kuvat pakataan automaattisesti ennen tallennusta (max ~500 KB per kuva).
-        Tallennuksen jälkeen ajetaan automaattinen asennon analyysi (17 keypointia).
-      </p>
+      {/* KA6: Välilehdet */}
+      <Valilehdet valittu={valilehti} onVaihda={setValilehti} />
 
-      <div style={{
-        display:             'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-        gap:                 '10px',
-      }}>
-        {NAKOKULMAT.map((n) => (
-          <KuvaSlot
-            key={n.id}
-            nakokulma={n}
-            kuva={kuvat[n.id]}
-            tila={analyysi[n.id]}
-            onLisaa={(file) => kasittelyTiedosto(file, n.id)}
-            onAvaaSuurennus={() => setValittu(n.id)}
-            lataa={lataus === n.id}
-          />
-        ))}
-      </div>
+      {valilehti === 'tama' && (
+        <>
+          <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
+            Ota 4 kokovartalokuvaa: edestä, takaa, vasemmalta sivulta, oikealta sivulta.
+            Kuvat pakataan automaattisesti ennen tallennusta (max ~500 KB per kuva).
+            Tallennuksen jälkeen ajetaan automaattinen asennon analyysi (17 keypointia).
+          </p>
+
+          <div style={{
+            display:             'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap:                 '10px',
+          }}>
+            {NAKOKULMAT.map((n) => (
+              <KuvaSlot
+                key={n.id}
+                nakokulma={n}
+                kuva={kuvat[n.id]}
+                tila={analyysi[n.id]}
+                onLisaa={(file) => kasittelyTiedosto(file, n.id)}
+                onAvaaSuurennus={() => setValittu(n.id)}
+                lataa={lataus === n.id}
+              />
+            ))}
+          </div>
+        </>
+      )}
+
+      {valilehti === 'vertailu' && (
+        <Vertailu hoitokayntiId={hoitokayntiId} asiakasId={asiakasId} />
+      )}
+
+      {valilehti === 'aikajana' && (
+        <Aikajana hoitokayntiId={hoitokayntiId} asiakasId={asiakasId} />
+      )}
 
       {virhe && (
         <div style={{
@@ -289,6 +306,47 @@ export default function AsentoKuvat({ hoitokayntiId, asiakasId, asiakasPituusCm 
           }}
         />
       )}
+    </div>
+  )
+}
+
+// KA6 — välilehti-vaihdin AsentoKuvat-kortin yläosaan.
+function Valilehdet({ valittu, onVaihda }) {
+  const tabit = [
+    { id: 'tama',     nimi: 'Tämä käynti' },
+    { id: 'vertailu', nimi: 'Vertailu' },
+    { id: 'aikajana', nimi: 'Aikajana' },
+  ]
+  return (
+    <div style={{
+      display:    'flex',
+      gap:        '4px',
+      borderBottom: '1px solid #e5e7eb',
+      marginBottom: '4px',
+    }}>
+      {tabit.map((t) => {
+        const aktiivinen = valittu === t.id
+        return (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => onVaihda(t.id)}
+            style={{
+              padding:      '8px 14px',
+              fontSize:     '12px',
+              fontWeight:   aktiivinen ? 700 : 500,
+              color:        aktiivinen ? '#1d4ed8' : '#6b7280',
+              background:   'transparent',
+              border:       'none',
+              borderBottom: aktiivinen ? '2px solid #1d4ed8' : '2px solid transparent',
+              marginBottom: '-1px',
+              cursor:       'pointer',
+            }}
+          >
+            {t.nimi}
+          </button>
+        )
+      })}
     </div>
   )
 }
