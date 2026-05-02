@@ -188,7 +188,7 @@ export default function JulkinenLomake({ palveluId }) {
   }
 
   return (
-    <div style={{ maxWidth: '720px', margin: '0 auto', padding: '24px 16px' }}>
+    <div className="lomake-leveys" style={{ padding: '24px 16px' }}>
       {/* Palvelu-otsikko */}
       <div style={{ marginBottom: '24px', textAlign: 'center' }}>
         <p style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

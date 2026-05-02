@@ -48,7 +48,7 @@ export default function PalveluValinta() {
   }
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '32px 16px' }}>
+    <div className="lista-leveys" style={{ padding: '32px 16px' }}>
       <div style={{ textAlign: 'center', marginBottom: '32px' }}>
         <h1 style={{
           fontSize: '28px', fontWeight: 700, color: '#111827',

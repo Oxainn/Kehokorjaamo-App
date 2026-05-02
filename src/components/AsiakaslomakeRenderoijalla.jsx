@@ -267,7 +267,7 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="lomake-leveys" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Pala B2 — kontraindikaatio-varoitus yläosassa, punaisella jos asiakkaalla
           on rastittu yksi tai useampi sairaus jolla on kontraindikaatio=true. */}
       {kontraindikaatiot.length > 0 && (

@@ -288,7 +288,7 @@ export default function Asiakasrekisteri({
   }
 
   return (
-    <section>
+    <section className="lista-leveys">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', margin: '0 0 8px' }}>
         <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#111827', margin: 0 }}>
           {arkistoTila ? '🗄 Arkisto' : 'Asiakasrekisteri'}

@@ -402,7 +402,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="lomake-leveys" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Testimoodi — keltainen banneri + nollaa-nappi */}
       {testimoodi && (
         <div style={{
