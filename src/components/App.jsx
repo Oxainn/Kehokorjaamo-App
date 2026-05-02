@@ -76,38 +76,15 @@ export default function App() {
       error,
     })
     /* eslint-enable no-console */
-    if (error || code || state) {
-      // ÄLÄ heti pyyhi URLia — annetaan Supabasen detectSessionInUrl-flown
-      // ehtiä lukea code. 100 ms saattoi olla liian aggressiivinen jos
-      // PKCE-exchange kestää pidempään (esim. hidas Edge Function).
-      setTimeout(() => {
-        // eslint-disable-next-line no-console
-        console.log('[app debug] replaceState — pyyhin URL-parametrit')
-        window.history.replaceState({}, '', '/')
-      }, 2000)
-      if (error) {
-        console.error('OAuth-virhe:', error)
-        setLataaAuth(false)
-        setKayttaja(null)
-      }
-      // Manuaalinen fallback: jos code on URLissa mutta detectSessionInUrl
-      // ei ole vielä käsitellyt sitä, kokeillaan eksplisiittisesti. Saamme
-      // myös try/catch:llä paremman virheviestin kuin sisäinen heitto.
-      if (code && !error) {
-        ;(async () => {
-          try {
-            // eslint-disable-next-line no-console
-            console.log('[app debug] manuaalinen exchangeCodeForSession kokeillaan…')
-            const tulos = await supabase.auth.exchangeCodeForSession(code)
-            // eslint-disable-next-line no-console
-            console.log('[app debug] exchangeCodeForSession OK:', { hasSession: !!tulos.data?.session, error: tulos.error })
-          } catch (e) {
-            // eslint-disable-next-line no-console
-            console.error('[app debug] exchangeCodeForSession heitti:', e.name, e.message, e.stack)
-          }
-        })()
-      }
+    if (error) {
+      console.error('OAuth-virhe:', error)
+      setLataaAuth(false)
+      setKayttaja(null)
+      window.history.replaceState({}, '', '/')
     }
+    // Code/state-paramien pyyhintä siirretty SIGNED_IN-event-listeneriin
+    // (alempana useEffectissä) jotta Supabasen detectSessionInUrl-flowilla
+    // on aikaa kuluttaa code_verifier ennen URLin muutosta.
   }, [])
 
   useEffect(() => {
@@ -115,8 +92,18 @@ export default function App() {
       setKayttaja(data.session?.user ?? null)
       setLataaAuth(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setKayttaja(session?.user ?? null)
+      // PKCE-flow valmis → siisti URL-parametrit (?code=, ?state=) pois.
+      // Ei timer-pohjaista raceia detectSessionInUrl:n kanssa, koska tämä
+      // ajetaan vasta kun Supabase on lukenut codeen ja vaihtanut sen
+      // sessioksi onnistuneesti.
+      if (event === 'SIGNED_IN' && typeof window !== 'undefined') {
+        const url = new URL(window.location.href)
+        if (url.searchParams.has('code') || url.searchParams.has('state')) {
+          window.history.replaceState({}, '', '/')
+        }
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
