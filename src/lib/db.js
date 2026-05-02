@@ -136,6 +136,23 @@ export const haeAsiakkaanKehonkartta = async (asiakasId) => {
   return data?.lisakentat?.kehonkartta_piirros ?? null
 }
 
+// Hakee asiakkaan KAIKKI A-lomakeversiot (uusin ensin) lisakentät-
+// kentän kanssa. Käytetään AsiakkaanOireet-näkymässä vertailuun
+// aiempiin käynteihin (osa 3: aikajana + muutos-listat).
+export const haeAsiakkaanLomakeHistoria = async (asiakasId) => {
+  if (!asiakasId) return []
+  const { data, error } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('id, versio_nro, voimassa_alkaen, voimassa_asti, lisakentat, luotu, otsikko')
+    .eq('asiakas_id', asiakasId)
+    .order('voimassa_alkaen', { ascending: false })
+  if (error) {
+    console.error('Lomakehistorian haku epäonnistui:', error)
+    return []
+  }
+  return data ?? []
+}
+
 // Hakee asiakkaan voimassa olevan A-lomakkeen "hoitoon tulon syy" -tekstin.
 // Käytetään Pala B8:n AI-analyysin promptin pohjana (asiakkaan oma kuvaus).
 export const haeAsiakkaanOireet = async (asiakasId) => {

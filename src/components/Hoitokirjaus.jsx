@@ -580,6 +580,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
       <div style={ryhmaTyyli}>
         <h3 style={ryhmaOtsikko}>Havainnot</h3>
         <KehonkarttaVertailu
+          asiakasId={asiakas?.id}
           asiakkaanKehonkartta={asiakkaanKehonkartta}
           hoitajanHavainnotInit={havainnotEsitayte}
           hoitajanHavainnot={havainnot}
