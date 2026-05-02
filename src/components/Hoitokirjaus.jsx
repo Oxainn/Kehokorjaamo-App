@@ -94,7 +94,7 @@ const ilmoitusTyyli = (sävy) => ({
   lineHeight:   1.5,
 })
 
-export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru }) {
+export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = false, onValmis, onPeru }) {
   // Pala B1 — perustiedot
   const [otsikko,            setOtsikko]            = useState('')
   const [mitaHoidettiin,     setMitaHoidettiin]     = useState('')
@@ -405,8 +405,63 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
     ? `Käynti ${muotoilePvm(pvm)} · ${asiakas?.nimi || 'Asiakas'}`
     : `Käynti · ${asiakas?.nimi || 'Asiakas'}`
 
+  // Dev: tyhjentää lomakkeen lokaalitilan jotta voi aloittaa puhtaalta
+  // pöydältä. Tallennus kirjoittaa tyhjät arvot DB:hen seuraavalla
+  // "Tallenna hoitokirjaus" -klikillä.
+  function nollaaLomake() {
+    setOtsikko('')
+    setMitaHoidettiin('')
+    setHoitajanKommentit('')
+    setKesto('')
+    setLahtotilanne('')
+    setMuistaEnsiKerralla('')
+    setHavainnot([])
+    setHavainnotEsitayte({})
+    const tyhjatMittarit = {}
+    for (const m of MITTARIT) tyhjatMittarit[m.sarake] = null
+    setMittarit(tyhjatMittarit)
+    setItsehoito([])
+    setSeuraavaKayntiPvm('')
+    setLikainen(true)
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Testimoodi — keltainen banneri + nollaa-nappi */}
+      {testimoodi && (
+        <div style={{
+          background:    '#fef3c7',
+          border:        '1.5px solid #f59e0b',
+          borderRadius:  '12px',
+          padding:       '12px 16px',
+          display:       'flex',
+          alignItems:    'center',
+          gap:           '12px',
+          flexWrap:      'wrap',
+        }}>
+          <span style={{ fontSize: '13px', color: '#7c2d12', lineHeight: 1.5, flex: 1, minWidth: '220px' }}>
+            <strong>🧪 TESTITILA</strong> — muutokset tallentuvat TESTI-asiakkaalle. Älä käytä oikeisiin kirjauksiin.
+          </span>
+          <button
+            type="button"
+            onClick={nollaaLomake}
+            style={{
+              fontSize:     '12px',
+              padding:      '6px 12px',
+              minHeight:    '32px',
+              borderRadius: '8px',
+              border:       '1px solid #d97706',
+              background:   'white',
+              color:        '#7c2d12',
+              fontWeight:   600,
+              cursor:       'pointer',
+            }}
+          >
+            Nollaa TESTI-data
+          </button>
+        </div>
+      )}
+
       {/* Otsikkorivi */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
         <button
