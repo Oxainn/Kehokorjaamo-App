@@ -20,6 +20,7 @@ import UudenAsiakkaanTarkistus from './UudenAsiakkaanTarkistus'
 import Hoitokirjaus from './Hoitokirjaus'
 import JulkinenLomake from './JulkinenLomake'
 import PalveluValinta from './PalveluValinta'
+import { tunnistaYmparisto, ymparistoTeksti, ymparistoVarit, YMPARISTO } from '../lib/ymparisto'
 
 const ylaNav = [
   { id: 'rekisteri',    nimi: 'Asiakasrekisteri',  ikoni: '👥' },
@@ -330,7 +331,35 @@ export default function App() {
       {/* TOPBAR */}
       <header style={{ background: '#085041', color: 'white', padding: '10px 16px' }}>
         <div className="max-w-5xl mx-auto" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px' }}>Kehokorjaamo</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px' }}>Kehokorjaamo</span>
+            {/* D1 — Ympäristö-indikaattori (LIVE / KEHITYS / LOCAL).
+                Klikkaus johtaa Versionhallinta-sivulle (toistaiseksi Asetukset). */}
+            {(() => {
+              const y = tunnistaYmparisto()
+              const varit = ymparistoVarit(y)
+              const teksti = ymparistoTeksti(y)
+              return (
+                <button
+                  onClick={() => setNakyma('asetukset')}
+                  title={`Ympäristö: ${teksti} — klikkaa avataksesi versionhallinnan`}
+                  style={{
+                    ...varit,
+                    fontSize:      '11px',
+                    padding:       '4px 10px',
+                    minHeight:     '24px',
+                    borderRadius:  '6px',
+                    fontWeight:    700,
+                    letterSpacing: '0.05em',
+                    cursor:        'pointer',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {teksti}
+                </button>
+              )
+            })()}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             {/* DEV — testaa B-lomake suoraan TESTI-asiakkaalla */}
             <button
