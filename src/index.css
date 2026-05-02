@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Sisältö-leveydet — käytä komponenteissa kontekstin mukaan.
+   Pää-main on 1600px asti, mutta sisältö rajataan kapeaksi siellä missä
+   pitkä rivi olisi vaikealukuinen (lomakkeet, listat). Mobiilissa width:
+   100% ja padding hoitaa reunat. */
+@layer components {
+  .lomake-leveys     { @apply w-full max-w-[700px] mx-auto; }
+  .lista-leveys      { @apply w-full max-w-[1200px] mx-auto; }
+  .dashboard-leveys  { @apply w-full max-w-[1600px] mx-auto; }
+}
+
 @media print {
   header, nav, footer, .no-print { display: none !important; }
   body { background: white; }

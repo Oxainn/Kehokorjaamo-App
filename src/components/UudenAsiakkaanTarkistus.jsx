@@ -137,7 +137,7 @@ export default function UudenAsiakkaanTarkistus({ asiakas, onValmis }) {
   const allekirjoitus = lisat.allekirjoitus ?? null
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div className="lomake-leveys" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Korostettu palkki + Tallenna-nappi ylhäällä */}
       <div style={{
         background:    '#fffbeb',
