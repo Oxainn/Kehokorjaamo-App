@@ -86,59 +86,115 @@ export default function AsiakkaanOireet({ asiakasId, kehonkartta }) {
 // ─────────────────────────────────────────────────────────────────────────
 
 function Yhteenveto({ kehonkartta, rivit, topPerOire, tulkinta }) {
+  const [suurennettu, setSuurennettu] = useState(false)
   return (
-    <div style={{
-      display:        'grid',
-      gridTemplateColumns: 'minmax(180px, 1fr) minmax(280px, 2fr)',
-      gap:            '16px',
-      alignItems:     'start',
-    }}>
-      {/* Kehonkartta vasemmalla */}
-      <div style={{
-        background:    '#f9fafb',
-        border:        '1px solid #e5e7eb',
-        borderRadius:  '12px',
-        padding:       '12px',
-      }}>
-        <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>
-          Asiakkaan oma merkintä
-        </p>
-        <KompaktiKehonkartta merkinnat={kehonkartta?.merkinnat ?? {}} />
-        <p style={{ fontSize: '11px', color: '#9ca3af', margin: '8px 0 0', textAlign: 'center' }}>
-          {rivit.length} aluetta merkitty
-        </p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Kehonkartta — täysi leveys, klikkaus avaa suurennusmodaalin */}
+      <div
+        onClick={() => setSuurennettu(true)}
+        style={{
+          background:   '#f9fafb',
+          border:       '1px solid #e5e7eb',
+          borderRadius: '12px',
+          padding:      '12px',
+          cursor:       'zoom-in',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+          <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+            Asiakkaan oma merkintä
+          </p>
+          <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+            {rivit.length} aluetta merkitty · 🔍 klikkaa suurentaaksesi
+          </span>
+        </div>
+        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <KompaktiKehonkartta merkinnat={kehonkartta?.merkinnat ?? {}} />
+        </div>
       </div>
 
-      {/* Top-laatikot oikealla */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        <div style={{
-          display:             'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap:                 '8px',
-        }}>
-          {Object.entries(OIRETYYPIT).map(([tyyppi, meta]) => (
-            <TopLaatikko
-              key={tyyppi}
-              tyyppi={tyyppi}
-              meta={meta}
-              rivit={topPerOire[tyyppi] ?? []}
-            />
-          ))}
-        </div>
+      {/* 4 oirelaatikkoa yhdessä rivissä — auto-fit minmax: 4 leveällä,
+          2x2 keskikoolla, 1 sarake kapealla */}
+      <div style={{
+        display:             'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap:                 '16px',
+      }}>
+        {Object.entries(OIRETYYPIT).map(([tyyppi, meta]) => (
+          <TopLaatikko
+            key={tyyppi}
+            tyyppi={tyyppi}
+            meta={meta}
+            rivit={topPerOire[tyyppi] ?? []}
+          />
+        ))}
+      </div>
 
-        {tulkinta && (
-          <div style={{
-            background:   '#fffbeb',
-            border:       '1px solid #fcd34d',
-            borderRadius: '10px',
-            padding:      '10px 14px',
-            fontSize:     '12px',
-            color:        '#78350f',
-            lineHeight:   1.5,
-          }}>
-            💡 {tulkinta}
-          </div>
-        )}
+      {/* Tulkinta-laatikko — täysi leveys */}
+      {tulkinta && (
+        <div style={{
+          background:   '#fffbeb',
+          border:       '1px solid #fcd34d',
+          borderRadius: '10px',
+          padding:      '12px 16px',
+          fontSize:     '13px',
+          color:        '#78350f',
+          lineHeight:   1.55,
+        }}>
+          💡 {tulkinta}
+        </div>
+      )}
+
+      {suurennettu && (
+        <KehonkarttaModaali
+          merkinnat={kehonkartta?.merkinnat ?? {}}
+          onSulje={() => setSuurennettu(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+// Lightbox-modaali kehonkartalle. Avautuu klikistä, sulkeutuu klikkauksesta
+// taustaan tai ✕-painikkeeseen.
+function KehonkarttaModaali({ merkinnat, onSulje }) {
+  return (
+    <div
+      onClick={(e) => { if (e.target === e.currentTarget) onSulje() }}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: '24px', zIndex: 1000,
+      }}
+    >
+      <div style={{
+        background:   'white',
+        borderRadius: '12px',
+        maxWidth:     '95vw',
+        maxHeight:    '95vh',
+        padding:      '14px 18px',
+        overflow:     'auto',
+        position:     'relative',
+      }}>
+        <button
+          type="button"
+          onClick={onSulje}
+          style={{
+            position:    'absolute',
+            top:         '8px',
+            right:       '12px',
+            background:  'transparent',
+            border:      'none',
+            cursor:      'pointer',
+            fontSize:    '22px',
+            color:       '#6b7280',
+          }}
+        >
+          ✕
+        </button>
+        <div style={{ maxWidth: '100%' }}>
+          <KompaktiKehonkartta merkinnat={merkinnat} />
+        </div>
       </div>
     </div>
   )
@@ -226,10 +282,6 @@ function KompaktiKehonkartta({ merkinnat }) {
     </svg>
   )
 }
-
-// ─────────────────────────────────────────────────────────────────────────
-// OSA 2 — Suodatin + ryhmitelty lista
-// ─────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────
 // OSA 2 — Vertailu aiempiin käynteihin
