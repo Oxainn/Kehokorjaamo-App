@@ -197,9 +197,9 @@ export default function Versionhallinta() {
   // D4: oman Supabasen tila
   const [omaSupabaseOk, setOmaSupabaseOk] = useState(null)
   // D3 + D5: modaalit ja julkaisut-loki
-  const [siirraModaaliAuki,  setSiirraModaaliAuki]  = useState(false)
+  const [siirraModaaliAuki,   setSiirraModaaliAuki]   = useState(false)
   const [rollbackModaaliAuki, setRollbackModaaliAuki] = useState(false)
-  const [julkaisut, setJulkaisut] = useState(null)  // null = ei haettu / [] = ei merkintöjä
+  const [julkaisut,           setJulkaisut]           = useState(null)  // null = ei haettu / [] = ei merkintöjä
 
   const lataa = useCallback(async () => {
     setVirheet({ live: null, kehitys: null, erot: null })

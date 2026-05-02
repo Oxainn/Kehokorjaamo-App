@@ -1,7 +1,13 @@
-// Rollback-modaali (D5) — palauta edellinen Live-versio Vercelin kautta.
+// Palauta edellinen Live-versio -modaali (D5).
+//
+// Kutsuu Edge Functionia "palauta-edellinen-live", joka käyttää Vercel:n
+// Promote previous deployment -APIa. Audit-loki tallennetaan julkaisut-
+// tauluun (toiminto='rollback').
 
 import { useState } from 'react'
 import { supabase } from '../../services/supabase'
+
+const lyhytSha = (sha) => sha?.slice(0, 7) ?? ''
 
 const overlayTyyli = {
   position:       'fixed',
@@ -19,7 +25,7 @@ const modaaliTyyli = {
   background:    'white',
   borderRadius:  '16px',
   width:         '100%',
-  maxWidth:      '600px',
+  maxWidth:      '560px',
   margin:        '40px auto',
   boxShadow:     '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
   display:       'flex',
@@ -28,7 +34,7 @@ const modaaliTyyli = {
   padding:       '24px',
 }
 
-export default function RollbackModaali({ liveCommit, onSulje, onValmis }) {
+export default function RollbackModaali({ onSulje, onValmis }) {
   const [ymmarretty,    setYmmarretty]    = useState(false)
   const [eiHoitoa,      setEiHoitoa]      = useState(false)
   const [otettuYhteytta, setOtettuYhteytta] = useState(false)
@@ -37,7 +43,6 @@ export default function RollbackModaali({ liveCommit, onSulje, onValmis }) {
   const [tulos,         setTulos]         = useState(null)
 
   const kaikkiVahvistettu = ymmarretty && eiHoitoa && otettuYhteytta
-  const lukittu = tila === 'lahetetaan' || tila === 'onnistui'
 
   async function palauta() {
     setTila('lahetetaan')
@@ -67,47 +72,34 @@ export default function RollbackModaali({ liveCommit, onSulje, onValmis }) {
     }
   }
 
+  const lukittu = tila === 'lahetetaan' || tila === 'onnistui'
+
   return (
     <div style={overlayTyyli} onClick={(e) => { if (e.target === e.currentTarget && !lukittu) onSulje() }}>
       <div style={modaaliTyyli}>
-        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#dc2626', margin: 0 }}>
+        <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#991b1b', margin: 0 }}>
           ↩ Palauta edellinen Live-versio?
         </h2>
         <p style={{ fontSize: '13px', color: '#6b7280', margin: 0, lineHeight: 1.5 }}>
-          Tämä peruuttaa nykyisen Live-deploymentin ja palauttaa edellisen
-          Vercelin kautta. Asiakkaat näkevät vanhan version välittömästi.
+          Vercel-promote palauttaa Live-deploymentin edellisen valmiin
+          version (rollback). Asiakkaat näkevät muutoksen ~1 minuutissa.
+          DB-tilaa EI muuteta — vain frontend-koodi vaihdetaan.
         </p>
 
-        {/* Nykyinen Live-commit joka perutaan */}
-        {liveCommit && (
-          <div style={{
-            background:   '#fef2f2',
-            border:       '1px solid #fecaca',
-            borderRadius: '10px',
-            padding:      '12px 14px',
-            fontSize:     '13px',
-            color:        '#991b1b',
-          }}>
-            <p style={{ fontWeight: 600, margin: '0 0 4px' }}>Peruttava versio:</p>
-            <p style={{ margin: 0, fontFamily: 'monospace', fontSize: '12px' }}>
-              {liveCommit.sha?.slice(0, 7)} — {liveCommit.viesti}
-            </p>
-          </div>
-        )}
-
         <div style={{
-          background:   '#fffbeb',
-          border:       '1px solid #fcd34d',
+          background:   '#fef2f2',
+          border:       '1px solid #fecaca',
           borderRadius: '10px',
           padding:      '12px 14px',
           fontSize:     '12px',
-          color:        '#78350f',
+          color:        '#7f1d1d',
           lineHeight:   1.5,
         }}>
-          <strong>⚠ Huom:</strong> Rollback peruu vain Vercel-deploymentin.
-          Jos uusi versio sisälsi DB-migraatioita, ne pysyvät Live-DB:ssä —
-          rollback EI peru DB-muutoksia. Jos DB-skeemamuutos on syy
-          ongelmaan, joudut peruuttamaan migraation käsin.
+          <strong>⚠ Huomio:</strong> Jos viimeinen julkaisu sisälsi DB-migraatioita,
+          Live-DB on jo päivitetty. Vanhempi koodiversio saattaa hajota uudella
+          DB-skeemalla. Käytä rollbackia VAIN jos uusi versio rikkoo Liven, ja
+          mahdollinen DB-mismatch on hyväksyttävä riski. Vakavissa tapauksissa
+          parempi pikakorjaus on usein uusi commit kehitykseen + uusi siirto.
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -115,7 +107,7 @@ export default function RollbackModaali({ liveCommit, onSulje, onValmis }) {
             checked={ymmarretty}
             onChange={setYmmarretty}
             disabled={lukittu}
-            label="Ymmärrän että rollback peruu vain Vercel-deploymentin (ei DB-muutoksia)"
+            label="Ymmärrän että tämä palauttaa Liven edelliseen koodi-versioon (DB pysyy nykyisellään)"
           />
           <Checkbox
             checked={eiHoitoa}
@@ -127,19 +119,19 @@ export default function RollbackModaali({ liveCommit, onSulje, onValmis }) {
             checked={otettuYhteytta}
             onChange={setOtettuYhteytta}
             disabled={lukittu}
-            label="Olen ottanut yhteyttä mahdollisiin asiakkaisiin jos tarpeen"
+            label="Olen yrittänyt korjata ongelman uudella commitilla, ja rollback on viimeinen vaihtoehto"
           />
         </div>
 
         {tila === 'lahetetaan' && (
           <div style={{ background: '#eff6ff', border: '1px solid #93c5fd', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', color: '#1e40af' }}>
-            ⏳ Pyydetään Vercelin promote… Älä sulje ikkunaa.
+            ⏳ Promotataan edellinen deployment… Älä sulje ikkunaa.
           </div>
         )}
         {tila === 'onnistui' && tulos && (
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 12px', fontSize: '13px', color: '#166534' }}>
-            ✓ Rollback onnistui! Edellinen Live-versio on jälleen tuotannossa.<br />
-            Palautettu deployment: <code>{tulos.vercelDeployId?.slice(0, 12)}…</code>
+            ✓ Rollback käynnissä — Vercel siirtää aliasin edelliseen deploymenttiin.<br />
+            Palautettu SHA: <code style={{ fontFamily: 'monospace' }}>{lyhytSha(tulos.palautettuSha)}</code>
           </div>
         )}
         {tila === 'virhe' && virhe && (
@@ -184,7 +176,7 @@ export default function RollbackModaali({ liveCommit, onSulje, onValmis }) {
                 opacity:      kaikkiVahvistettu && !lukittu ? 1 : 0.6,
               }}
             >
-              {tila === 'lahetetaan' ? 'Palautetaan…' : '↩ Palauta'}
+              {tila === 'lahetetaan' ? 'Promotataan…' : '↩ Palauta'}
             </button>
           )}
         </div>
