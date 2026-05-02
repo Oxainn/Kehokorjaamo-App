@@ -4,15 +4,36 @@
 > Roadmap kertoo mitä tehdään, projektimuisti kertoo miksi.
 > Päivitä kun teet ison päätöksen.
 
-**Viimeisin päivitys:** 2026-05-01
+**Viimeisin päivitys:** 2026-05-02
+
+---
+
+## Ympäristöt — Live vs Kehitys (uutta 2026-05-02)
+
+Käyttöön otettu erillinen kehitys-ympäristö jotta Live-asiakasdataan ei vahingossa kosketa rakennettaessa.
+
+| | KEHOKORJAAMO (Live) | KEHOKORJAAMO Kehitys |
+|--|--|--|
+| Käyttötarkoitus | Asiakkaat | Testit/rakentaminen |
+| Git-haara | `main` | `kehitys` |
+| URL | kehokorjaamo-app.vercel.app | kehokorjaamo-kehitys.vercel.app |
+| Supabase-projekti | `Kehokorjaamo` (uwysictfbzswecnxvmif) | `Kehokorjaamo-Kehitys` (bnlxxymrutmdoksqoemz) |
+
+**Käytäntö jatkossa:**
+- Kaikki uudet työt menevät `kehitys`-haaraan + Kehitys-DB:hen
+- Live pysyy koskemattomana
+- "Siirrä Liveen" = `git merge kehitys → main` + tarvittaessa vastaava migraatio Live-DB:hen
+- "Pidä Testissä" = älä yhdistä Liveen vielä
+
+**Miksi:** B-lomakkeen iterointi vaati testidataa Live-DB:ssä, mikä riskeerasi oikeiden asiakastietojen sotkeutumisen. Erillinen ympäristö ratkaisee tämän pysyvästi.
 
 ---
 
 ## Käytössä olevat työkalut
 
 - **Frontend:** React + Vite + Tailwind
-- **Hosting:** Vercel (kehokorjaamo-app.vercel.app)
-- **Database + Auth:** Supabase (PKCE-flow, projekti-ID `uwysictfbzswecnxvmif`)
+- **Hosting:** Vercel — Live: kehokorjaamo-app, Kehitys: kehokorjaamo-kehitys
+- **Database + Auth:** Supabase (PKCE-flow). Live: `uwysictfbzswecnxvmif`, Kehitys: `bnlxxymrutmdoksqoemz`
 - **Versionhallinta:** GitHub (`oxainn/Kehokorjaamo-App`)
 - **AI-koodaus:** Claude Code + Claude Chat (Claude Max -tilaus)
 - **Domain (nykyinen):** kehokorjaamo-app.vercel.app

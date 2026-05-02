@@ -4,7 +4,13 @@
 > Päivitä aina kun vaihe valmistuu tai suunnitelma muuttuu.
 > Kun aloitat uuden Claude-chatin, voit sanoa: *"Lue ROADMAP.md ja jatka vaiheesta X"*.
 
-**Viimeisin päivitys:** 2026-05-01 (myöhäisempi sessio — Vaihe A 🟢 + Vaihe B 🟢 valmis)
+**Viimeisin päivitys:** 2026-05-02 (Live + Kehitys -ympäristöt eroteltu, kehitys-haara käyttöön)
+
+## Ympäristöt
+
+- **KEHOKORJAAMO (Live)** = asiakkaat käyttävät — `main`-haara → kehokorjaamo-app.vercel.app → Supabase `Kehokorjaamo` (uwysictfbzswecnxvmif)
+- **KEHOKORJAAMO Kehitys** = uudet työt — `kehitys`-haara → kehokorjaamo-kehitys.vercel.app → Supabase `Kehokorjaamo-Kehitys` (bnlxxymrutmdoksqoemz)
+- "Siirrä Liveen" = `git merge kehitys → main` + tarvittaessa migraatio Live-DB:hen. "Pidä Testissä" = älä yhdistä.
 
 ---
 
