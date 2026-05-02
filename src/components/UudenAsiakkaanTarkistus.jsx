@@ -13,6 +13,7 @@
 import { useState, useEffect } from 'react'
 import { haeAsiakkaanViimeisinLomake, vahvistaAsiakas } from '../lib/db'
 import { muotoilePvm, muotoilePvmAika } from '../lib/muotoilu'
+import { poimiKuvaUrl } from '../lib/lisakentat'
 import ArkistoiNappi from './ArkistoiNappi'
 
 const ilmoitusTyyli = (sävy) => ({
@@ -79,6 +80,28 @@ function Rivi({ label, arvo }) {
       <span style={onTyhja ? tyhjaTyyli : arvoTyyli}>
         {onTyhja ? '—' : Array.isArray(arvo) ? arvo.join(', ') : arvo}
       </span>
+    </div>
+  )
+}
+
+// Kuva-rivi lisäkentille jotka sisältävät base64-kuvadataa (kehonkartta_piirros,
+// allekirjoitus jne). Renderöi <img>-elementin tekstin sijaan.
+function KuvaRivi({ label, kuvaUrl }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px 0', borderBottom: '1px dashed #f3f4f6' }}>
+      <span style={labelTyyli}>{label}</span>
+      <img
+        src={kuvaUrl}
+        alt={label}
+        style={{
+          maxWidth:     '100%',
+          maxHeight:    '400px',
+          objectFit:    'contain',
+          borderRadius: '6px',
+          border:       '1px solid #e5e7eb',
+          background:   '#f9fafb',
+        }}
+      />
     </div>
   )
 }
@@ -264,6 +287,10 @@ export default function UudenAsiakkaanTarkistus({ asiakas, onValmis }) {
             .filter(([k]) => k !== 'allekirjoitus' && k !== 'harrastukset')
             .map(([k, val]) => {
               if (val === null || val === undefined || val === '') return null
+              const kuvaUrl = poimiKuvaUrl(val)
+              if (kuvaUrl) {
+                return <KuvaRivi key={k} label={k.replace(/_/g, ' ')} kuvaUrl={kuvaUrl} />
+              }
               const naytettava = typeof val === 'object' ? JSON.stringify(val) : String(val)
               return <Rivi key={k} label={k.replace(/_/g, ' ')} arvo={naytettava} />
             })}

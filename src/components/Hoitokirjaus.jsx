@@ -32,6 +32,8 @@ import KehonkarttaVertailu from './KehonkarttaVertailu'
 import MittariSliideri from './MittariSliideri'
 import ItsehoitoValinnat from './ItsehoitoValinnat'
 import AILoydosAnalyysi from './AILoydosAnalyysi'
+import AsentoKuvat from './AsentoKuvat'
+import AsentoYhteenveto from './AsentoYhteenveto'
 import { MITTARIT } from '../data/linjausmittarit'
 
 const inputTyyli = {
@@ -576,10 +578,27 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
         </div>
       </div>
 
+      {/* KA1 — Asentokuvat (4 kpl: edestä/takaa/vasen/oikea).
+          Sijoitettu Havainnot-kortin yläpuolelle: hoitaja ottaa kuvat
+          ensin asiakkaan saapuessa, näkee visuaalisesti epätasapainot
+          ja kirjaa Havainnot-kortissa kuvien tukemana. */}
+      <div style={ryhmaTyyli}>
+        <h3 style={ryhmaOtsikko}>Asentokuvat</h3>
+        <AsentoKuvat hoitokayntiId={hoitokayntiId} asiakasId={asiakas?.id} asiakasPituusCm={asiakas?.pituus} />
+      </div>
+
+      {/* KA5 — Visuaalinen yhteenveto: 4 kuvaa rinnakkain + keskeisimmät
+          epätasapainot + sääntöpohjainen tulkinta. */}
+      <div style={ryhmaTyyli}>
+        <h3 style={ryhmaOtsikko}>Yhteenveto</h3>
+        <AsentoYhteenveto hoitokayntiId={hoitokayntiId} />
+      </div>
+
       {/* Havainnot — Pala B2 BodyMap + Pala B6.6 Vertailu + Pala B8 AI-analyysi */}
       <div style={ryhmaTyyli}>
         <h3 style={ryhmaOtsikko}>Havainnot</h3>
         <KehonkarttaVertailu
+          asiakasId={asiakas?.id}
           asiakkaanKehonkartta={asiakkaanKehonkartta}
           hoitajanHavainnotInit={havainnotEsitayte}
           hoitajanHavainnot={havainnot}

@@ -7,7 +7,10 @@
 // - Asiakas piirtää sormella tai hiirellä alueet joissa tuntee oireita
 // - Värit sekoittuvat päällekkäisillä alueilla
 // - Vyöhyke-tunnistus laskee mitkä 76 vyöhykepistettä jäävät piirron alle
-// - Vahinkokosketukset hylätään (alle 80ms kosketus = ei tallenneta)
+// - Visuaalinen kosketus-rinki: kun käyttäjä koskettaa kehoa, kosketuskohtaan
+//   ilmestyy täyttyvä ympyrä (250ms). Jos sormi nostetaan ennen täyttymistä,
+//   merkki peruuntuu (virhekosketussuoja). Jos käyttäjä raahaa, rinki katoaa
+//   ja piirto alkaa heti.
 // - Kumoa-toiminto korvaa confirm()-popupit
 // - Ilmoitus pystysuorassa puhelimessa: kehottaa kääntämään vaakatasoon
 
@@ -18,7 +21,12 @@ const CANVAS_LEVEYS = 1471;
 const CANVAS_KORKEUS = 1069;
 const SIVELLIN_KOKO = 30;
 const VYOHYKKEEN_SADE = 80;
-const VAHINKO_KYNNYS_MS = 80;
+// Aika jonka käyttäjän on pidettävä sormea paikallaan että yksittäinen
+// merkintä syntyy. Visualisoituna täyttyvänä kosketus-ringinä.
+const KOSKETUS_VIIVE_MS = 250;
+// Kuinka paljon sormi saa liikkua (SVG-yksiköinä) ennen kuin tulkinta
+// vaihtuu yksittäisestä kosketuksesta raahaukseksi → ringin peruutus.
+const RAAHAUS_KYNNYS = 25;
 
 const OIRETYYPIT = [
   { id: 'kipu',          numero: 1, nimi: 'Kipu',          vari: '#ef4444' },
@@ -53,6 +61,8 @@ export default function Osio4Kehonkartta({
   const [piirretaan, setPiirretaan] = useState(false);
   const [pystysuora, setPystysuora] = useState(false);
   const [kumottava, setKumottava] = useState(null);
+  // Visuaalinen kosketus-rinki: { x, y, vari } SVG-koordinaateissa, tai null
+  const [kosketusRinki, setKosketusRinki] = useState(null);
 
   const svgRef = useRef(null);
   const canvasRef = useRef(null);
@@ -60,6 +70,11 @@ export default function Osio4Kehonkartta({
   const nykyinenVetoRef = useRef([]);
   const piirronAloitusAikaRef = useRef(0);
   const kumotaTimeoutRef = useRef(null);
+  // Kosketus-ringin tila — ovatko siirtyneet drag-tilaan, onko aloitusdot
+  // jo piirretty, ja timeoutId ringin täyttymiselle.
+  const raahausRef = useRef(false);
+  const aloitusDotPiirrettyRef = useRef(false);
+  const rinkiTimerRef = useRef(null);
 
   // Tarkkaile orientaatiota
   useEffect(() => {
@@ -139,24 +154,51 @@ export default function Osio4Kehonkartta({
     return { x: muunnettu.x, y: muunnettu.y };
   }
 
-  function aloitaPiirto(tapahtuma) {
-    tapahtuma.preventDefault();
-    setPiirretaan(true);
-    piirronAloitusAikaRef.current = Date.now();
-    const piste = canvasKoordinaatit(tapahtuma);
-    nykyinenVetoRef.current = [piste];
-
+  // Piirrä yksittäinen aloitus-dot canvasille. Kutsutaan joko ringin
+  // täyttymisen jälkeen TAI heti kun raahaus alkaa.
+  function piirraAloitusDot(piste) {
+    if (aloitusDotPiirrettyRef.current) return;
     const ctx = piirtoKontekstiRef.current;
     if (!ctx) return;
     const oire = OIRETYYPIT.find(o => o.id === valittuOire);
     if (!oire) return;
-
     ctx.globalAlpha = 0.5;
     ctx.fillStyle = oire.vari;
     ctx.beginPath();
     ctx.arc(piste.x, piste.y, SIVELLIN_KOKO / 2, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
+    aloitusDotPiirrettyRef.current = true;
+  }
+
+  function aloitaPiirto(tapahtuma) {
+    tapahtuma.preventDefault();
+    setPiirretaan(true);
+    piirronAloitusAikaRef.current = Date.now();
+    raahausRef.current = false;
+    aloitusDotPiirrettyRef.current = false;
+
+    const piste = canvasKoordinaatit(tapahtuma);
+    nykyinenVetoRef.current = [piste];
+
+    const oire = OIRETYYPIT.find(o => o.id === valittuOire);
+    const vari = oire?.vari ?? '#9ca3af';
+
+    // Näytä täyttyvä rinki kosketuskohdassa
+    setKosketusRinki({ x: piste.x, y: piste.y, vari });
+
+    // Ringin täyttyessä piirrä dot. Jos käyttäjä on jo siirtynyt raahaus-
+    // tilaan, älä tee mitään (jatkaPiirtoa hoitaa).
+    if (rinkiTimerRef.current) clearTimeout(rinkiTimerRef.current);
+    rinkiTimerRef.current = setTimeout(() => {
+      rinkiTimerRef.current = null;
+      if (!raahausRef.current) {
+        const ekaPiste = nykyinenVetoRef.current[0];
+        if (ekaPiste) piirraAloitusDot(ekaPiste);
+      }
+      // Rinki häviää vasta lopetaPiirto-vaiheessa, jotta käyttäjä näkee
+      // että sormi on edelleen tunnistettu.
+    }, KOSKETUS_VIIVE_MS);
   }
 
   function jatkaPiirtoa(tapahtuma) {
@@ -164,8 +206,32 @@ export default function Osio4Kehonkartta({
     tapahtuma.preventDefault();
 
     const piste = canvasKoordinaatit(tapahtuma);
+    const ekaPiste = nykyinenVetoRef.current[0];
     const edellinen = nykyinenVetoRef.current[nykyinenVetoRef.current.length - 1];
+
+    // Tunnista raahaus: aloituspisteestä on liikuttu kynnyksen yli
+    if (!raahausRef.current && ekaPiste) {
+      const dx = piste.x - ekaPiste.x;
+      const dy = piste.y - ekaPiste.y;
+      if (Math.sqrt(dx * dx + dy * dy) > RAAHAUS_KYNNYS) {
+        raahausRef.current = true;
+        // Peruuta täyttyvä rinki — käyttäjä piirtää
+        if (rinkiTimerRef.current) {
+          clearTimeout(rinkiTimerRef.current);
+          rinkiTimerRef.current = null;
+        }
+        setKosketusRinki(null);
+        // Piirrä aloitus-dot heti jos ei vielä piirretty
+        piirraAloitusDot(ekaPiste);
+      }
+    }
+
     nykyinenVetoRef.current.push(piste);
+
+    if (!raahausRef.current) {
+      // Vielä ringin sisällä — kerätään pisteitä mutta ei piirretä
+      return;
+    }
 
     const ctx = piirtoKontekstiRef.current;
     if (!ctx || !edellinen) return;
@@ -190,16 +256,30 @@ export default function Osio4Kehonkartta({
     setPiirretaan(false);
 
     const kesto = Date.now() - piirronAloitusAikaRef.current;
+    const oliRaahaus = raahausRef.current;
+    const dotPiirretty = aloitusDotPiirrettyRef.current;
+
+    // Peruuta mahdollinen vielä juokseva rinki-timer
+    if (rinkiTimerRef.current) {
+      clearTimeout(rinkiTimerRef.current);
+      rinkiTimerRef.current = null;
+    }
+    setKosketusRinki(null);
+
     const veto = {
       oire: valittuOire,
       pisteet: [...nykyinenVetoRef.current],
     };
     nykyinenVetoRef.current = [];
+    raahausRef.current = false;
+    aloitusDotPiirrettyRef.current = false;
 
     if (veto.pisteet.length === 0) return;
 
-    if (kesto < VAHINKO_KYNNYS_MS && veto.pisteet.length === 1) {
-      piirraVedotUudelleen();
+    // Yksittäinen kosketus joka jäi alle viiveen → peruutetaan kokonaan
+    // (virhekosketussuoja). Käyttäjä oppii pitämään sormea paikallaan.
+    if (!oliRaahaus && !dotPiirretty && kesto < KOSKETUS_VIIVE_MS) {
+      piirraVedotUudelleen();  // varmuuden vuoksi
       return;
     }
 
@@ -382,6 +462,17 @@ export default function Osio4Kehonkartta({
         })}
       </div>
 
+      <p
+        style={{
+          margin: '0 0 8px',
+          fontSize: 12,
+          color: '#6b7280',
+          fontStyle: 'italic',
+        }}
+      >
+        💡 Pidä sormea hetken kohteesta merkitäksesi oireen
+      </p>
+
       <div
         style={{
           position: 'relative',
@@ -404,6 +495,14 @@ export default function Osio4Kehonkartta({
           onTouchMove={jatkaPiirtoa}
           onTouchEnd={lopetaPiirto}
         >
+          {/* Kosketus-ringin täyttymisanimaation keyframet. Sisällä SVG:ssä
+              jotta CSS scope ei vuoda muille elementeille. */}
+          <style>{`
+            @keyframes kosketus-rinki-tayty {
+              from { transform: scale(0.3); opacity: 0.45; }
+              to   { transform: scale(1.0); opacity: 1; }
+            }
+          `}</style>
           <image
             href={aktiivinenHahmo.svg}
             x="0"
@@ -425,6 +524,25 @@ export default function Osio4Kehonkartta({
               }}
             />
           </foreignObject>
+          {/* Kosketus-rinki: täyttyy KOSKETUS_VIIVE_MS ajassa, näyttää
+              käyttäjälle visuaalisen viiveen. Skaala 0.3 → 1.0 = halkaisija
+              25 → 80 px (SVG-yksiköissä). */}
+          {kosketusRinki && (
+            <circle
+              cx={kosketusRinki.x}
+              cy={kosketusRinki.y}
+              r={40}
+              fill="none"
+              stroke={kosketusRinki.vari}
+              strokeWidth={6}
+              style={{
+                transformBox:    'fill-box',
+                transformOrigin: 'center',
+                animation:       `kosketus-rinki-tayty ${KOSKETUS_VIIVE_MS}ms ease-out forwards`,
+                pointerEvents:   'none',
+              }}
+            />
+          )}
         </svg>
       </div>
 

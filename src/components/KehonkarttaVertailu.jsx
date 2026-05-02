@@ -11,6 +11,7 @@
 
 import { useState } from 'react'
 import BodyMap from './BodyMap'
+import AsiakkaanOireet from './AsiakkaanOireet'
 import { KEHON_VYOHYKKEET } from '../data/kehonVyohykkeet'
 import { KIRJAUSRAKENNE } from '../data/findings-structure'
 
@@ -103,42 +104,9 @@ function OiretyyppiPilleri({ tyyppi }) {
   )
 }
 
-// Asiakkaan oireet -lista vyöhykkeittäin
-function AsiakkaanOireet({ merkinnat }) {
-  const rivit = Object.entries(merkinnat ?? {})
-    .map(([vyohykeId, oireet]) => {
-      const vy = KEHON_VYOHYKKEET.find((v) => v.id === vyohykeId)
-      if (!vy) return null
-      const arr = Array.isArray(oireet) ? oireet : (typeof oireet === 'string' ? [oireet] : [])
-      if (arr.length === 0) return null
-      return { vyohyke: vy, oireet: arr }
-    })
-    .filter(Boolean)
-
-  if (rivit.length === 0) {
-    return (
-      <p style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic', padding: '12px 0' }}>
-        Asiakas ei ole merkinnyt oireita kehonkarttaan.
-      </p>
-    )
-  }
-
-  return (
-    <div style={ryhmaListaTyyli}>
-      {rivit.map(({ vyohyke, oireet }) => (
-        <div key={vyohyke.id} style={oireRivi}>
-          <span style={{ flex: 1, color: '#111827' }}>
-            <strong>{vyohyke.nimi}</strong>
-            {vyohyke.tekninen && <span style={{ color: '#9ca3af', fontSize: '12px' }}> · {vyohyke.tekninen}</span>}
-          </span>
-          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-            {oireet.map((o, i) => <OiretyyppiPilleri key={`${o}-${i}`} tyyppi={o} />)}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
+// Asiakkaan oireet -lista vyöhykkeittäin — siirretty omaan
+// AsiakkaanOireet-komponenttiin (visuaalinen yhteenveto + ryhmitelty
+// lista + vertailu aiempiin käynteihin).
 
 function VertailuListat({ asiakkaanMerkinnat, hoitajanHavainnot }) {
   // Käännä asiakkaan merkinnät → joukko aluiId:ä joihin asiakas on
@@ -255,6 +223,7 @@ function VertailuListat({ asiakkaanMerkinnat, hoitajanHavainnot }) {
 }
 
 export default function KehonkarttaVertailu({
+  asiakasId,               // hoitokirjauksesta — käytetään historian hakuun
   asiakkaanKehonkartta,    // { merkinnat, vedot, hahmo } | null
   hoitajanHavainnotInit,   // BodyMap:n esitäyttö (pre-merkityt löydökset objektina)
   hoitajanHavainnot,       // ajantasaiset löydökset taulukkona [{ alueId, alueNimi, kipu, kirjaukset, tyyppi }]
@@ -278,7 +247,7 @@ export default function KehonkarttaVertailu({
         </button>
       </div>
 
-      {tab === 'asiakas' && <AsiakkaanOireet merkinnat={merkinnat} />}
+      {tab === 'asiakas' && <AsiakkaanOireet asiakasId={asiakasId} kehonkartta={asiakkaanKehonkartta} />}
 
       {tab === 'hoitaja' && (
         <BodyMap
