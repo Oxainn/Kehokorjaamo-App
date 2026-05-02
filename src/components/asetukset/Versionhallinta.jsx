@@ -19,7 +19,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '../../services/supabase'
 import { YMPARISTOT, haeViimeisinCommit, haeErotHaarat, pingaaUrl, GITHUB_REPO } from '../../lib/ymparistot'
-import { tunnistaYmparisto } from '../../lib/ymparisto'
+import { tunnistaYmparisto, YMPARISTO } from '../../lib/ymparisto'
+import SiirraLiveenModaali from './SiirraLiveenModaali'
+import RollbackModaali from './RollbackModaali'
 
 // D4: status-pollausväli ja hälytysrajat
 const POLLAUS_VALI_MS = 30_000
@@ -194,6 +196,10 @@ export default function Versionhallinta() {
   const [pingKehitys, setPingKehitys] = useState(null)
   // D4: oman Supabasen tila
   const [omaSupabaseOk, setOmaSupabaseOk] = useState(null)
+  // D3 + D5: modaalit ja julkaisut-loki
+  const [siirraModaaliAuki,  setSiirraModaaliAuki]  = useState(false)
+  const [rollbackModaaliAuki, setRollbackModaaliAuki] = useState(false)
+  const [julkaisut, setJulkaisut] = useState(null)  // null = ei haettu / [] = ei merkintöjä
 
   const lataa = useCallback(async () => {
     setVirheet({ live: null, kehitys: null, erot: null })
@@ -248,6 +254,21 @@ export default function Versionhallinta() {
   }, [])
 
   useEffect(() => { lataa() }, [lataa])
+
+  // D3 + D5: hae viimeisimmät julkaisut audit-lokina (vain Kehitys-DB:ssä)
+  const lataaJulkaisut = useCallback(async () => {
+    if (omaYmparisto !== YMPARISTO.KEHITYS) {
+      setJulkaisut([])
+      return
+    }
+    const { data, error } = await supabase
+      .from('julkaisut')
+      .select('id, toiminto, julkaistut_commitit, status, virhe, kesto_ms, merge_sha, luotu')
+      .order('luotu', { ascending: false })
+      .limit(10)
+    if (!error) setJulkaisut(data ?? [])
+  }, [omaYmparisto])
+  useEffect(() => { lataaJulkaisut() }, [lataaJulkaisut])
 
   // D4: rakenna hälytyslista nykyisestä tilasta
   const halytykset = []
@@ -421,33 +442,134 @@ export default function Versionhallinta() {
           </ul>
         )}
 
-        {/* Siirrä Liveen -nappi (D3 tulossa) */}
+        {/* D3: Siirrä Liveen -nappi (näkyy enabledina vain Kehityksessä) */}
         <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: '12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-          <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0, lineHeight: 1.4 }}>
-            🚀 Yhden klikkauksen julkaisu Liveen tulossa palan D3 myötä<br />
-            (vaatii GitHub + Vercel -tokenit + turvallisuusrajat)
+          <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, lineHeight: 1.4 }}>
+            {omaYmparisto !== YMPARISTO.KEHITYS
+              ? <>🚀 Siirrä Liveen toimii vain Kehitys-ympäristöstä.<br />Vaihda kehokorjaamo-kehitys.vercel.app:iin.</>
+              : <>Klikkaus avaa vahvistusmodaalin (3 checkboxia + commit-lista).<br />Edge Function tekee GitHub-mergen, Vercel deployaa Liven automaattisesti.</>}
           </p>
           <button
             type="button"
-            disabled
-            title="Tulossa D3-vaiheessa — vaatii tokenit + turvallisuusrajat"
+            onClick={() => setSiirraModaaliAuki(true)}
+            disabled={!onEroja || omaYmparisto !== YMPARISTO.KEHITYS}
             style={{
               padding:      '10px 18px',
               minHeight:    '40px',
               borderRadius: '10px',
               border:       'none',
-              background:   onEroja ? '#9ca3af' : '#e5e7eb',
-              color:        onEroja ? 'white' : '#9ca3af',
+              background:   onEroja && omaYmparisto === YMPARISTO.KEHITYS ? '#1D9E75' : '#9ca3af',
+              color:        'white',
               fontSize:     '14px',
               fontWeight:   600,
-              cursor:       'not-allowed',
-              opacity:      0.6,
+              cursor:       onEroja && omaYmparisto === YMPARISTO.KEHITYS ? 'pointer' : 'not-allowed',
+              opacity:      onEroja && omaYmparisto === YMPARISTO.KEHITYS ? 1 : 0.5,
             }}
           >
             🚀 Siirrä Liveen ({eroaKpl})
           </button>
         </div>
       </div>
+
+      {/* D5: Rollback-osio */}
+      {omaYmparisto === YMPARISTO.KEHITYS && (
+        <div style={{
+          background:   'white',
+          border:       '1px solid #fecaca',
+          borderRadius: '12px',
+          padding:      '12px 14px',
+          display:      'flex',
+          alignItems:   'center',
+          justifyContent: 'space-between',
+          gap:          '12px',
+          flexWrap:     'wrap',
+        }}>
+          <p style={{ fontSize: '12px', color: '#6b7280', margin: 0, lineHeight: 1.4 }}>
+            <strong style={{ color: '#dc2626' }}>↩ Rollback:</strong> palauta edellinen Live-versio jos viimeisin julkaisu rikkoi jotain. Vain Vercel-deploy peruutetaan — DB-muutokset säilyvät.
+          </p>
+          <button
+            type="button"
+            onClick={() => setRollbackModaaliAuki(true)}
+            style={{
+              padding:      '8px 14px',
+              borderRadius: '8px',
+              border:       '1px solid #fecaca',
+              background:   'white',
+              color:        '#dc2626',
+              fontSize:     '13px',
+              fontWeight:   600,
+              cursor:       'pointer',
+            }}
+          >
+            ↩ Palauta edellinen Live-versio
+          </button>
+        </div>
+      )}
+
+      {/* D3 + D5: julkaisut-loki (vain Kehityksessä, missä Edge Function on) */}
+      {omaYmparisto === YMPARISTO.KEHITYS && julkaisut && julkaisut.length > 0 && (
+        <div style={{
+          background:   'white',
+          border:       '1px solid #e5e7eb',
+          borderRadius: '12px',
+          padding:      '14px 16px',
+        }}>
+          <h3 style={{ fontSize: '14px', fontWeight: 700, color: '#111827', margin: '0 0 10px' }}>
+            Viimeisimmät julkaisut
+          </h3>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {julkaisut.map((j) => (
+              <li key={j.id} style={{
+                display:      'grid',
+                gridTemplateColumns: '90px 90px 1fr 90px',
+                gap:          '10px',
+                alignItems:   'baseline',
+                fontSize:     '12px',
+                padding:      '6px 8px',
+                borderRadius: '6px',
+                background:   j.status === 'epaonnistui' ? '#fef2f2' : j.status === 'kaynnissa' ? '#fffbeb' : '#f0fdf4',
+              }}>
+                <span style={{ fontWeight: 600, color: j.toiminto === 'rollback' ? '#dc2626' : '#1D9E75' }}>
+                  {j.toiminto === 'rollback' ? '↩ Rollback' : '🚀 Siirto'}
+                </span>
+                <span style={{ color: j.status === 'epaonnistui' ? '#991b1b' : j.status === 'kaynnissa' ? '#78350f' : '#166534' }}>
+                  {j.status}
+                </span>
+                <span style={{ color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={j.virhe || `${(j.julkaistut_commitit ?? []).length} committia`}>
+                  {j.virhe ?? `${(j.julkaistut_commitit ?? []).length} commit${(j.julkaistut_commitit ?? []).length === 1 ? '' : 'tia'}`}
+                </span>
+                <span style={{ color: '#9ca3af', textAlign: 'right' }}>
+                  {muotoilePvm(j.luotu)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Modaalit */}
+      {siirraModaaliAuki && (
+        <SiirraLiveenModaali
+          erot={erot ?? []}
+          onSulje={() => setSiirraModaaliAuki(false)}
+          onValmis={() => {
+            setSiirraModaaliAuki(false)
+            lataa()
+            lataaJulkaisut()
+          }}
+        />
+      )}
+      {rollbackModaaliAuki && (
+        <RollbackModaali
+          liveCommit={liveCommit}
+          onSulje={() => setRollbackModaaliAuki(false)}
+          onValmis={() => {
+            setRollbackModaaliAuki(false)
+            lataa()
+            lataaJulkaisut()
+          }}
+        />
+      )}
     </div>
   )
 }
