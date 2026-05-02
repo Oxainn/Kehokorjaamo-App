@@ -1,7 +1,13 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { supabase } from '../services/supabase'
 import { normalisoiAsiakas } from '../utils/asiakas'
 import { haeUusienAsiakkaidenMaara, aloitaUusiKaynti, haeAsiakkaanKontraindikaatiot } from '../lib/db'
+
+// Dev: TESTI-asiakas haetaan sähköpostilla jotta sama koodi toimii sekä
+// Live- että Kehitys-DB:ssä (id:t eroavat tietokantojen välillä). Näkyy
+// rekisterissä nimellä "TESTI Asiakas — Älä koske". Vain "🧪 Testaa
+// B-lomake" -nappi käyttää tätä — ei tuotantokäyttöä.
+const TESTI_ASIAKAS_SAHKOPOSTI = 'testi@example.com'
 import { useOnline } from '../hooks/useOnline'
 import { useEscKey } from '../hooks/useEscKey'
 import { jononKoko } from '../lib/offlineDB'
@@ -14,6 +20,7 @@ import UudenAsiakkaanTarkistus from './UudenAsiakkaanTarkistus'
 import Hoitokirjaus from './Hoitokirjaus'
 import JulkinenLomake from './JulkinenLomake'
 import PalveluValinta from './PalveluValinta'
+import { tunnistaYmparisto, ymparistoTeksti, ymparistoVarit, YMPARISTO } from '../lib/ymparisto'
 
 const ylaNav = [
   { id: 'rekisteri',    nimi: 'Asiakasrekisteri',  ikoni: '👥' },
@@ -43,19 +50,42 @@ export default function App() {
     return window.location.pathname === '/uusi-asiakas'
   }, [])
 
+  // Dev-oikotie: /dev/b-lomake avaa Hoitokirjauksen TESTI-asiakkaan
+  // kontekstissa heti kun kirjautuminen on valmis (bookmarkattava).
+  const onDevBLomakePolku = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    return window.location.pathname === '/dev/b-lomake'
+  }, [])
+
+  // Testimoodi — käytössä kun B-lomake on avattu "🧪 Testaa B-lomake"
+  // -napilla tai /dev/b-lomake-reitillä. Hoitokirjaus näyttää bannerin
+  // ja "Nollaa TESTI-data" -napin kun true.
+  const [testimoodi, setTestimoodi] = useState(false)
+
   useEffect(() => {
     const url   = new URL(window.location.href)
     const error = url.searchParams.get('error')
     const code  = url.searchParams.get('code')
     const state = url.searchParams.get('state')
-    if (error || code || state) {
-      setTimeout(() => window.history.replaceState({}, '', '/'), 100)
-      if (error) {
-        console.error('OAuth-virhe:', error)
-        setLataaAuth(false)
-        setKayttaja(null)
-      }
+    /* eslint-disable no-console */
+    console.log('[app debug] OAuth-callback useEffect:', {
+      href:   window.location.href,
+      search: window.location.search,
+      hash:   window.location.hash,
+      code:   code ? `${code.slice(0, 8)}…(${code.length})` : null,
+      state:  state ? `${state.slice(0, 8)}…(${state.length})` : null,
+      error,
+    })
+    /* eslint-enable no-console */
+    if (error) {
+      console.error('OAuth-virhe:', error)
+      setLataaAuth(false)
+      setKayttaja(null)
+      window.history.replaceState({}, '', '/')
     }
+    // Code/state-paramien pyyhintä siirretty SIGNED_IN-event-listeneriin
+    // (alempana useEffectissä) jotta Supabasen detectSessionInUrl-flowilla
+    // on aikaa kuluttaa code_verifier ennen URLin muutosta.
   }, [])
 
   useEffect(() => {
@@ -63,8 +93,18 @@ export default function App() {
       setKayttaja(data.session?.user ?? null)
       setLataaAuth(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setKayttaja(session?.user ?? null)
+      // PKCE-flow valmis → siisti URL-parametrit (?code=, ?state=) pois.
+      // Ei timer-pohjaista raceia detectSessionInUrl:n kanssa, koska tämä
+      // ajetaan vasta kun Supabase on lukenut codeen ja vaihtanut sen
+      // sessioksi onnistuneesti.
+      if (event === 'SIGNED_IN' && typeof window !== 'undefined') {
+        const url = new URL(window.location.href)
+        if (url.searchParams.has('code') || url.searchParams.has('state')) {
+          window.history.replaceState({}, '', '/')
+        }
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -122,8 +162,66 @@ export default function App() {
 
   function paluuRekisteriin() {
     setRekisteriAvain((n) => n + 1)
+    setTestimoodi(false)
     setNakyma('rekisteri')
   }
+
+  // Dev: avaa B-lomake suoraan TESTI-asiakkaan luonnos-käynnillä.
+  // Käyttää olemassa olevaa luonnosta jos sellainen on, muuten kutsuu
+  // aloitaUusiKaynti:tä normaaliin tapaan. Vahvistus-modaali ohitetaan.
+  const avaaTestiBLomake = useCallback(async () => {
+    if (!hoitajaId) {
+      alert('Kirjaudu ensin sisään.')
+      return
+    }
+    const { data: testi, error: asErr } = await supabase
+      .from('asiakkaat')
+      .select('*')
+      .eq('hoitaja_id', hoitajaId)
+      .eq('sahkoposti', TESTI_ASIAKAS_SAHKOPOSTI)
+      .maybeSingle()
+    if (asErr || !testi) {
+      alert('TESTI-asiakasta ei löydy DB:stä sähköpostilla "' + TESTI_ASIAKAS_SAHKOPOSTI + '". Luo ensin testiasiakas tähän DB:hen.')
+      return
+    }
+
+    const { data: olemassa } = await supabase
+      .from('hoitokaynnit')
+      .select('id')
+      .eq('asiakas_id', testi.id)
+      .eq('tila', 'luonnos')
+      .order('luotu', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    let hkId = olemassa?.id ?? null
+    if (!hkId) {
+      const tulos = await aloitaUusiKaynti(testi.id)
+      if (tulos.virhe) {
+        alert('TESTI-käynnin luonti epäonnistui: ' + tulos.virhe)
+        return
+      }
+      hkId = tulos.hoitokayntiId
+      if (!hkId) {
+        alert('TESTI-käynti aloitettiin mutta hoitokäyntiä ei luotu — kokeile uudelleen')
+        return
+      }
+    }
+
+    setAsiakas(normalisoiAsiakas(testi))
+    setHoitokayntiId(hkId)
+    setTestimoodi(true)
+    setNakyma('hoitokirjaus')
+  }, [hoitajaId])
+
+  // Auto-avaa /dev/b-lomake-reitiltä kerran kun kirjautuminen on valmis.
+  useEffect(() => {
+    if (!onDevBLomakePolku || !kayttaja) return
+    avaaTestiBLomake()
+    // Siisti URL pois, ettei reitti uudelleenlaukea Back-napilla
+    window.history.replaceState({}, '', '/')
+  }, [onDevBLomakePolku, kayttaja, avaaTestiBLomake])
+
   // Oma in-app vahvistusmodaali — selaimen window.confirm korvattu
   // jotta tyyli on yhtenäinen muun sovelluksen kanssa ja Esc-näppäin
   // toimii loogisesti.
@@ -233,8 +331,55 @@ export default function App() {
       {/* TOPBAR */}
       <header style={{ background: '#085041', color: 'white', padding: '10px 16px' }}>
         <div className="max-w-5xl mx-auto" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px' }}>Kehokorjaamo</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '18px', fontWeight: '700', letterSpacing: '-0.5px' }}>Kehokorjaamo</span>
+            {/* D1 — Ympäristö-indikaattori (LIVE / KEHITYS / LOCAL).
+                Klikkaus johtaa Versionhallinta-sivulle (toistaiseksi Asetukset). */}
+            {(() => {
+              const y = tunnistaYmparisto()
+              const varit = ymparistoVarit(y)
+              const teksti = ymparistoTeksti(y)
+              return (
+                <button
+                  onClick={() => setNakyma('asetukset')}
+                  title={`Ympäristö: ${teksti} — klikkaa avataksesi versionhallinnan`}
+                  style={{
+                    ...varit,
+                    fontSize:      '11px',
+                    padding:       '4px 10px',
+                    minHeight:     '24px',
+                    borderRadius:  '6px',
+                    fontWeight:    700,
+                    letterSpacing: '0.05em',
+                    cursor:        'pointer',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  {teksti}
+                </button>
+              )
+            })()}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* DEV — testaa B-lomake suoraan TESTI-asiakkaalla */}
+            <button
+              onClick={avaaTestiBLomake}
+              title="Avaa B-lomake TESTI-asiakkaan kontekstissa (dev-työkalu — ohittaa vahvistuksen)"
+              style={{
+                fontSize:     '12px',
+                padding:      '6px 12px',
+                minHeight:    '32px',
+                borderRadius: '20px',
+                border:       '1px solid #fbbf24',
+                background:   '#f59e0b',
+                color:        '#7c2d12',
+                fontWeight:   700,
+                cursor:       'pointer',
+                letterSpacing: '0.02em',
+              }}
+            >
+              🧪 Testaa B-lomake · DEV
+            </button>
             {/* Pala B9b — online/offline-indikaattori + jonon koko */}
             <span
               title={online ? 'Yhteys palvelimeen on päällä' : 'Ei verkkoyhteyttä — muutokset tallentuvat selaimeen ja synkronoidaan kun yhteys palaa'}
@@ -534,6 +679,7 @@ export default function App() {
           <Hoitokirjaus
             asiakas={asiakas}
             hoitokayntiId={hoitokayntiId}
+            testimoodi={testimoodi}
             onValmis={() => {
               setHoitokayntiId(null)
               paluuRekisteriin()

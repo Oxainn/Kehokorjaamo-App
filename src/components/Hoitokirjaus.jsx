@@ -1,8 +1,8 @@
 // Vaihe B — Pala B1+B2: Hoitokirjaus-näkymä (B-lomakkeen täyttö)
 //
-// Pala B1: perustiedot (otsikko, mitä hoidettiin, hoitajan kommentit)
-// Pala B2: BodyMap-havainnot + hoitoraportti (kesto, lähtötilanne, kulku,
-//          muista ensi kerralla) + edellisen käynnin "muista"-nosto
+// Pala B1: perustiedot (otsikko, alkutilanne, mitä hoidettiin, hoitajan kommentit)
+// Pala B2: BodyMap-havainnot + hoitoraportti (kesto, kulku, muista ensi kerralla)
+//          + edellisen käynnin "muista"-nosto
 //
 // Avautuu kun "+ Uusi käynti" suoritettiin (App.jsx setNakyma 'hoitokirjaus').
 // hoitokayntiId: id B-lomakkeesta (hoitokaynnit-rivistä) joka aiemmin
@@ -21,7 +21,6 @@ import {
   haeEdellisetMittarit,
   haeKaynninItsehoito,
   tallennaKaynninItsehoito,
-  haeHoitosarjanPituus,
   haeAsiakkaanKehonkartta,
   haeAsiakkaanOireet,
 } from '../lib/db'
@@ -95,13 +94,15 @@ const ilmoitusTyyli = (sävy) => ({
   lineHeight:   1.5,
 })
 
-export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru }) {
+export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = false, onValmis, onPeru }) {
   // Pala B1 — perustiedot
   const [otsikko,            setOtsikko]            = useState('')
   const [mitaHoidettiin,     setMitaHoidettiin]     = useState('')
   const [hoitajanKommentit,  setHoitajanKommentit]  = useState('')
   // Pala B2 — hoitoraportti
   const [kesto,              setKesto]              = useState('')
+  // Sisäinen muuttuja "lahtotilanne" matchaa DB-saraketta. UI-label on
+  // "Alkutilanne" — DB-rename siirretty erilliseksi siivous-paloiksi.
   const [lahtotilanne,       setLahtotilanne]       = useState('')
   const [muistaEnsiKerralla, setMuistaEnsiKerralla] = useState('')
   // Havainnot (BodyMap-löydökset)
@@ -117,8 +118,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   const [edellisetMittarit,  setEdellisetMittarit]  = useState(null)
   // Itsehoito-valinnat (Pala B6): käyntikohtainen ohjelma
   const [itsehoito,          setItsehoito]          = useState([])
-  // Pala B6.5 — hoitosarjan pituus (M) ja seuraavan käynnin pvm
-  const [sarjanPituus,       setSarjanPituus]       = useState(null)
+  // Seuraavan käynnin pvm (esitäyttö +7 vrk, käynnin laskuria ei käytetä)
   const [seuraavaKayntiPvm,  setSeuraavaKayntiPvm]  = useState('')
   // Edellisen käynnin nosto
   const [edellisenMuista,    setEdellisenMuista]    = useState(null)
@@ -137,10 +137,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   // VB2 — optimistinen lukko. ladattuVersio = käyntirivin versio kun
   // hoitokirjaus avattiin. Tallennushetkellä lähetetään tämä mukaan;
   // jos DB:n versio on suurempi (toinen välilehti tallentanut), saadaan
-  // ristiriitailmoitus. likainen = käyttäjä on muokannut, ei vielä
-  // tallentanut → beforeunload-varoitus.
+  // ristiriitailmoitus.
   const [ladattuVersio, setLadattuVersio] = useState(null)
-  const [likainen,      setLikainen]      = useState(false)
   // Pala B9b — selain raportoi onko verkkoa
   const online = useOnline()
 
@@ -160,10 +158,9 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
       haeEdellinenValmiisKaynti(asiakas.id, hoitokayntiId),
       haeEdellisetMittarit(asiakas.id, hoitokayntiId),
       haeKaynninItsehoito(hoitokayntiId),
-      haeHoitosarjanPituus(),
       haeAsiakkaanKehonkartta(asiakas.id),
       haeAsiakkaanOireet(asiakas.id),
-    ]).then(([kaynti, kpl, havRivit, edellinen, edellisetMitt, itsehoitoRivit, sarjaPit, asKehonkartta, asOireet]) => {
+    ]).then(([kaynti, kpl, havRivit, edellinen, edellisetMitt, itsehoitoRivit, asKehonkartta, asOireet]) => {
       if (peruttu) return
       if (kaynti) {
         setOtsikko(kaynti.otsikko ?? '')
@@ -175,8 +172,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         setPvm(kaynti.pvm)
         // VB2 — talleta lähtöversio optimistista lukkoa varten
         setLadattuVersio(kaynti.versio ?? 0)
-        // Pala B6.5 — seuraavan käynnin pvm. Esitäyttö: nykyinen + 7 vrk
-        // jos ei ole vielä asetettu (vain kun käynti on tuore luonnos).
+        // Seuraavan käynnin pvm. Esitäyttö: nykyinen + 7 vrk jos ei ole
+        // vielä asetettu (vain kun käynti on tuore luonnos).
         if (kaynti.seuraava_kaynti_pvm) {
           setSeuraavaKayntiPvm(kaynti.seuraava_kaynti_pvm)
         } else if (kaynti.pvm) {
@@ -192,8 +189,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         setMittarit(m)
       }
       setYhteensa(kpl)
-      // N = monesko käynti tämä on. Pala B6.5: jos käynti on jo 'valmis',
-      // sen N = kpl; jos 'luonnos', N = kpl (sisältyy laskentaan).
+      // N = monesko käynti tämä on (juokseva numerointi, ei sarja-yhteyttä).
       setKayntinumero(kpl)
       // Esitäyttö havainnoille — muunna DB-rivit BodyMap:n initialFindings-muotoon
       if (havRivit && havRivit.length > 0) {
@@ -228,8 +224,6 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         frekvenssi_muokattu:   r.frekvenssi_muokattu ?? '',
         lisahuomautus:         r.lisahuomautus ?? '',
       })))
-      // Pala B6.5 — hoitosarjan pituus
-      setSarjanPituus(sarjaPit)
       // Pala B6.6 — asiakkaan A-lomakkeen kehonkartta vertailua varten
       setAsiakkaanKehonkartta(asKehonkartta ?? null)
       // Pala B8 — asiakkaan oma "hoitoon tulon syy" AI-promptia varten
@@ -246,26 +240,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
   // BodyMap kutsuu tämän jokaisesta löydösten muutoksesta
   const onHavainnotMuutos = useCallback((findings) => {
     setHavainnot(findings)
-    setLikainen(true)
   }, [])
-
-  // VB2 — merkitse "likainen" kun mikä tahansa kenttä muuttuu (ohitetaan
-  // alkulataus). Käytetään beforeunload-varoitukseen.
-  useEffect(() => {
-    if (lataa) return
-    setLikainen(true)
-  }, [otsikko, mitaHoidettiin, hoitajanKommentit, kesto, lahtotilanne, muistaEnsiKerralla, mittarit, itsehoito, seuraavaKayntiPvm])
-
-  // VB2 — varoita ikkunan suljessa jos tallentamattomia muutoksia
-  useEffect(() => {
-    if (!likainen) return
-    const handler = (e) => {
-      e.preventDefault()
-      e.returnValue = ''  // selaimen oma generic-viesti
-    }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [likainen])
 
   async function tallenna() {
     setTila('tallentaa')
@@ -365,13 +340,11 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
     const kaikkiTehty = Object.values(uusiTila).every((s) => s === 'tehty')
 
     if (kaikkiTehty) {
-      setLikainen(false)  // VB2: poista beforeunload-varoitus
       setTila('onnistui')
       setTimeout(onValmis, 1500)
       return
     }
     if (jonossa && !epaonnistui) {
-      setLikainen(false)  // VB2: jonossa = tallennus selaimelle, ei dirty
       setTila('jonossa')
       setTimeout(onValmis, 1800)
       return
@@ -409,8 +382,62 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
     ? `Käynti ${muotoilePvm(pvm)} · ${asiakas?.nimi || 'Asiakas'}`
     : `Käynti · ${asiakas?.nimi || 'Asiakas'}`
 
+  // Dev: tyhjentää lomakkeen lokaalitilan jotta voi aloittaa puhtaalta
+  // pöydältä. Tallennus kirjoittaa tyhjät arvot DB:hen seuraavalla
+  // "Tallenna hoitokirjaus" -klikillä.
+  function nollaaLomake() {
+    setOtsikko('')
+    setMitaHoidettiin('')
+    setHoitajanKommentit('')
+    setKesto('')
+    setLahtotilanne('')
+    setMuistaEnsiKerralla('')
+    setHavainnot([])
+    setHavainnotEsitayte({})
+    const tyhjatMittarit = {}
+    for (const m of MITTARIT) tyhjatMittarit[m.sarake] = null
+    setMittarit(tyhjatMittarit)
+    setItsehoito([])
+    setSeuraavaKayntiPvm('')
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      {/* Testimoodi — keltainen banneri + nollaa-nappi */}
+      {testimoodi && (
+        <div style={{
+          background:    '#fef3c7',
+          border:        '1.5px solid #f59e0b',
+          borderRadius:  '12px',
+          padding:       '12px 16px',
+          display:       'flex',
+          alignItems:    'center',
+          gap:           '12px',
+          flexWrap:      'wrap',
+        }}>
+          <span style={{ fontSize: '13px', color: '#7c2d12', lineHeight: 1.5, flex: 1, minWidth: '220px' }}>
+            <strong>🧪 TESTITILA</strong> — muutokset tallentuvat TESTI-asiakkaalle. Älä käytä oikeisiin kirjauksiin.
+          </span>
+          <button
+            type="button"
+            onClick={nollaaLomake}
+            style={{
+              fontSize:     '12px',
+              padding:      '6px 12px',
+              minHeight:    '32px',
+              borderRadius: '8px',
+              border:       '1px solid #d97706',
+              background:   'white',
+              color:        '#7c2d12',
+              fontWeight:   600,
+              cursor:       'pointer',
+            }}
+          >
+            Nollaa TESTI-data
+          </button>
+        </div>
+      )}
+
       {/* Otsikkorivi */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', paddingBottom: '12px', borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
         <button
@@ -423,56 +450,21 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         <span style={{ fontSize: '14px', fontWeight: 600, color: '#085041' }}>
           {otsikkoteksti}
         </span>
-        {/* Pala B6.5: N/M jos sarjan pituus on tiedossa, muuten "N · jatkohoito" jos ylittynyt */}
+        {/* Käynnin juokseva numero (ei sarja-yhteyttä) */}
         {kayntinumero != null && (
           <span style={{
             marginLeft:   'auto',
             fontSize:     '12px',
-            color:        sarjanPituus && kayntinumero > sarjanPituus ? '#92400e' : '#6b7280',
-            background:   sarjanPituus && kayntinumero > sarjanPituus ? '#fef3c7' : '#f3f4f6',
+            color:        '#6b7280',
+            background:   '#f3f4f6',
             padding:      '4px 10px',
             borderRadius: '999px',
             fontWeight:   500,
           }}>
-            {sarjanPituus
-              ? (kayntinumero > sarjanPituus
-                  ? `Käynti ${kayntinumero} · jatkohoito`
-                  : `Käynti ${kayntinumero} / ${sarjanPituus}`)
-              : `Käynti ${kayntinumero}`}
+            Käynti {kayntinumero}
           </span>
         )}
       </div>
-
-      {/* Pala B6.5 — sarjan päätös / jatkohoito-huomautus */}
-      {sarjanPituus && kayntinumero != null && kayntinumero === sarjanPituus && (
-        <div style={{
-          background:    '#fef3c7',
-          border:        '1.5px solid #f59e0b',
-          borderRadius:  '12px',
-          padding:       '14px 18px',
-          fontSize:      '13px',
-          color:         '#78350f',
-          lineHeight:    1.5,
-        }}>
-          <strong style={{ color: '#92400e' }}>🎯 Tämä on {kayntinumero}/{sarjanPituus} käynti — sarjan päätös.</strong>
-          <p style={{ margin: '4px 0 0' }}>
-            Keskustele asiakkaan kanssa: jatketaanko ylläpitohoitoja, vai onko tämä päätös?
-          </p>
-        </div>
-      )}
-      {sarjanPituus && kayntinumero != null && kayntinumero > sarjanPituus && (
-        <div style={{
-          background:    '#fffbeb',
-          border:        '1.5px solid #fcd34d',
-          borderRadius:  '12px',
-          padding:       '12px 16px',
-          fontSize:      '13px',
-          color:         '#78350f',
-          lineHeight:    1.5,
-        }}>
-          💛 <strong>Sarja on päättynyt</strong> — tämä on ylläpitohoito (käynti #{kayntinumero}).
-        </div>
-      )}
 
       {/* Edellisen käynnin "Muista ensi kerralla" -nosto (B2) */}
       {edellisenMuista && (
@@ -547,6 +539,17 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
             maxLength={50}
             placeholder="esim. Niskakipu, alkuhoito"
             style={inputTyyli}
+          />
+        </div>
+
+        <div>
+          <label style={labelTyyli}>Alkutilanne</label>
+          <textarea
+            ref={lahtotilanneRef}
+            value={lahtotilanne}
+            onChange={(e) => setLahtotilanne(e.target.value)}
+            placeholder="Asiakkaan tilanne hoidon alkaessa…"
+            style={textareaTyyli}
           />
         </div>
 
@@ -630,17 +633,6 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
           />
         </div>
 
-        <div>
-          <label style={labelTyyli}>Lähtötilanne</label>
-          <textarea
-            ref={lahtotilanneRef}
-            value={lahtotilanne}
-            onChange={(e) => setLahtotilanne(e.target.value)}
-            placeholder="Asiakkaan tilanne hoidon alkaessa…"
-            style={textareaTyyli}
-          />
-        </div>
-
         {/* Muista ensi kerralla — korostettu reunus jotta erottuu */}
         <div>
           <label style={{ ...labelTyyli, color: '#92400e' }}>
@@ -675,7 +667,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
         />
       </div>
 
-      {/* Jatkohoitosuunnitelma — Pala B6.5 */}
+      {/* Jatkohoitosuunnitelma */}
       <div style={ryhmaTyyli}>
         <h3 style={ryhmaOtsikko}>Jatkohoitosuunnitelma</h3>
         <div>
@@ -687,9 +679,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, onValmis, onPeru 
             style={{ ...inputTyyli, maxWidth: '220px' }}
           />
           <p style={{ fontSize: '12px', color: '#6b7280', margin: '6px 0 0', lineHeight: 1.5 }}>
-            {sarjanPituus && kayntinumero != null && kayntinumero >= sarjanPituus
-              ? '📌 Sarja on päättynyt. Sovi ylläpitohoidon ajankohta tarpeen mukaan.'
-              : 'Kalevalaisessa jäsenkorjauksessa suositellaan viikon väliä käyntien välillä.'}
+            Suositus: 2–5 käyntiä viikon välein pidempikestoisille vaikutuksille.
           </p>
           {seuraavaKayntiPvm && (
             <button

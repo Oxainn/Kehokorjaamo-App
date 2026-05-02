@@ -4,15 +4,49 @@
 > Roadmap kertoo mitä tehdään, projektimuisti kertoo miksi.
 > Päivitä kun teet ison päätöksen.
 
-**Viimeisin päivitys:** 2026-05-01
+**Viimeisin päivitys:** 2026-05-02
+
+---
+
+## Ympäristöt — Live vs Kehitys (uutta 2026-05-02)
+
+Käyttöön otettu erillinen kehitys-ympäristö jotta Live-asiakasdataan ei vahingossa kosketa rakennettaessa.
+
+| | KEHOKORJAAMO (Live) | KEHOKORJAAMO Kehitys |
+|--|--|--|
+| Käyttötarkoitus | Asiakkaat | Testit/rakentaminen |
+| Git-haara | `main` | `kehitys` |
+| URL | kehokorjaamo-app.vercel.app | kehokorjaamo-kehitys.vercel.app |
+| Supabase-projekti | `Kehokorjaamo` (uwysictfbzswecnxvmif) | `Kehokorjaamo-Kehitys` (bnlxxymrutmdoksqoemz) |
+
+**Käytäntö jatkossa:**
+- Kaikki uudet työt menevät `kehitys`-haaraan + Kehitys-DB:hen
+- Live pysyy koskemattomana
+- "Siirrä Liveen" = `git merge kehitys → main` + tarvittaessa vastaava migraatio Live-DB:hen
+- "Pidä Testissä" = älä yhdistä Liveen vielä
+
+**Mihin kummassakin tehdään muutoksia:**
+
+| Toiminta | Live | Kehitys |
+|--|--|--|
+| Koodimuutokset | Vain kun siirretään valmis ominaisuus (PR/merge) | Aina ensin — `kehitys`-haaraan |
+| Schema-migraatiot | Vain mergen yhteydessä (yhtä aikaa koodin kanssa) | `supabase/migrations/`-kansiosta — testataan tässä ensin |
+| Testidata (testikäyttäjät, mock-asiakkaat) | EI KOSKAAN | Vapaasti — uusittavissa |
+| Asiakas-/hoitajadata | Tuotanto — älä koske | Vapaasti — vain testihoitaja + testiasiakkaita |
+| Tuotehallinta-merkinnät | Live-productboard (oikea changelog) | Ei tarvetta erikseen — pidetään yhtenä Live:ssä |
+| Ympäristömuuttujat (Vercel) | `kehokorjaamo-app`-projektissa | `kehokorjaamo-kehitys`-projektissa, eri Supabase-creds |
+
+**Hoitaja-spesifit alustustiedot Kehityksessä** (lomakepohjat, kenttäkirjasto, palvelut, itsehoito-kirjasto): luodaan käsin Supabase SQL Editorista skripteillä jotka löytyvät `supabase/migrations-kehitys/`-kansiosta. Skripteissä on placeholder `__OXAN_KEHITYS_HOITAJA_ID__` joka korvataan Oxan Kehitys-tilin UUID:llä ennen ajoa.
+
+**Miksi:** B-lomakkeen iterointi vaati testidataa Live-DB:ssä, mikä riskeerasi oikeiden asiakastietojen sotkeutumisen. Erillinen ympäristö ratkaisee tämän pysyvästi.
 
 ---
 
 ## Käytössä olevat työkalut
 
 - **Frontend:** React + Vite + Tailwind
-- **Hosting:** Vercel (kehokorjaamo-app.vercel.app)
-- **Database + Auth:** Supabase (PKCE-flow, projekti-ID `uwysictfbzswecnxvmif`)
+- **Hosting:** Vercel — Live: kehokorjaamo-app, Kehitys: kehokorjaamo-kehitys
+- **Database + Auth:** Supabase (PKCE-flow). Live: `uwysictfbzswecnxvmif`, Kehitys: `bnlxxymrutmdoksqoemz`
 - **Versionhallinta:** GitHub (`oxainn/Kehokorjaamo-App`)
 - **AI-koodaus:** Claude Code + Claude Chat (Claude Max -tilaus)
 - **Domain (nykyinen):** kehokorjaamo-app.vercel.app
@@ -101,6 +135,14 @@
 ---
 
 ## Tehdyt päätökset
+
+### 2026-05-02 — Versionhallinta-dashboard otettu käyttöön (D1–D5)
+
+**Päätös:** Asetuksiin uusi Versionhallinta-osio, joka näyttää Live + Kehitys -ympäristöjen tilan rinnakkain ja tarjoaa yhden klikkauksen "Siirrä Liveen" -toiminnon GitHub-mergen + audit-lokin kanssa. Mukana myös rollback (Vercelin Promote previous deployment) sekä 30s status-pollaus + hälytykset. Edge Functionit deployattu Kehitys-Supabaseen, koska Oxa on yleensä siellä kirjautuneena kun siirtää Liveen.
+
+**Miksi:** Käsin tehtynä julkaisu vaati monta vaihetta (git checkout main, git pull, git merge kehitys, git push, odota Vercel) eikä audit-lokia ollut. Yhden klikkauksen toiminto + 3-checkbox vahvistus + audit nopeuttaa ja vähentää virheitä. Live-puolelta toiminto piilotettu — dev-työkalu ei kuulu tuotantokäyttäjille.
+
+**Turvallisuus:** Vain admin (oxainn@gmail.com) saa suorittaa, kaikki vahvistukset pakollisia, audit-loki tallennetaan julkaisut-tauluun (Kehitys-DB).
 
 ### 2026-05-01 — Palvelu↔lomake-suhde 1:N (oli N:M)
 

@@ -1,7 +1,11 @@
 // Vaihe B Pala B3 — Linjausmittarit
 //
-// 15 vapaaehtoista mittaria jotka tallennetaan hoitokaynnit-tauluun
+// 9 vapaaehtoista mittaria jotka tallennetaan hoitokaynnit-tauluun
 // erillisinä numeric-sarakkeina. NULL = ei mitattu.
+//
+// 2026-05-02: poistettu UI:sta 6 mittaria (akillesjänteen kulma vasen/oikea,
+// niskan käännös vasen/oikea, skolioosin kierto, pään eteen työntyminen).
+// DB-sarakkeet säilytetään legacy-datan vuoksi — siivotaan myöhemmin.
 //
 // normaali-määritys voi olla:
 //   { arvo: 0 }              — yksi tarkka oletusarvo
@@ -47,15 +51,6 @@ export const MITTARIT = [
     normaali: { arvo: 0 },
   },
   {
-    sarake:   'paan_eteen_tyontyminen_cm',
-    nimi:     'Pään eteen työntyminen',
-    yksikko:  'cm',
-    min:      0,
-    max:      10,
-    step:     0.1,
-    normaali: { arvo: 0 },
-  },
-  {
     sarake:   'q_kulma_vasen_aste',
     nimi:     'Q-kulma vasen',
     yksikko:  '°',
@@ -72,33 +67,6 @@ export const MITTARIT = [
     max:      30,
     step:     0.5,
     normaali: { min: 14, max: 17 },
-  },
-  {
-    sarake:   'skolioosin_kierto_aste',
-    nimi:     'Skolioosin kierto',
-    yksikko:  '°',
-    min:      0,
-    max:      20,
-    step:     0.5,
-    normaali: { arvo: 0 },
-  },
-  {
-    sarake:   'niskan_kaannos_vasen_aste',
-    nimi:     'Niskan käännös vasen',
-    yksikko:  '°',
-    min:      0,
-    max:      90,
-    step:     1,
-    normaali: { min: 80, max: 90, kuvaus: '~80°' },
-  },
-  {
-    sarake:   'niskan_kaannos_oikea_aste',
-    nimi:     'Niskan käännös oikea',
-    yksikko:  '°',
-    min:      0,
-    max:      90,
-    step:     1,
-    normaali: { min: 80, max: 90, kuvaus: '~80°' },
   },
   {
     sarake:   'jalkapituus_ero_cm',
@@ -126,24 +94,6 @@ export const MITTARIT = [
     max:      20,
     step:     1,
     normaali: { max: 10, kuvaus: 'alle 10 mm' },
-  },
-  {
-    sarake:   'akillesjanteen_kulma_vasen_aste',
-    nimi:     'Akillesjänteen kulma vasen',
-    yksikko:  '°',
-    min:      -15,
-    max:       15,
-    step:      0.5,
-    normaali: { arvo: 0, kuvaus: '0 = suora' },
-  },
-  {
-    sarake:   'akillesjanteen_kulma_oikea_aste',
-    nimi:     'Akillesjänteen kulma oikea',
-    yksikko:  '°',
-    min:      -15,
-    max:       15,
-    step:      0.5,
-    normaali: { arvo: 0, kuvaus: '0 = suora' },
   },
 ]
 

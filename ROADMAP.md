@@ -4,7 +4,13 @@
 > Päivitä aina kun vaihe valmistuu tai suunnitelma muuttuu.
 > Kun aloitat uuden Claude-chatin, voit sanoa: *"Lue ROADMAP.md ja jatka vaiheesta X"*.
 
-**Viimeisin päivitys:** 2026-05-01 (myöhäisempi sessio — Vaihe A 🟢 + Vaihe B 🟢 valmis)
+**Viimeisin päivitys:** 2026-05-02 (Live + Kehitys -ympäristöt eroteltu, kehitys-haara käyttöön)
+
+## Ympäristöt
+
+- **KEHOKORJAAMO (Live)** = asiakkaat käyttävät — `main`-haara → kehokorjaamo-app.vercel.app → Supabase `Kehokorjaamo` (uwysictfbzswecnxvmif)
+- **KEHOKORJAAMO Kehitys** = uudet työt — `kehitys`-haara → kehokorjaamo-kehitys.vercel.app → Supabase `Kehokorjaamo-Kehitys` (bnlxxymrutmdoksqoemz)
+- "Siirrä Liveen" = `git merge kehitys → main` + tarvittaessa migraatio Live-DB:hen. "Pidä Testissä" = älä yhdistä.
 
 ---
 
@@ -99,7 +105,7 @@ Asiakkaat täyttävät lomakkeen sähköisesti — joko etukäteen kotona tai ho
 **Toteutuneet palat (B1–B9b):**
 
 - 🟢 **B1** — Hoitokirjaus-näkymän pohja: käynnin perustiedot, A/B-lomake-terminologia, automaattinen kytkentä A-lomakkeen suljettuun versioon (snapshot)
-- 🟢 **B2** — BodyMap-havainnot (8 anatomista aluetta), hoitoraportti (lähtötilanne, kulku, "Muista ensi kerralla"-nosto), edellisen käynnin Muista-nosto seuraavalle
+- 🟢 **B2** — BodyMap-havainnot (8 anatomista aluetta), hoitoraportti (alkutilanne, kulku, "Muista ensi kerralla"-nosto), edellisen käynnin Muista-nosto seuraavalle
 - 🟢 **B3** — 15 linjausmittaria liukusäätimillä (lantion kulmat, Q-kulmat, niskan käännökset, navicular drop, akillesjänne)
 - 🟢 **B4** — Mittausarvojen vertailu edelliseen + parannus/heikennys-tulkinta (delta + tavoite-etäisyys)
 - 🟢 **B5** — Itsehoito-kirjasto editorinäkymä Asetuksiin (kohdealueet, toistot, frekvenssi, varoitukset)

@@ -2,11 +2,19 @@ import { supabase } from '../services/supabase'
 
 export default function Login() {
   const kirjauduGooglella = async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin },
-    })
-    if (error) console.error(error)
+    /* eslint-disable no-console */
+    console.log('[login debug] signInWithOAuth aloitetaan, redirectTo:', window.location.origin)
+    try {
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin },
+      })
+      console.log('[login debug] signInWithOAuth tulos:', { data, error })
+      if (error) console.error('[login debug] signInWithOAuth error:', error.name, error.message, error)
+    } catch (e) {
+      console.error('[login debug] signInWithOAuth heitti:', e.name, e.message, e.stack)
+    }
+    /* eslint-enable no-console */
   }
 
   return (

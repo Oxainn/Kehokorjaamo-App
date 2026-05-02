@@ -26,7 +26,6 @@ function PalveluModaali({ palvelu, onTallennettu, onSulje }) {
   const [kestoMin,     setKestoMin]     = useState(palvelu?.kesto_min          ?? '')
   const [hintaEur,     setHintaEur]     = useState(palvelu?.hinta_eur          ?? '')
   const [varauslinkki, setVarauslinkki] = useState(palvelu?.varauslinkki_url   ?? '')
-  const [sarjaPit,     setSarjaPit]     = useState(palvelu?.hoitosarjan_pituus ?? '')
   const [tallentaa,    setTallentaa]    = useState(false)
   const [virhe,        setVirhe]        = useState(null)
 
@@ -38,12 +37,11 @@ function PalveluModaali({ palvelu, onTallennettu, onSulje }) {
     setVirhe(null)
     try {
       const arvot = {
-        nimi:               nimi.trim(),
-        kuvaus:             kuvaus.trim() || null,
-        kesto_min:          kestoMin === '' ? null : Number(kestoMin),
-        hinta_eur:          hintaEur === '' ? null : Number(hintaEur),
-        varauslinkki_url:   varauslinkki.trim() || null,
-        hoitosarjan_pituus: sarjaPit === '' ? null : Number(sarjaPit),
+        nimi:             nimi.trim(),
+        kuvaus:           kuvaus.trim() || null,
+        kesto_min:        kestoMin === '' ? null : Number(kestoMin),
+        hinta_eur:        hintaEur === '' ? null : Number(hintaEur),
+        varauslinkki_url: varauslinkki.trim() || null,
       }
       const tulos = onUusi
         ? await luoPalvelu(arvot)
@@ -134,23 +132,6 @@ function PalveluModaali({ palvelu, onTallennettu, onSulje }) {
             />
             <p className="text-xs text-gray-500">
               Avataan uudessa välilehdessä julkisen lomakkeen lähetyksen jälkeen.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className={labelLuokka}>Hoitosarjan pituus (käyntien lukumäärä)</label>
-            <input
-              type="number"
-              value={sarjaPit}
-              onChange={(e) => setSarjaPit(e.target.value)}
-              placeholder="esim. 3"
-              min="1"
-              max="50"
-              className={inputLuokka}
-              style={{ maxWidth: '160px' }}
-            />
-            <p className="text-xs text-gray-500">
-              Hoitokirjauksen "Käynti N/M" -laskuriin. Jätä tyhjäksi jos palvelu ei käytä sarja-logiikkaa.
             </p>
           </div>
 

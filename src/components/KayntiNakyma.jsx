@@ -14,7 +14,6 @@ import {
   haeHavainnot,
   haeEdellisetMittarit,
   haeKayntienPaivamaarat,
-  haeHoitosarjanPituus,
 } from '../lib/db'
 import { muotoilePvm, muotoilePvmAika } from '../lib/muotoilu'
 
@@ -137,16 +136,15 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
       // Pala B6 + B7: hae käyntiin liitetyt itsehoito-valinnat ja
       // B-lomakkeen täydet tiedot (havainnot, mittarit, hoitoraportti).
       const hoitokayntiId = await haeHoitokayntiVersionPerusteella(lomakeVersioId)
-      const [itsehoitoValinnat, hoitokaynti, havainnot, edellisetMittarit, historia, sarjanPituus] = hoitokayntiId
+      const [itsehoitoValinnat, hoitokaynti, havainnot, edellisetMittarit, historia] = hoitokayntiId
         ? await Promise.all([
             haeKaynninItsehoito(hoitokayntiId),
             haeHoitokaynti(hoitokayntiId),
             haeHavainnot(hoitokayntiId),
             haeEdellisetMittarit(asiakas?.id, hoitokayntiId),
             haeKayntienPaivamaarat(asiakas?.id),
-            haeHoitosarjanPituus(),
           ])
-        : [[], null, [], null, [], null]
+        : [[], null, [], null, []]
       // Tämän käynnin kayntinumero — etsi historian listalta version id:llä
       const kayntinumero = (historia ?? []).find((h) => h.id === lomakeVersioId)?.kayntinumero ?? null
       await tulostaKaynti({
@@ -158,7 +156,6 @@ export default function KayntiNakyma({ lomakeVersioId, asiakas, onSulje }) {
         edellisetMittarit,
         itsehoitoValinnat,
         kayntinumero,
-        sarjanPituus,
       })
     } catch (e) {
       console.error('PDF-tulostus epäonnistui:', e)

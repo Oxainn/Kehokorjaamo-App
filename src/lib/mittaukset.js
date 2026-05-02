@@ -14,17 +14,11 @@ const TAVOITE = {
   lantion_sivuttainen_aste:         { tyyppi: 'arvo',    arvo: 0 },
   lantion_kierto_aste:              { tyyppi: 'arvo',    arvo: 0 },
   olkapaiden_korkeusero_cm:         { tyyppi: 'arvo',    arvo: 0 },
-  paan_eteen_tyontyminen_cm:        { tyyppi: 'arvo',    arvo: 0 },
   q_kulma_vasen_aste:               { tyyppi: 'alue',    min: 14, max: 17 },
   q_kulma_oikea_aste:               { tyyppi: 'alue',    min: 14, max: 17 },
-  skolioosin_kierto_aste:           { tyyppi: 'arvo',    arvo: 0 },
-  niskan_kaannos_vasen_aste:        { tyyppi: 'maksimi', tavoite: 80 },
-  niskan_kaannos_oikea_aste:        { tyyppi: 'maksimi', tavoite: 80 },
   jalkapituus_ero_cm:               { tyyppi: 'arvo',    arvo: 0 },
   navicular_drop_vasen_mm:          { tyyppi: 'minimi',  tavoite: 0 },
   navicular_drop_oikea_mm:          { tyyppi: 'minimi',  tavoite: 0 },
-  akillesjanteen_kulma_vasen_aste:  { tyyppi: 'arvo',    arvo: 0 },
-  akillesjanteen_kulma_oikea_aste:  { tyyppi: 'arvo',    arvo: 0 },
 }
 
 function tavoiteEtaisyys(sarake, arvo) {

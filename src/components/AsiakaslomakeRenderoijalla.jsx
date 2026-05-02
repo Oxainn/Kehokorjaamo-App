@@ -16,8 +16,6 @@ import {
   haeKayntienPaivamaarat,
   haeLomakeversio,
   haeAsiakkaanKontraindikaatiot,
-  haeAsiakkaanKayntienMaara,
-  haeHoitosarjanPituus,
   haeHoitokayntiVersionPerusteella,
   haeHoitokaynti,
   haeHavainnot,
@@ -99,19 +97,6 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
     return () => { peruttu = true }
   }, [asiakasId])
 
-  // Pala B6.5: sarjan etenemis-indikaattori "Sarja: N/M hoitokertaa tehty"
-  const [sarjaTila, setSarjaTila] = useState({ tehty: 0, pituus: null })
-  useEffect(() => {
-    if (!asiakasId) { setSarjaTila({ tehty: 0, pituus: null }); return }
-    let peruttu = false
-    Promise.all([
-      haeAsiakkaanKayntienMaara(asiakasId),
-      haeHoitosarjanPituus(),
-    ]).then(([tehty, pituus]) => {
-      if (!peruttu) setSarjaTila({ tehty, pituus })
-    })
-    return () => { peruttu = true }
-  }, [asiakasId])
   useEffect(() => {
     if (!asiakasId) {
       setVastaukset({})
@@ -179,10 +164,9 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
       const { tulostaTietopaketti } = await import('../lib/pdf')
       // Hae KAIKKI asiakkaan käynnit — voimassa olevat + suljetut.
       // Käytetään kahta erillistä kyselyä: nykyinen + historia.
-      const [nykyinenTulos, historia, sarjanPituus] = await Promise.all([
+      const [nykyinenTulos, historia] = await Promise.all([
         haeAsiakkaanViimeisinLomake(asiakas.id),
         haeKayntienPaivamaarat(asiakas.id),
-        haeHoitosarjanPituus(),
       ])
       const kaikkiVersiot = []
       if (nykyinenTulos?.versio) {
@@ -236,11 +220,9 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
           // Pala B7 — kerää edellisen käynnin mittariarvot { sarake: arvo }
           const mittariSarakkeet = [
             'lantion_kallistus_aste','lantion_sivuttainen_aste','lantion_kierto_aste',
-            'olkapaiden_korkeusero_cm','paan_eteen_tyontyminen_cm',
-            'q_kulma_vasen_aste','q_kulma_oikea_aste','skolioosin_kierto_aste',
-            'niskan_kaannos_vasen_aste','niskan_kaannos_oikea_aste',
+            'olkapaiden_korkeusero_cm',
+            'q_kulma_vasen_aste','q_kulma_oikea_aste',
             'jalkapituus_ero_cm','navicular_drop_vasen_mm','navicular_drop_oikea_mm',
-            'akillesjanteen_kulma_vasen_aste','akillesjanteen_kulma_oikea_aste',
           ]
           const edellMitt = {}
           for (const s of mittariSarakkeet) edellMitt[s] = edell[s] ?? null
@@ -255,7 +237,7 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
         }
       }
 
-      await tulostaTietopaketti({ asiakas, kaynnit: kaikkiVersiot, sarjanPituus })
+      await tulostaTietopaketti({ asiakas, kaynnit: kaikkiVersiot })
     } catch (e) {
       console.error('Tietopaketin luonti epäonnistui:', e)
       alert('Tietopaketin luonti epäonnistui: ' + (e.message ?? 'tuntematon virhe'))
@@ -286,31 +268,6 @@ export default function AsiakaslomakeRenderoijalla({ asiakas = null, onValmis = 
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Pala B6.5 — sarjan etenemis-indikaattori asiakaskortin yläosassa */}
-      {sarjaTila.tehty > 0 && (
-        <div style={{
-          background:    sarjaTila.pituus && sarjaTila.tehty >= sarjaTila.pituus ? '#fffbeb' : '#f0fdf4',
-          border:        sarjaTila.pituus && sarjaTila.tehty >= sarjaTila.pituus ? '1px solid #fcd34d' : '1px solid #bbf7d0',
-          borderRadius:  '10px',
-          padding:       '8px 14px',
-          fontSize:      '13px',
-          color:         '#374151',
-          display:       'flex',
-          alignItems:    'center',
-          gap:           '6px',
-        }}>
-          <span>📊</span>
-          <span>
-            <strong>Sarja:</strong>{' '}
-            {sarjaTila.pituus
-              ? (sarjaTila.tehty > sarjaTila.pituus
-                  ? `${sarjaTila.pituus}/${sarjaTila.pituus} sarja päättynyt + ${sarjaTila.tehty - sarjaTila.pituus} ylläpitokäyntiä`
-                  : `${sarjaTila.tehty}/${sarjaTila.pituus} hoitokertaa tehty`)
-              : `${sarjaTila.tehty} hoitokerta${sarjaTila.tehty === 1 ? '' : 'a'} tehty`}
-          </span>
-        </div>
-      )}
-
       {/* Pala B2 — kontraindikaatio-varoitus yläosassa, punaisella jos asiakkaalla
           on rastittu yksi tai useampi sairaus jolla on kontraindikaatio=true. */}
       {kontraindikaatiot.length > 0 && (
