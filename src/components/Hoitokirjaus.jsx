@@ -137,10 +137,8 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
   // VB2 — optimistinen lukko. ladattuVersio = käyntirivin versio kun
   // hoitokirjaus avattiin. Tallennushetkellä lähetetään tämä mukaan;
   // jos DB:n versio on suurempi (toinen välilehti tallentanut), saadaan
-  // ristiriitailmoitus. likainen = käyttäjä on muokannut, ei vielä
-  // tallentanut → beforeunload-varoitus.
+  // ristiriitailmoitus.
   const [ladattuVersio, setLadattuVersio] = useState(null)
-  const [likainen,      setLikainen]      = useState(false)
   // Pala B9b — selain raportoi onko verkkoa
   const online = useOnline()
 
@@ -242,26 +240,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
   // BodyMap kutsuu tämän jokaisesta löydösten muutoksesta
   const onHavainnotMuutos = useCallback((findings) => {
     setHavainnot(findings)
-    setLikainen(true)
   }, [])
-
-  // VB2 — merkitse "likainen" kun mikä tahansa kenttä muuttuu (ohitetaan
-  // alkulataus). Käytetään beforeunload-varoitukseen.
-  useEffect(() => {
-    if (lataa) return
-    setLikainen(true)
-  }, [otsikko, mitaHoidettiin, hoitajanKommentit, kesto, lahtotilanne, muistaEnsiKerralla, mittarit, itsehoito, seuraavaKayntiPvm])
-
-  // VB2 — varoita ikkunan suljessa jos tallentamattomia muutoksia
-  useEffect(() => {
-    if (!likainen) return
-    const handler = (e) => {
-      e.preventDefault()
-      e.returnValue = ''  // selaimen oma generic-viesti
-    }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [likainen])
 
   async function tallenna() {
     setTila('tallentaa')
@@ -361,13 +340,11 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
     const kaikkiTehty = Object.values(uusiTila).every((s) => s === 'tehty')
 
     if (kaikkiTehty) {
-      setLikainen(false)  // VB2: poista beforeunload-varoitus
       setTila('onnistui')
       setTimeout(onValmis, 1500)
       return
     }
     if (jonossa && !epaonnistui) {
-      setLikainen(false)  // VB2: jonossa = tallennus selaimelle, ei dirty
       setTila('jonossa')
       setTimeout(onValmis, 1800)
       return
@@ -422,7 +399,6 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
     setMittarit(tyhjatMittarit)
     setItsehoito([])
     setSeuraavaKayntiPvm('')
-    setLikainen(true)
   }
 
   return (
