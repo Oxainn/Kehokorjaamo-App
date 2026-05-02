@@ -1724,3 +1724,18 @@ export const poistaAsentokuva = async (kuvaId) => {
   if (error) return { virhe: error.message }
   return { virhe: null }
 }
+
+// KA2 — päivitä yksittäisen asentokuvan keypointit (pose-detectionin tulos).
+// keypointit-jsonb: [{ name, x, y, score }]
+export const paivitaAsentokuvanKeypointit = async (kuvaId, keypointit) => {
+  if (!kuvaId) return { virhe: 'Kuva-id puuttuu' }
+  const { error } = await supabase
+    .from('asentokuvat')
+    .update({ keypointit })
+    .eq('id', kuvaId)
+  if (error) {
+    console.error('Keypointtien tallennus epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { virhe: null }
+}
