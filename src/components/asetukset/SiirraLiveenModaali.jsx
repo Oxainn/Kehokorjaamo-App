@@ -40,26 +40,33 @@ const modaaliTyyli = {
 }
 
 export default function SiirraLiveenModaali({ erot, onSulje, onValmis }) {
-  const [testattu,    setTestattu]    = useState(false)
-  const [eiHoitoa,    setEiHoitoa]    = useState(false)
-  const [migraatiot,  setMigraatiot]  = useState(false)
-  const [tila,        setTila]        = useState('idle')  // idle | lahetetaan | onnistui | virhe
-  const [virhe,       setVirhe]       = useState(null)
-  const [tulos,       setTulos]       = useState(null)
+  const [testattu,        setTestattu]        = useState(false)
+  const [eiHoitoa,        setEiHoitoa]        = useState(false)
+  const [migraatiotOk,    setMigraatiotOk]    = useState(false)
+  const [tila,            setTila]            = useState('idle')  // idle | lahetetaan | onnistui | virhe
+  const [virhe,           setVirhe]           = useState(null)
+  const [tulos,           setTulos]           = useState(null)
 
-  const kaikkiVahvistettu = testattu && eiHoitoa && migraatiot
+  const kaikkiVahvistettu = testattu && eiHoitoa && migraatiotOk
   const eroaKpl = erot?.length ?? 0
 
   async function julkaise() {
     setTila('lahetetaan')
     setVirhe(null)
     try {
-      const { data, error } = await supabase.functions.invoke('siirra-liveen', {
-        body: {
-          vahvistukset: { testattu, ei_hoitoa: eiHoitoa, migraatiot_ok: migraatiot },
-          migraatiot_ajettu_kasin: migraatiot,
+      // Edge Function vaatii sekä vahvistukset.migraatiot_ok että erillisen
+      // migraatiot_ajettu_kasin-lipun. Käyttäjälle nämä ovat sama asia
+      // (kolmas checkbox), joten asetetaan molemmat samaan boolean-arvoon.
+      // Ilman tätä yhdistämistä Edge Function palauttaa 400:n.
+      const body = {
+        vahvistukset: {
+          testattu,
+          ei_hoitoa:     eiHoitoa,
+          migraatiot_ok: migraatiotOk,
         },
-      })
+        migraatiot_ajettu_kasin: migraatiotOk,
+      }
+      const { data, error } = await supabase.functions.invoke('siirra-liveen', { body })
       if (error) {
         setVirhe(`Edge Function-virhe: ${error.message ?? error}`)
         setTila('virhe')
@@ -150,8 +157,8 @@ export default function SiirraLiveenModaali({ erot, onSulje, onValmis }) {
             label="Olen varma ettei minulla ole hoitokertaa menossa nyt"
           />
           <Checkbox
-            checked={migraatiot}
-            onChange={setMigraatiot}
+            checked={migraatiotOk}
+            onChange={setMigraatiotOk}
             disabled={lukittu}
             label="Olen tarkistanut migraatiot ja ajanut ne käsin (tai niitä ei ole)"
           />
