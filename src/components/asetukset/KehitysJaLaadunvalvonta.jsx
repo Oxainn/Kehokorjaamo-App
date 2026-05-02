@@ -176,10 +176,25 @@ export default function KehitysJaLaadunvalvonta({ hoitajaId }) {
       .eq('hoitaja_id', hoitajaId)
       .maybeSingle()
     if (error) { setVirhe(error.message); return }
+    // Defensiivinen normalisointi: vanhoilla todo-riveillä ei välttämättä ole
+    // status-kenttää (legacy-data ennen status-flow:ta). Ilman status-kenttää
+    // merkitseValmiiksi-toiminto tuntuu hiljaiselta käyttäjälle koska "valmis"-
+    // suodatin (status === 'done') on jo aina true:lle ennen klikkausta. Aseta
+    // puuttuvat kentät että toiminnot toimivat luotettavasti.
+    const normalisoiTodo = (t, i) => ({
+      id:           t.id ?? `todo-legacy-${i}`,
+      teksti:       t.teksti ?? '',
+      kuvaus:       t.kuvaus ?? '',
+      status:       t.status ?? 'todo',
+      prioriteetti: t.prioriteetti ?? 'keski',
+      vaikutus:     t.vaikutus ?? 'paikallinen',
+      lisätty:      t.lisätty ?? new Date().toISOString(),
+      ...(t.valmistunut ? { valmistunut: t.valmistunut } : {}),
+    })
     setPb({
       visio:     data?.visio ?? '',
       ideat:     data?.ideat ?? [],
-      todo:      data?.todo ?? [],
+      todo:      (data?.todo ?? []).map(normalisoiTodo),
       changelog: data?.changelog ?? [],
     })
   }, [hoitajaId])
@@ -995,8 +1010,8 @@ function TodoPaneeli({ pb, pbHetiTallennus }) {
             return (
               <li key={t.id} style={{
                 display:      'grid',
-                gridTemplateColumns: '12px 1fr auto',
-                gap:          '10px',
+                gridTemplateColumns: '12px 1fr auto auto',
+                gap:          '8px',
                 alignItems:   'center',
                 fontSize:     '13px',
                 padding:      '8px 12px',
@@ -1019,12 +1034,26 @@ function TodoPaneeli({ pb, pbHetiTallennus }) {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setValittu(t)}
+                  title="Esikatsele kuvaus"
+                  style={{
+                    width: '32px', height: '32px', borderRadius: '50%',
+                    border: '1px solid #e5e7eb', background: 'white',
+                    color: '#6b7280', cursor: 'pointer', fontSize: '14px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  👀
+                </button>
+                <button
+                  type="button"
                   onClick={() => merkitseValmiiksi(t.id)}
                   title="Merkitse valmiiksi"
                   style={{
-                    width: '28px', height: '28px', borderRadius: '50%',
+                    width: '32px', height: '32px', borderRadius: '50%',
                     border: `1px solid ${p.vari}`, background: 'white',
                     color: p.vari, cursor: 'pointer', fontSize: '14px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}
                 >
                   ✓
