@@ -149,7 +149,7 @@ function VarausKortti({ label, name, value, onChange, placeholder, ohje }) {
   )
 }
 
-export default function Settings({ hoitajaId }) {
+export default function Settings({ hoitajaId, isAdmin = false }) {
   const [aukiOsio, setAukiOsio] = useState(null)
   const toggle = (id) => setAukiOsio(prev => prev === id ? null : id)
   const [devInput, setDevInput]   = useState('')
@@ -821,10 +821,12 @@ export default function Settings({ hoitajaId }) {
         <p style={{ fontSize: '11px', fontWeight: '700', color: '#0C447C', textTransform: 'uppercase', letterSpacing: '0.1em', margin: 0 }}>Ohjelmahallinta</p>
       </div>
 
-      {/* Versionhallinta on dev-työkalu — näkyy vain Kehitys + Local ympäristöissä.
-          Live-puolelta piilotettu kokonaan jotta tuotantokäyttäjät eivät näe
-          tätä eivätkä pääse kutsumaan Edge Functioneita käsin. */}
-      {tunnistaYmparisto() !== YMPARISTO.LIVE && (
+      {/* Versionhallinta on admin-rajattu dev-työkalu:
+          1) ei-Live-ympäristö (Kehitys / Local) — Live-puolen tuotantokäyttäjät
+             eivät näe tätä eivätkä pääse kutsumaan Edge Functioneita.
+          2) admin-käyttäjä (Oxa) — laajempaa hoitajakuntaa varten myöhemmin
+             tämä laajennetaan rooli-pohjaiseksi tarkistukseksi. */}
+      {tunnistaYmparisto() !== YMPARISTO.LIVE && isAdmin && (
         <AccordionOsio
           id="versionhallinta" otsikko="Versionhallinta" ikoni="🚀"
           auki={aukiOsio === 'versionhallinta'} onToggle={toggle}

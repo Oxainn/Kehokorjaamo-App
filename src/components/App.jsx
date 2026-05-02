@@ -110,6 +110,9 @@ export default function App() {
   }, [])
 
   const hoitajaId = kayttaja?.id
+  // Admin-rajaus dev-työkaluille (ympäristö-kytkin, Versionhallinta).
+  // Vaihe C asiakasportaalin yhteydessä laajennetaan hoitaja-rooliin.
+  const isAdmin = kayttaja?.email === 'oxainn@gmail.com'
 
   // Avain joka pakottaa AsiakaslomakeRenderoijalla:n uudelleenrenderöinnin
   // (esitäytön uudelleenladauksen) kun "Uusi käynti" suljetaan ja avataan.
@@ -369,8 +372,9 @@ export default function App() {
                   >
                     {teksti}
                   </span>
-                  {/* B) Siirtymiskytkin — avaa vastapari uudessa välilehdessä */}
-                  {vp && (
+                  {/* B) Siirtymiskytkin — vain admin-käyttäjälle. Avaa
+                       vastapari-ympäristön uudessa välilehdessä. */}
+                  {vp && isAdmin && (
                     <a
                       href={vp.url}
                       target="_blank"
@@ -738,7 +742,7 @@ export default function App() {
 
         {/* ASETUKSET */}
         {nakyma === 'asetukset' && (
-          <Settings hoitajaId={hoitajaId} />
+          <Settings hoitajaId={hoitajaId} isAdmin={isAdmin} />
         )}
 
       </main>
