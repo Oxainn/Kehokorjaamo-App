@@ -20,9 +20,13 @@ import {
   tallennaAsentokuva,
   poistaAsentokuva,
   paivitaAsentokuvanKeypointit,
+  paivitaKeypointitJaKulmat,
 } from '../lib/db'
 import {
   tunnistaKeypointit,
+  laskeKulmat,
+  formatoiKulma,
+  KULMA_SELITTEET,
   SKELETTI_LINJAT,
   CONFIDENCE_RAJA,
   CONFIDENCE_VARIT,
@@ -84,7 +88,7 @@ async function pakkaaKuva(file) {
   return canvas.toDataURL('image/jpeg', JPEG_LAATU)
 }
 
-export default function AsentoKuvat({ hoitokayntiId, asiakasId }) {
+export default function AsentoKuvat({ hoitokayntiId, asiakasId, asiakasPituusCm }) {
   const [kuvat, setKuvat] = useState({})  // { edesta: {id, kuva_data, keypointit, ...}, ... }
   const [lataus, setLataus] = useState(null)  // nakokulma jolle juuri pakataan
   const [analyysi, setAnalyysi] = useState({})  // { edesta: 'analyysi'|'valmis'|'virhe', ... }
@@ -99,8 +103,23 @@ export default function AsentoKuvat({ hoitokayntiId, asiakasId }) {
       const kartalle = {}
       const tilat = {}
       for (const r of rivit) {
-        kartalle[r.nakokulma] = r
-        if (r.keypointit) tilat[r.nakokulma] = 'valmis'
+        // KA4: keypointit voi olla joko flat array (legacy/AI-only) tai
+        // { ai, nykyiset } -objekti (manuaalisesti korjattu)
+        const raw = r.keypointit
+        let ai = null, nykyiset = null
+        if (Array.isArray(raw)) {
+          ai = raw
+          nykyiset = raw
+        } else if (raw && typeof raw === 'object') {
+          ai = raw.ai ?? raw.nykyiset ?? null
+          nykyiset = raw.nykyiset ?? raw.ai ?? null
+        }
+        kartalle[r.nakokulma] = {
+          ...r,
+          keypointit:    nykyiset,
+          ai_keypointit: ai,
+        }
+        if (nykyiset) tilat[r.nakokulma] = 'valmis'
       }
       setKuvat(kartalle)
       setAnalyysi(tilat)
@@ -147,7 +166,9 @@ export default function AsentoKuvat({ hoitokayntiId, asiakasId }) {
         }))
         return
       }
-      const dbTulos = await paivitaAsentokuvanKeypointit(kuvaId, tulos.keypointit)
+      // KA3: laske kulmat samalla — tallennetaan keypointit + kulmat yhdessä
+      const kulmat = laskeKulmat(tulos.keypointit, nakokulma, asiakasPituusCm)
+      const dbTulos = await paivitaKeypointitJaKulmat(kuvaId, tulos.keypointit, kulmat)
       if (dbTulos.virhe) {
         setAnalyysi((prev) => ({ ...prev, [nakokulma]: 'virhe' }))
         return
@@ -157,6 +178,8 @@ export default function AsentoKuvat({ hoitokayntiId, asiakasId }) {
         [nakokulma]: {
           ...prev[nakokulma],
           keypointit:    tulos.keypointit,
+          ai_keypointit: tulos.keypointit,  // KA4: alkuperäiset reset-nappia varten
+          kulmat,
           hyvienMaara:   tulos.hyvienMaara,
           kokonaisMaara: tulos.kokonaisMaara,
           kuvaLeveys:    tulos.kuvaLeveys,
@@ -245,9 +268,25 @@ export default function AsentoKuvat({ hoitokayntiId, asiakasId }) {
           nakokulma={NAKOKULMAT.find((n) => n.id === valittu)}
           kuva={kuvat[valittu]}
           tila={analyysi[valittu]}
+          asiakasPituusCm={asiakasPituusCm}
           onSulje={() => setValittu(null)}
           onPoista={() => poista(valittu)}
           onVaihda={(file) => { setValittu(null); kasittelyTiedosto(file, valittu) }}
+          onPaivitaKeypointit={async (uudetKp, alkuperaiset) => {
+            // KA4: manuaalisen korjauksen tallennus
+            const kulmat = laskeKulmat(uudetKp, valittu, asiakasPituusCm)
+            const merged = { ai: alkuperaiset, nykyiset: uudetKp }
+            await paivitaKeypointitJaKulmat(kuvat[valittu].id, merged, kulmat)
+            setKuvat((prev) => ({
+              ...prev,
+              [valittu]: {
+                ...prev[valittu],
+                keypointit:     uudetKp,
+                ai_keypointit:  alkuperaiset,
+                kulmat,
+              },
+            }))
+          }}
         />
       )}
     </div>
@@ -419,11 +458,33 @@ function piirraLuuranko(canvas, img, keypointit) {
   }
 }
 
-function SuurennusModaali({ nakokulma, kuva, tila, onSulje, onPoista, onVaihda }) {
+function SuurennusModaali({
+  nakokulma, kuva, tila, asiakasPituusCm,
+  onSulje, onPoista, onVaihda, onPaivitaKeypointit,
+}) {
   const inputRef = useRef(null)
   const imgRef = useRef(null)
   const canvasRef = useRef(null)
   const [naytaLuuranko, setNaytaLuuranko] = useState(true)
+
+  // KA4: paikallinen keypoint-tila raahausta varten. Synkronoidaan
+  // kuva.keypointit-propsista, mutta drag-vaiheessa muutetaan paikallisesti
+  // ennen DB-tallennusta (drag-release).
+  const [paikallisetKp, setPaikallisetKp] = useState(kuva.keypointit ?? null)
+  const [draggedIdx, setDraggedIdx] = useState(null)
+
+  // Synkronoi kun pop-uppia vaihdetaan tai keypointit päivittyvät ulkopuolelta
+  useEffect(() => {
+    setPaikallisetKp(kuva.keypointit ?? null)
+  }, [kuva.keypointit])
+
+  const aiKp = kuva.ai_keypointit
+  // Onko muokattu? Vertaa nykyinen vs alkuperäinen
+  const muokattu = !!(aiKp && paikallisetKp && aiKp !== paikallisetKp &&
+    paikallisetKp.some((p, i) => {
+      const a = aiKp[i]
+      return !a || Math.abs(p.x - a.x) > 0.5 || Math.abs(p.y - a.y) > 0.5
+    }))
 
   function valitse(e) {
     const file = e.target.files?.[0]
@@ -431,30 +492,134 @@ function SuurennusModaali({ nakokulma, kuva, tila, onSulje, onPoista, onVaihda }
     e.target.value = ''
   }
 
-  // Piirrä luuranko kun kuva on ladattu tai keypointit muuttuvat
+  // Piirrä luuranko kun kuva ladattu / keypointit muuttuvat
   useEffect(() => {
-    if (!naytaLuuranko) {
-      const c = canvasRef.current
-      if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height)
-      return
-    }
     const img = imgRef.current
-    if (!img || !kuva.keypointit) return
-    const piirra = () => piirraLuuranko(canvasRef.current, img, kuva.keypointit)
+    if (!img) return
+    const piirra = () => {
+      const c = canvasRef.current
+      if (!c) return
+      if (!naytaLuuranko || !paikallisetKp) {
+        c.getContext('2d').clearRect(0, 0, c.width, c.height)
+        // Mutta canvasin koko pitää silti vastata kuvan kokoa hit-testin takia
+        const rect = img.getBoundingClientRect()
+        c.width = rect.width
+        c.height = rect.height
+        c.style.width = `${rect.width}px`
+        c.style.height = `${rect.height}px`
+        return
+      }
+      piirraLuuranko(c, img, paikallisetKp)
+    }
     if (img.complete && img.naturalWidth > 0) {
       piirra()
     } else {
       img.addEventListener('load', piirra, { once: true })
     }
-    // Resize-handler — canvasin pitää seurata kuvan kokoa
     const ro = new ResizeObserver(piirra)
     ro.observe(img)
     return () => ro.disconnect()
-  }, [kuva.keypointit, naytaLuuranko])
+  }, [paikallisetKp, naytaLuuranko])
 
-  const onKeypointit = !!kuva.keypointit
-  const hyvat = kuva.hyvienMaara ?? (kuva.keypointit ?? []).filter((p) => p.score >= CONFIDENCE_RAJA).length
-  const yht   = kuva.kokonaisMaara ?? (kuva.keypointit ?? []).length
+  // Hit-test: löydä lähin keypoint canvas-koordinaatissa, ottaen huomioon
+  // skaalauksen alkuperäisestä kuvakoosta canvasin näytökokoon.
+  function loydaKeypoint(canvasX, canvasY) {
+    if (!paikallisetKp || !imgRef.current) return -1
+    const img = imgRef.current
+    const sx = canvasRef.current.width / img.naturalWidth
+    const sy = canvasRef.current.height / img.naturalHeight
+    let parasIdx = -1
+    let parasEt  = Infinity
+    const KYNNYS = 18  // pikseleitä canvasilla
+    for (let i = 0; i < paikallisetKp.length; i++) {
+      const kp = paikallisetKp[i]
+      const dx = kp.x * sx - canvasX
+      const dy = kp.y * sy - canvasY
+      const et = Math.sqrt(dx * dx + dy * dy)
+      if (et < KYNNYS && et < parasEt) {
+        parasEt = et
+        parasIdx = i
+      }
+    }
+    return parasIdx
+  }
+
+  function canvasXY(e) {
+    const c = canvasRef.current
+    if (!c) return null
+    const rect = c.getBoundingClientRect()
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+  }
+
+  function onPointerDown(e) {
+    if (!paikallisetKp || !onPaivitaKeypointit) return
+    const xy = canvasXY(e)
+    if (!xy) return
+    const idx = loydaKeypoint(xy.x, xy.y)
+    if (idx < 0) return
+    e.preventDefault()
+    canvasRef.current.setPointerCapture(e.pointerId)
+    setDraggedIdx(idx)
+  }
+
+  function onPointerMove(e) {
+    if (draggedIdx == null) return
+    const c = canvasRef.current
+    const img = imgRef.current
+    if (!c || !img) return
+    const rect = c.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    // Rajaa canvasin sisälle
+    const cx = Math.max(0, Math.min(rect.width, x))
+    const cy = Math.max(0, Math.min(rect.height, y))
+    const sx = c.width / img.naturalWidth
+    const sy = c.height / img.naturalHeight
+    setPaikallisetKp((prev) => {
+      const u = prev.slice()
+      u[draggedIdx] = {
+        ...u[draggedIdx],
+        x: cx / sx,
+        y: cy / sy,
+        score: 1.0,  // manuaalisesti asetettu = täysi varmuus
+      }
+      return u
+    })
+  }
+
+  async function onPointerUp(e) {
+    if (draggedIdx == null) return
+    canvasRef.current?.releasePointerCapture(e.pointerId)
+    setDraggedIdx(null)
+    if (paikallisetKp && onPaivitaKeypointit) {
+      // Tallenna DB:hen ja päivitä parent-state. ai_keypointit pysyy alkup.
+      onPaivitaKeypointit(paikallisetKp, aiKp ?? paikallisetKp)
+    }
+  }
+
+  function reset() {
+    if (!aiKp) return
+    setPaikallisetKp(aiKp)
+    if (onPaivitaKeypointit) onPaivitaKeypointit(aiKp.slice(), aiKp)
+  }
+
+  // Cursor: grab pisteen päällä, grabbing raahatessa
+  const [hover, setHover] = useState(false)
+  function onPointerHover(e) {
+    if (!paikallisetKp || !onPaivitaKeypointit) return
+    const xy = canvasXY(e)
+    if (!xy) return
+    setHover(loydaKeypoint(xy.x, xy.y) >= 0)
+  }
+
+  const onKeypointit = !!paikallisetKp
+  const hyvat = (paikallisetKp ?? []).filter((p) => p.score >= CONFIDENCE_RAJA).length
+  const yht   = (paikallisetKp ?? []).length
+
+  // KA3: laske kulmat reaaliajassa paikallisista keypointeistä (näyttöä varten)
+  const kulmatNyt = paikallisetKp
+    ? laskeKulmat(paikallisetKp, nakokulma?.id, asiakasPituusCm)
+    : null
 
   return (
     <div
@@ -466,14 +631,14 @@ function SuurennusModaali({ nakokulma, kuva, tila, onSulje, onPoista, onVaihda }
       }}
     >
       <div style={{
-        background:   'white',
-        borderRadius: '16px',
-        maxWidth:     '90vw',
-        maxHeight:    '90vh',
-        display:      'flex',
+        background:    'white',
+        borderRadius:  '16px',
+        maxWidth:      '95vw',
+        maxHeight:     '92vh',
+        display:       'flex',
         flexDirection: 'column',
-        overflow:     'hidden',
-        boxShadow:    '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+        overflow:      'hidden',
+        boxShadow:     '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
       }}>
         <div style={{
           padding:    '12px 16px',
@@ -487,7 +652,12 @@ function SuurennusModaali({ nakokulma, kuva, tila, onSulje, onPoista, onVaihda }
             {nakokulma?.nimi}
             {onKeypointit && (
               <span style={{ marginLeft: '10px', fontSize: '12px', fontWeight: 500, color: '#16a34a' }}>
-                ✓ {hyvat}/{yht} pistettä tunnistettu
+                ✓ {hyvat}/{yht} pistettä
+              </span>
+            )}
+            {muokattu && (
+              <span style={{ marginLeft: '8px', fontSize: '11px', fontWeight: 600, color: '#7c3aed' }}>
+                · manuaalisesti korjattu
               </span>
             )}
             {tila === 'analyysi' && (
@@ -509,24 +679,76 @@ function SuurennusModaali({ nakokulma, kuva, tila, onSulje, onPoista, onVaihda }
             ✕
           </button>
         </div>
-        <div style={{ position: 'relative', background: '#000', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-          <img
-            ref={imgRef}
-            src={kuva.kuva_data}
-            alt={nakokulma?.nimi}
-            style={{ maxWidth: '90vw', maxHeight: 'calc(90vh - 160px)', objectFit: 'contain', display: 'block' }}
-          />
-          <canvas
-            ref={canvasRef}
-            style={{
-              position:      'absolute',
-              top:           '50%',
-              left:          '50%',
-              transform:     'translate(-50%, -50%)',
-              pointerEvents: 'none',
-            }}
-          />
+
+        {/* Sisältö: kuva+canvas vasemmalla, kulmat-lista oikealla */}
+        <div style={{
+          display:       'flex',
+          flexDirection: 'row',
+          flexWrap:      'wrap',
+          flex:          1,
+          minHeight:     0,
+          overflow:      'auto',
+        }}>
+          <div style={{
+            position:       'relative',
+            background:     '#000',
+            display:        'flex',
+            justifyContent: 'center',
+            alignItems:     'center',
+            flex:           '1 1 auto',
+            minWidth:       '300px',
+          }}>
+            <img
+              ref={imgRef}
+              src={kuva.kuva_data}
+              alt={nakokulma?.nimi}
+              style={{ maxWidth: '70vw', maxHeight: 'calc(85vh - 160px)', objectFit: 'contain', display: 'block', userSelect: 'none' }}
+              draggable={false}
+            />
+            <canvas
+              ref={canvasRef}
+              onPointerDown={onPointerDown}
+              onPointerMove={(e) => { onPointerMove(e); onPointerHover(e) }}
+              onPointerUp={onPointerUp}
+              onPointerLeave={() => setHover(false)}
+              style={{
+                position:      'absolute',
+                top:           '50%',
+                left:          '50%',
+                transform:     'translate(-50%, -50%)',
+                pointerEvents: onPaivitaKeypointit ? 'auto' : 'none',
+                cursor:        draggedIdx != null ? 'grabbing' : (hover ? 'grab' : 'default'),
+                touchAction:   'none',
+              }}
+            />
+          </div>
+
+          {/* KA3: Kulmat-lista */}
+          {kulmatNyt && (
+            <div style={{
+              flex:        '0 0 280px',
+              maxWidth:    '320px',
+              padding:     '14px 16px',
+              borderLeft:  '1px solid #f3f4f6',
+              background:  '#fafafa',
+              fontSize:    '12px',
+              overflow:    'auto',
+            }}>
+              <h4 style={{ fontSize: '12px', fontWeight: 700, color: '#111827', margin: '0 0 8px 0', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                Lasketut kulmat
+              </h4>
+              <KulmaLista kulmat={kulmatNyt} />
+              {kulmatNyt.kalibrointi?.pituus_cm && (
+                <p style={{ fontSize: '10px', color: '#9ca3af', margin: '12px 0 0 0', lineHeight: 1.4 }}>
+                  Kalibrointi: {kulmatNyt.kalibrointi.pituus_cm} cm
+                  {asiakasPituusCm ? '' : ' (oletus)'} ·
+                  {' '}{kulmatNyt.kalibrointi.pikseleita_per_cm} px/cm
+                </p>
+              )}
+            </div>
+          )}
         </div>
+
         <div style={{
           padding:    '10px 16px',
           borderTop:  '1px solid #f3f4f6',
@@ -536,18 +758,34 @@ function SuurennusModaali({ nakokulma, kuva, tila, onSulje, onPoista, onVaihda }
           alignItems: 'center',
           flexWrap:   'wrap',
         }}>
-          {onKeypointit ? (
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer' }}>
-              <input
-                type="checkbox"
-                checked={naytaLuuranko}
-                onChange={(e) => setNaytaLuuranko(e.target.checked)}
-                style={{ cursor: 'pointer' }}
-              />
-              Näytä luuranko
-            </label>
-          ) : <span />}
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            {onKeypointit && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#374151', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={naytaLuuranko}
+                  onChange={(e) => setNaytaLuuranko(e.target.checked)}
+                  style={{ cursor: 'pointer' }}
+                />
+                Näytä luuranko
+              </label>
+            )}
+            {onKeypointit && onPaivitaKeypointit && (
+              <span style={{ fontSize: '11px', color: '#6b7280' }}>
+                Vihjeitä: raahaa pisteitä korjataksesi sijaintia
+              </span>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {muokattu && (
+              <button
+                type="button"
+                onClick={reset}
+                style={{ padding: '8px 14px', borderRadius: '8px', border: '1px solid #e5e7eb', background: 'white', color: '#374151', fontSize: '13px', cursor: 'pointer' }}
+              >
+                ↺ Reset (AI:n pisteet)
+              </button>
+            )}
             <button
               type="button"
               onClick={() => inputRef.current?.click()}
@@ -575,4 +813,56 @@ function SuurennusModaali({ nakokulma, kuva, tila, onSulje, onPoista, onVaihda }
       </div>
     </div>
   )
+}
+
+// KA3 — kulmalistan rivi-renderöinti. Suodatetaan pois kalibrointi-kenttä
+// ja arvot joille ei löydy selitettä.
+function KulmaLista({ kulmat }) {
+  const rivit = []
+  for (const avain of Object.keys(KULMA_SELITTEET)) {
+    if (!(avain in kulmat)) continue
+    const arvo = kulmat[avain]
+    if (arvo == null) continue
+    const sel = KULMA_SELITTEET[avain]
+    const formatoitu = formatoiKulma(avain, arvo)
+    rivit.push({ avain, otsikko: sel.otsikko, arvo, formatoitu })
+  }
+  if (rivit.length === 0) {
+    return <p style={{ fontSize: '11px', color: '#9ca3af', margin: 0, fontStyle: 'italic' }}>
+      Ei riittävästi luotettavia keypointteja kulmien laskentaan.
+    </p>
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      {rivit.map((r) => {
+        const merkittava = onMerkittava(r.avain, r.arvo)
+        return (
+          <div key={r.avain} style={{
+            display:       'flex',
+            flexDirection: 'column',
+            padding:       '6px 8px',
+            background:    merkittava ? '#fef3c7' : 'white',
+            border:        `1px solid ${merkittava ? '#fde68a' : '#e5e7eb'}`,
+            borderRadius:  '6px',
+          }}>
+            <span style={{ fontSize: '10px', color: '#6b7280', fontWeight: 600 }}>
+              {r.otsikko}
+            </span>
+            <span style={{ fontSize: '12px', color: '#111827', fontWeight: 500 }}>
+              {r.formatoitu}
+            </span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// Onko kulman arvo kliinisesti merkittävä? Korostaa visuaalisesti
+// huomionarvoiset poikkeamat.
+function onMerkittava(avain, arvo) {
+  const abs = Math.abs(arvo)
+  if (avain.endsWith('_cm')) return abs > 1.0  // > 1 cm korkeusero/työntyminen
+  if (avain.endsWith('_aste')) return abs > 3.0  // > 3° kallistus
+  return false
 }

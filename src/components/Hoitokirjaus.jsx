@@ -583,7 +583,7 @@ export default function Hoitokirjaus({ asiakas, hoitokayntiId, testimoodi = fals
           ja kirjaa Havainnot-kortissa kuvien tukemana. */}
       <div style={ryhmaTyyli}>
         <h3 style={ryhmaOtsikko}>Asentokuvat</h3>
-        <AsentoKuvat hoitokayntiId={hoitokayntiId} asiakasId={asiakas?.id} />
+        <AsentoKuvat hoitokayntiId={hoitokayntiId} asiakasId={asiakas?.id} asiakasPituusCm={asiakas?.pituus} />
       </div>
 
       {/* Havainnot — Pala B2 BodyMap + Pala B6.6 Vertailu + Pala B8 AI-analyysi */}

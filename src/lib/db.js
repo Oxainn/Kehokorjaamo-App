@@ -1739,3 +1739,33 @@ export const paivitaAsentokuvanKeypointit = async (kuvaId, keypointit) => {
   }
   return { virhe: null }
 }
+
+// KA3 — päivitä asentokuvan kulmat (lasketut anatomiset kulmat).
+// kulmat-jsonb: { olkapaiden_korkeusero_cm: 1.5, ... }
+export const paivitaAsentokuvanKulmat = async (kuvaId, kulmat) => {
+  if (!kuvaId) return { virhe: 'Kuva-id puuttuu' }
+  const { error } = await supabase
+    .from('asentokuvat')
+    .update({ kulmat })
+    .eq('id', kuvaId)
+  if (error) {
+    console.error('Kulmien tallennus epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { virhe: null }
+}
+
+// KA4 — päivitä keypointit JA kulmat yhdessä transaktiossa (manuaalisen
+// korjauksen jälkeen). Vältetään race condition jos käyttäjä raahaa nopeasti.
+export const paivitaKeypointitJaKulmat = async (kuvaId, keypointit, kulmat) => {
+  if (!kuvaId) return { virhe: 'Kuva-id puuttuu' }
+  const { error } = await supabase
+    .from('asentokuvat')
+    .update({ keypointit, kulmat })
+    .eq('id', kuvaId)
+  if (error) {
+    console.error('Keypointtien+kulmien tallennus epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { virhe: null }
+}
