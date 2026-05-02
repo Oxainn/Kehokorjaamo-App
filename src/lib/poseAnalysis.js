@@ -60,8 +60,27 @@ export const RYHMA_VARIT = {
   alavartalo: '#16a34a',  // vihreä
 }
 
-// Confidence-raja jonka alapuolella piste merkitään epävarmaksi
+// Confidence-raja jonka alapuolella piste merkitään epävarmaksi (KA1-KA2)
+// Käytössä vielä laskureissa (X/17 hyvää) ja luuranko-piirrossa.
 export const CONFIDENCE_RAJA = 0.3
+
+// KA2-fix: Confidence-tasot UI-värikoodausta varten.
+//   varma:    score > 0.5  → vihreä
+//   epavarma: 0.3-0.5      → keltainen ("voi korjata KA4:ssä")
+//   huono:    < 0.3        → punainen ("epäluotettava")
+export const CONFIDENCE_VARMA = 0.5
+
+export function luokitaConfidence(score) {
+  if (score >= CONFIDENCE_VARMA) return 'varma'
+  if (score >= CONFIDENCE_RAJA)  return 'epavarma'
+  return 'huono'
+}
+
+export const CONFIDENCE_VARIT = {
+  varma:    '#16a34a',  // vihreä
+  epavarma: '#eab308',  // keltainen
+  huono:    '#dc2626',  // punainen
+}
 
 // Lataa MoveNet Thunder -malli kerran ja cachee promise. Jos lataus
 // epäonnistuu (esim. WebGL:ää ei tue), virhe tallennetaan ja palautetaan
@@ -112,6 +131,10 @@ export async function tunnistaKeypointit(kuvaDataUrl) {
   try {
     const det = await alustaDetektor()
     const img = await ladaaKuva(kuvaDataUrl)
+    // Varmista että kuva on täysin ladattu (decode resolvoituu kun pikselit ovat valmiit)
+    if (typeof img.decode === 'function') {
+      try { await img.decode() } catch { /* ignore — joillekin kuville ei toimi */ }
+    }
     const poses = await det.estimatePoses(img, { maxPoses: 1, flipHorizontal: false })
     if (!poses || poses.length === 0) {
       return { virhe: 'Ei tunnistettu — asiakas ei näy kuvassa selvästi' }
@@ -120,6 +143,8 @@ export async function tunnistaKeypointit(kuvaDataUrl) {
     if (kp.length === 0) {
       return { virhe: 'Ei keypointteja' }
     }
+    // Palauta KAIKKI 17 keypointia — älä suodata. Käyttäjä voi korjata
+    // epävarmat pisteet KA4:ssä manuaalisesti.
     const yksinkertaiset = kp.map((p) => ({
       name:  p.name,
       x:     p.x,
@@ -127,6 +152,16 @@ export async function tunnistaKeypointit(kuvaDataUrl) {
       score: p.score ?? 0,
     }))
     const hyvienMaara = yksinkertaiset.filter((p) => p.score >= CONFIDENCE_RAJA).length
+
+    // KA2-debug: konsoliloki kaikkien keypointtien score-arvoista
+    if (typeof console !== 'undefined') {
+      console.log(
+        '[Pose-detection] Tunnistettu',
+        `${hyvienMaara}/${yksinkertaiset.length}`,
+        'pistettä (>=', CONFIDENCE_RAJA, ')\n' +
+        yksinkertaiset.map((p) => `  ${p.name.padEnd(16)} ${p.score.toFixed(2)}`).join('\n'),
+      )
+    }
     return {
       keypointit:    yksinkertaiset,
       hyvienMaara,

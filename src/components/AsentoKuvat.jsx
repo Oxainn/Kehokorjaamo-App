@@ -24,9 +24,9 @@ import {
 import {
   tunnistaKeypointit,
   SKELETTI_LINJAT,
-  KEYPOINT_RYHMA,
-  RYHMA_VARIT,
   CONFIDENCE_RAJA,
+  CONFIDENCE_VARIT,
+  luokitaConfidence,
 } from '../lib/poseAnalysis'
 
 const NAKOKULMAT = [
@@ -40,29 +40,47 @@ const MAX_LEVEYS = 1200
 const MAX_KORKEUS = 1600
 const JPEG_LAATU = 0.85
 
-// Lue tiedosto → HTMLImageElement → pakkaa canvasilla → JPEG base64.
+// Lue tiedosto → ImageBitmap (EXIF-rotaatio sovellettu) → pakkaa canvasilla → JPEG base64.
+//
+// EXIF-fix: mobiilikamera tallentaa kuvan natiivissa sensori-orientaatiossa
+// (esim. landscape) ja merkitsee oikean rotaation EXIF Orientation -tagiin.
+// Canvas drawImage ei oletuksena sovella tätä → kuva oli kyljellään → MoveNet
+// ei tunnistanut ihmistä (vain 3/17 keypointia).
+//
+// createImageBitmap(blob, { imageOrientation: 'from-image' }) lukee EXIF:n ja
+// palauttaa bitmapin oikein rotatoituna. Tuettu kaikissa moderneissa selaimissa
+// (Chrome 79+, Safari 15+, Firefox 90+).
 async function pakkaaKuva(file) {
-  const dataUrl = await new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-  const img = await new Promise((resolve, reject) => {
-    const i = new Image()
-    i.onload = () => resolve(i)
-    i.onerror = reject
-    i.src = dataUrl
-  })
+  let bitmap
+  try {
+    bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' })
+  } catch {
+    // Vanhempi selain — fallback HTMLImageElementiin (ei EXIF-tukea)
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+    bitmap = await new Promise((resolve, reject) => {
+      const i = new Image()
+      i.onload = () => resolve(i)
+      i.onerror = reject
+      i.src = dataUrl
+    })
+  }
+  const w0 = bitmap.width ?? bitmap.naturalWidth
+  const h0 = bitmap.height ?? bitmap.naturalHeight
   // Skaalaus säilyttäen suhde — sopii laatikkoon MAX_LEVEYS x MAX_KORKEUS
-  const skaala = Math.min(MAX_LEVEYS / img.width, MAX_KORKEUS / img.height, 1)
-  const w = Math.round(img.width * skaala)
-  const h = Math.round(img.height * skaala)
+  const skaala = Math.min(MAX_LEVEYS / w0, MAX_KORKEUS / h0, 1)
+  const w = Math.round(w0 * skaala)
+  const h = Math.round(h0 * skaala)
   const canvas = document.createElement('canvas')
   canvas.width = w
   canvas.height = h
   const ctx = canvas.getContext('2d')
-  ctx.drawImage(img, 0, 0, w, h)
+  ctx.drawImage(bitmap, 0, 0, w, h)
+  if (bitmap.close) bitmap.close()
   return canvas.toDataURL('image/jpeg', JPEG_LAATU)
 }
 
@@ -364,7 +382,9 @@ function piirraLuuranko(canvas, img, keypointit) {
   const kpMap = {}
   for (const kp of keypointit) kpMap[kp.name] = kp
 
-  // Piirrä luurangon yhteyspisteet ensin (alle pisteiden)
+  // Piirrä luurangon yhteyspisteet ensin (alle pisteiden). Vain kun molemmat
+  // päät ovat luotettavia (score >= CONFIDENCE_RAJA), muuten linja olisi
+  // harhaanjohtava.
   ctx.lineWidth = 3
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)'
   ctx.shadowColor = 'rgba(0, 0, 0, 0.6)'
@@ -381,32 +401,21 @@ function piirraLuuranko(canvas, img, keypointit) {
   }
   ctx.shadowBlur = 0
 
-  // Piirrä keypointit
+  // Piirrä KAIKKI 17 keypointia confidence-värillä. KA2-fixin jälkeen
+  // näytetään myös huonot pisteet (punaisella) jotta käyttäjä tietää korjata
+  // ne KA4:ssä raahaamalla.
   for (const kp of keypointit) {
-    const ryhma = KEYPOINT_RYHMA[kp.name]
-    const vari = RYHMA_VARIT[ryhma] ?? '#9ca3af'
-    const epavarma = kp.score < CONFIDENCE_RAJA
+    const luokka = luokitaConfidence(kp.score)
+    const vari = CONFIDENCE_VARIT[luokka]
     const x = kp.x * sx
     const y = kp.y * sy
-
-    if (epavarma) {
-      // Epävarmoille keltainen rengas — "korjaa myöhemmin"
-      ctx.beginPath()
-      ctx.arc(x, y, 6, 0, Math.PI * 2)
-      ctx.fillStyle = '#fde68a'
-      ctx.fill()
-      ctx.lineWidth = 2
-      ctx.strokeStyle = '#ca8a04'
-      ctx.stroke()
-    } else {
-      ctx.beginPath()
-      ctx.arc(x, y, 5, 0, Math.PI * 2)
-      ctx.fillStyle = vari
-      ctx.fill()
-      ctx.lineWidth = 2
-      ctx.strokeStyle = 'white'
-      ctx.stroke()
-    }
+    ctx.beginPath()
+    ctx.arc(x, y, 6, 0, Math.PI * 2)
+    ctx.fillStyle = vari
+    ctx.fill()
+    ctx.lineWidth = 2
+    ctx.strokeStyle = 'white'
+    ctx.stroke()
   }
 }
 
