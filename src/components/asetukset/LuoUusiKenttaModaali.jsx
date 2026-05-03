@@ -69,6 +69,10 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
   // Infoteksti — sisältö (pidempi tekstilohko)
   const [infoSisalto,    setInfoSisalto]    = useState('')
 
+  // Pysyvyys (AB-T1b): kentän arvo säilyy seuraavalle käynnille kun true.
+  // Default false — pysyvyys on poikkeus, muuttuva on tavallinen tila.
+  const [pysyva,         setPysyva]         = useState(false)
+
   const [tallentaa,      setTallentaa]      = useState(false)
   const [virhe,          setVirhe]          = useState(null)
 
@@ -148,6 +152,7 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
         sisalto: tyyppi === 'infoteksti' ? infoSisalto : '',
         validointi,
         oletukset,
+        pysyva,
       })
       if (tulos.virhe) {
         setVirhe(tulos.virhe)
@@ -231,6 +236,22 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
               className={inputLuokka}
             />
           </div>
+
+          {/* Pysyvyys (AB-T1b) — kentän käyttäytyminen "Aloita uusi käynti" -toiminnossa */}
+          <label className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={pysyva}
+              onChange={(e) => setPysyva(e.target.checked)}
+              className="w-4 h-4 mt-0.5 accent-brand-600 cursor-pointer flex-shrink-0"
+            />
+            <span className="select-none leading-snug">
+              Pysyvä — kentän arvo säilyy seuraavalle käynnille
+              <span className="block text-xs text-gray-400 mt-0.5">
+                Hallinnoidaan myöhemmin Asetukset → Kenttäkirjasto -näkymästä.
+              </span>
+            </span>
+          </label>
 
           {/* Placeholder vain niissä tyypeissä joihin se sopii */}
           {['tekstirivi', 'tekstikentta', 'sahkoposti', 'puhelin', 'numero'].includes(tyyppi) && (

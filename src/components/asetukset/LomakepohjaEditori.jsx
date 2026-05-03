@@ -559,7 +559,17 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
                   return (
                     <div key={tunniste} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-800 truncate">{otsikko}</div>
+                        <div className="text-sm text-gray-800 truncate flex items-center gap-1.5">
+                          <span className="truncate">{otsikko}</span>
+                          {kentta?.pysyva && (
+                            <span
+                              className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 border border-blue-200 rounded font-medium flex-shrink-0"
+                              title="Pysyvä — kentän arvo säilyy seuraavalle käynnille (muokataan Kenttäkirjastosta)"
+                            >
+                              🔒 Pysyvä
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-gray-500">
                           {tyyppiNimi} · <code className="text-gray-400">{tunniste}</code>
                         </div>
