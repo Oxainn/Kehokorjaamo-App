@@ -105,6 +105,49 @@ describe('UusiKayntiContainer (AB-T5b)', () => {
     expect(luoTyhjaAsiakas).not.toHaveBeenCalled()
   })
 
+  // ─── AB-T6a: olemassa olevan asiakkaan polku ──────────────────────────────
+
+  it('AB-T6a: kun asiakasId annettu, ohittaa luoTyhjaAsiakas:n ja käyttää annettua suoraan', async () => {
+    render(
+      <UusiKayntiContainer
+        palvelu={PALVELU}
+        asiakasId="olemassa-oleva-id"
+        onValmis={() => {}}
+      />
+    )
+
+    await waitFor(() => {
+      expect(aloitaUusiKaynti).toHaveBeenCalled()
+    })
+
+    // luoTyhjaAsiakas:ia EI kutsuttu (olemassa olevalle asiakkaalle ei luoda uutta)
+    expect(luoTyhjaAsiakas).not.toHaveBeenCalled()
+    // aloitaUusiKaynti sai annetun asiakasId:n suoraan
+    expect(aloitaUusiKaynti).toHaveBeenCalledWith('olemassa-oleva-id')
+    // Lomakepohjan haku jatkui normaalisti
+    expect(haeLomakepohja).toHaveBeenCalledWith('pohja-1')
+  })
+
+  it('AB-T6a: olemassa olevan asiakkaan polku — jos aloitaUusiKaynti epäonnistuu, näyttää virheen', async () => {
+    aloitaUusiKaynti.mockResolvedValue({ virhe: 'pysyvien-haku epäonnistui' })
+
+    render(
+      <UusiKayntiContainer
+        palvelu={PALVELU}
+        asiakasId="olemassa-oleva-id"
+        onValmis={() => {}}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Käynnin aloitus epäonnistui/i)).toBeInTheDocument()
+    })
+    // luoTyhjaAsiakas ohitettu (olemassa oleva polku) — ei kutsuttu
+    expect(luoTyhjaAsiakas).not.toHaveBeenCalled()
+    // Pohjaa ei haettu koska käynti kaatui
+    expect(haeLomakepohja).not.toHaveBeenCalled()
+  })
+
   it('identiteetti-synkronointi: vastauksiin etunimi+sukunimi → 3s päästä paivitaAsiakkaanPerustiedot', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     try {

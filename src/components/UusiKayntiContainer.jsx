@@ -1,7 +1,15 @@
-// AB-T5b: container-komponentti joka koordinoi "+ Uusi asiakas" -flow:n.
+// AB-T5b/T6a: container-komponentti joka koordinoi käynnin avauksen.
 //
-// 1. Luo tyhjä asiakas (luoTyhjaAsiakas) → asiakasId
-// 2. Aloita käynti (aloitaUusiKaynti) → hoitokayntiId
+// Tukee kahta polkua:
+//   - UUSI asiakas (T5b): annettuAsiakasId puuttuu → luo tyhjä asiakas
+//     (luoTyhjaAsiakas) → asiakasId
+//   - OLEMASSA OLEVA asiakas (T6a): annettuAsiakasId annettu → käytä suoraan,
+//     ohita luonti
+//
+// Jatkovaiheet (molemmissa poluissa):
+// 2. Aloita käynti (aloitaUusiKaynti) → hoitokayntiId.
+//    aloitaUusiKaynti kopioi pysyvät edellisestä valmis-käynnistä (AB-T4d),
+//    joten olemassa olevan asiakkaan lomake aukeaa esitäytettynä.
 // 3. Hae lomakepohja (haeLomakepohja palvelu.lomakepohja_id) → rakenne + kentät
 // 4. Renderöi LomakeRenderoija jolla kaikki tarvittava propsit
 // 5. Identiteetti-synkronointi: kun lomakkeessa muuttuu nimi/sähköposti/jne,
@@ -53,7 +61,12 @@ function poimiIdentiteetti(vastaukset) {
   return tulos
 }
 
-export default function UusiKayntiContainer({ palvelu, onValmis, onPeruuta }) {
+export default function UusiKayntiContainer({
+  palvelu,
+  asiakasId: annettuAsiakasId = null,   // AB-T6a: jos annettu, ohita luoTyhjaAsiakas
+  onValmis,
+  onPeruuta,
+}) {
   const [asiakasId,   setAsiakasId]   = useState(null)
   const [hoitokayntiId, setHoitokayntiId] = useState(null)
   const [valmiitTiedot, setValmiitTiedot] = useState(null)
@@ -77,17 +90,23 @@ export default function UusiKayntiContainer({ palvelu, onValmis, onPeruuta }) {
     setSetupVirhe(null)
 
     ;(async () => {
-      // 1. Luo tyhjä asiakas
-      const asiakasTulos = await luoTyhjaAsiakas()
-      if (peruttu) return
-      if (asiakasTulos.virhe) {
-        setSetupTila('virhe')
-        setSetupVirhe(`Asiakkaan luonti epäonnistui: ${asiakasTulos.virhe}`)
-        return
+      // 1. Asiakas-id: joko annettu (T6a, olemassa oleva) tai luo tyhjä (T5b, uusi)
+      let kayttoonAsiakasId
+      if (annettuAsiakasId) {
+        kayttoonAsiakasId = annettuAsiakasId
+      } else {
+        const asiakasTulos = await luoTyhjaAsiakas()
+        if (peruttu) return
+        if (asiakasTulos.virhe) {
+          setSetupTila('virhe')
+          setSetupVirhe(`Asiakkaan luonti epäonnistui: ${asiakasTulos.virhe}`)
+          return
+        }
+        kayttoonAsiakasId = asiakasTulos.id
       }
 
-      // 2. Aloita käynti
-      const kayntiTulos = await aloitaUusiKaynti(asiakasTulos.id)
+      // 2. Aloita käynti — kopioi pysyvät edellisestä valmis-käynnistä (AB-T4d)
+      const kayntiTulos = await aloitaUusiKaynti(kayttoonAsiakasId)
       if (peruttu) return
       if (kayntiTulos.virhe) {
         setSetupTila('virhe')
@@ -109,14 +128,14 @@ export default function UusiKayntiContainer({ palvelu, onValmis, onPeruuta }) {
         return
       }
 
-      setAsiakasId(asiakasTulos.id)
+      setAsiakasId(kayttoonAsiakasId)
       setHoitokayntiId(kayntiTulos.hoitokayntiId)
       setValmiitTiedot({ rakenne: pohjaTulos.rakenne, kentat: pohjaTulos.kentat })
       setSetupTila('valmis')
     })()
 
     return () => { peruttu = true }
-  }, [palvelu?.id, palvelu?.lomakepohja_id])
+  }, [palvelu?.id, palvelu?.lomakepohja_id, annettuAsiakasId])
 
   // Identiteetti-synkronointi: kun nimi/sähköposti/jne muuttuu,
   // päivitä asiakkaat-tauluun (3s debounce)
