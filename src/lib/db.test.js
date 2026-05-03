@@ -43,6 +43,7 @@ const apurit = vi.hoisted(() => {
     ketju.insert      = vi.fn((rivi) => { lisaaJonoon(tila.insertJonot, taulu, rivi); return ketju })
     ketju.update      = vi.fn((rivi) => { lisaaJonoon(tila.updateJonot, taulu, rivi); return ketju })
     ketju.upsert      = vi.fn((rivi) => { lisaaJonoon(tila.upsertJonot, taulu, rivi); return ketju })
+    ketju.delete      = vi.fn(() => ketju)
     ketju.eq          = vi.fn((kentta, arvo) => { lisaaJonoon(tila.eqKutsut, taulu, [kentta, arvo]); return ketju })
     ketju.is          = vi.fn(() => ketju)
     ketju.neq         = vi.fn(() => ketju)
@@ -81,12 +82,16 @@ vi.mock('./supabase', () => ({
   },
 }))
 
-vi.mock('./lomakeTallennus', () => ({
-  jaaVastaukset: vi.fn(),
-  kokoaVastaukset: vi.fn(),
-}))
+// `lomakeTallennus` on puhdas funktiomoduuli (ei sivuvaikutuksia top-levelillä,
+// ei DB-kutsuja). Käytetään oikeaa toteutusta jotta tallennaRenderoijastaLomake-
+// testit voivat verifioida koko jaettu-rakenteen kulun.
 
-import { tallennaAsiakas, aloitaUusiKaynti, tallennaHoitokirjaus } from './db'
+import {
+  tallennaAsiakas,
+  aloitaUusiKaynti,
+  tallennaHoitokirjaus,
+  tallennaRenderoijastaLomake,
+} from './db'
 
 describe('tallennaAsiakas', () => {
   beforeEach(() => {
@@ -545,5 +550,215 @@ describe('tallennaHoitokirjaus', () => {
       'Hoitokirjauksen tallennus epäonnistui:',
       expect.objectContaining({ message: 'PostgreSQL connection lost' }),
     )
+  })
+})
+
+describe('tallennaRenderoijastaLomake', () => {
+  let errorVakooja
+
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+    errorVakooja = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    errorVakooja.mockRestore()
+  })
+
+  // Apuri uudelle (UUSI-haaran) happy-path -mockien asetukseen.
+  // 1. asiakkaat.upsert  → annettu asiakas
+  // 2. asiakastietolomake_versiot.select → ei olemassa olevaa versiota
+  // 3. asiakastietolomake_versiot.insert → annettu uusi versio
+  const setupHappyUusi = (asiakasId = 'a1', versioId = 'v1') => {
+    apurit.lisaaTulos('asiakkaat', { data: { id: asiakasId }, error: null })
+    apurit.lisaaTulos('asiakastietolomake_versiot', { data: null, error: null })
+    apurit.lisaaTulos('asiakastietolomake_versiot', { data: { id: versioId }, error: null })
+  }
+
+  it('palauttaa virheen jos käyttäjä ei ole kirjautunut', async () => {
+    apurit.tila.getUserTulos = {
+      data: { user: null },
+      error: { message: 'session expired' },
+    }
+    const tulos = await tallennaRenderoijastaLomake({ vastaukset: {} })
+    expect(tulos).toEqual({ virhe: 'Kirjautuminen vaaditaan' })
+    // Ei DB-kutsuja
+    expect(apurit.fromVakooja).not.toHaveBeenCalled()
+  })
+
+  it("asiakkaan upsert epäonnistuu — palauttaa virheen ('Asiakkaan tallennus: ...')", async () => {
+    apurit.lisaaTulos('asiakkaat', {
+      data: null,
+      error: { message: 'unique violation' },
+    })
+
+    const tulos = await tallennaRenderoijastaLomake({
+      vastaukset: { sahkoposti: 'a@b.fi' },
+    })
+
+    expect(tulos).toEqual({ virhe: 'Asiakkaan tallennus: unique violation' })
+    // Lomakeversiota tai sairauksia ei kosketa
+    expect(apurit.fromVakooja).toHaveBeenCalledWith('asiakkaat')
+    expect(apurit.fromVakooja).not.toHaveBeenCalledWith('asiakastietolomake_versiot')
+    expect(apurit.fromVakooja).not.toHaveBeenCalledWith('lomake_sairaudet')
+  })
+
+  it('happy path UUSI asiakas (ei olemassa olevaa versiota) — INSERT versio + INSERT sairaudet', async () => {
+    setupHappyUusi('a1', 'v1')
+    apurit.lisaaTulos('lomake_sairaudet', { error: null })
+
+    const tulos = await tallennaRenderoijastaLomake({
+      vastaukset: { sahkoposti: 'a@b.fi', sairaudet: [1, 2] },
+    })
+
+    expect(tulos).toEqual({
+      asiakasId:      'a1',
+      lomakeVersioId: 'v1',
+      virhe:          null,
+    })
+
+    // UUSI-haarassa lomakeversiota EI päivitetä, vaan luodaan
+    expect(apurit.tila.updateJonot.asiakastietolomake_versiot).toBeUndefined()
+    expect(apurit.tila.insertJonot.asiakastietolomake_versiot).toHaveLength(1)
+    expect(apurit.tila.insertJonot.asiakastietolomake_versiot[0]).toMatchObject({
+      asiakas_id:      'a1',
+      muokkaaja_id:    'mock-uid',
+      muokkaaja_rooli: 'hoitaja',
+    })
+
+    // Sairaudet kopioitu uudelle versiolle
+    expect(apurit.tila.insertJonot.lomake_sairaudet).toHaveLength(1)
+    const sairausRivit = apurit.tila.insertJonot.lomake_sairaudet[0]
+    expect(sairausRivit).toEqual([
+      { lomake_versio_id: 'v1', sairaus_tyyppi_id: 1, on_voimassa: true },
+      { lomake_versio_id: 'v1', sairaus_tyyppi_id: 2, on_voimassa: true },
+    ])
+  })
+
+  it('happy path OLEMASSA OLEVA versio — UPDATE versio + DELETE+INSERT sairaudet', async () => {
+    apurit.lisaaTulos('asiakkaat', { data: { id: 'a1' }, error: null })
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { id: 'v1' }, // versio löytyy → UPDATE-haara
+      error: null,
+    })
+    apurit.lisaaTulos('asiakastietolomake_versiot', { error: null }) // update onnistuu
+    apurit.lisaaTulos('lomake_sairaudet', { error: null }) // delete
+    apurit.lisaaTulos('lomake_sairaudet', { error: null }) // insert
+
+    const tulos = await tallennaRenderoijastaLomake({
+      vastaukset: { sahkoposti: 'a@b.fi', sairaudet: [1] },
+      asiakasIdJosOlemassa: 'a1',
+    })
+
+    expect(tulos).toEqual({
+      asiakasId:      'a1',
+      lomakeVersioId: 'v1',
+      virhe:          null,
+    })
+
+    // UPDATE-haarassa versiota päivitetään, ei lisätä
+    expect(apurit.tila.updateJonot.asiakastietolomake_versiot).toHaveLength(1)
+    expect(apurit.tila.insertJonot.asiakastietolomake_versiot).toBeUndefined()
+
+    // Sairaudet käsiteltiin: ensin delete, sitten insert
+    // (jonojen järjestys takaa kutsujärjestyksen koska samasta from-kutsusta
+    // saatua ketjua ei voi käyttää uudelleen)
+    expect(apurit.tila.insertJonot.lomake_sairaudet).toHaveLength(1)
+
+    // upsert-asiakasrivi sai id-kentän kun asiakasIdJosOlemassa annettu
+    expect(apurit.tila.upsertJonot.asiakkaat[0].id).toBe('a1')
+  })
+
+  it('otsikko-käsittely: ei annettu → null, "   " → null, "Niska" → tallennetaan', async () => {
+    // HUOM: alkuperäisen spec-tekstin "undefined → ei mukaan" -tapaus EI ole
+    // saavutettavissa nykyisellä koodilla, koska funktion destructuring-default
+    // (`otsikko = null`) tekee dead-code-haaran `: {}` saavuttamattomaksi.
+    // Tämä testi lukitsee TODELLISEN nykyisen käyttäytymisen.
+
+    // a) Ei otsikkoa → default null → otsikko-kenttä on mukana null-arvolla
+    setupHappyUusi('a1', 'v1')
+    await tallennaRenderoijastaLomake({ vastaukset: { sahkoposti: 'a@b.fi' } })
+    let insertRivi = apurit.tila.insertJonot.asiakastietolomake_versiot[0]
+    expect(insertRivi).toHaveProperty('otsikko')
+    expect(insertRivi.otsikko).toBeNull()
+
+    // b) Pelkkää whitespacea → trimataan tyhjäksi → null
+    apurit.nollaa()
+    setupHappyUusi('a1', 'v1')
+    await tallennaRenderoijastaLomake({
+      vastaukset: { sahkoposti: 'a@b.fi' },
+      otsikko: '   ',
+    })
+    insertRivi = apurit.tila.insertJonot.asiakastietolomake_versiot[0]
+    expect(insertRivi.otsikko).toBeNull()
+
+    // c) Kunnon teksti → tallennetaan sellaisenaan
+    apurit.nollaa()
+    setupHappyUusi('a1', 'v1')
+    await tallennaRenderoijastaLomake({
+      vastaukset: { sahkoposti: 'a@b.fi' },
+      otsikko: 'Niska',
+    })
+    insertRivi = apurit.tila.insertJonot.asiakastietolomake_versiot[0]
+    expect(insertRivi.otsikko).toBe('Niska')
+  })
+
+  it('lomakeversion päivitys epäonnistuu — palauttaa virhe + asiakasId', async () => {
+    apurit.lisaaTulos('asiakkaat', { data: { id: 'a1' }, error: null })
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { id: 'v1' }, // olemassa → UPDATE-haara
+      error: null,
+    })
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      error: { message: 'X' },
+    })
+
+    const tulos = await tallennaRenderoijastaLomake({
+      vastaukset: { sahkoposti: 'a@b.fi' },
+      asiakasIdJosOlemassa: 'a1',
+    })
+
+    expect(tulos).toEqual({
+      virhe:     'Lomakeversion päivitys: X',
+      asiakasId: 'a1',
+    })
+    // Ei jatkettu sairauksiin
+    expect(apurit.fromVakooja).not.toHaveBeenCalledWith('lomake_sairaudet')
+  })
+
+  it('sairauksien tallennus epäonnistuu — palauttaa virhe + asiakasId + lomakeVersioId', async () => {
+    setupHappyUusi('a1', 'v1')
+    apurit.lisaaTulos('lomake_sairaudet', {
+      error: { message: 'Y' },
+    })
+
+    const tulos = await tallennaRenderoijastaLomake({
+      vastaukset: { sahkoposti: 'a@b.fi', sairaudet: [1] },
+    })
+
+    expect(tulos).toEqual({
+      virhe:          'Sairauksien tallennus: Y',
+      asiakasId:      'a1',
+      lomakeVersioId: 'v1',
+    })
+  })
+
+  it('vastauksissa ei sairauksia (tyhjä lista) — ei kutsuta lomake_sairaudet.insertiä lainkaan', async () => {
+    setupHappyUusi('a1', 'v1')
+    // EI lisätä lomake_sairaudet-tulosta — koodi ei saa kutsua sitä
+
+    const tulos = await tallennaRenderoijastaLomake({
+      vastaukset: { sahkoposti: 'a@b.fi' }, // ei sairaudet-avainta
+    })
+
+    expect(tulos).toEqual({
+      asiakasId:      'a1',
+      lomakeVersioId: 'v1',
+      virhe:          null,
+    })
+    expect(apurit.fromVakooja).not.toHaveBeenCalledWith('lomake_sairaudet')
+    expect(apurit.tila.insertJonot.lomake_sairaudet).toBeUndefined()
   })
 })
