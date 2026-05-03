@@ -463,20 +463,6 @@ export const haeHoitokayntiVersionPerusteella = async (lomakeVersioId) => {
   return data?.id ?? null
 }
 
-export const haeKaynit = async (asiakasId) => {
-  const { data, error } = await supabase
-    .from('hoitokaynit')
-    .select('*')
-    .eq('asiakas_id', asiakasId)
-    .order('pvm', { ascending: false })
-
-  if (error) {
-    console.error('Käyntien haku epäonnistui:', error)
-    return []
-  }
-  return data
-}
-
 // ─── A+B-yhdistetty lomake (AB-T4) ─────────────────────────────────────────
 // Vaihtoehto Z (hybrid): asiakas-perustiedot säilyy asiakkaat-taulussa,
 // kaikki muut lomake-vastaukset → hoitokaynnit.vastaukset jsonbiin.
