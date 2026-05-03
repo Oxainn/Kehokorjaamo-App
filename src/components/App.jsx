@@ -17,6 +17,9 @@ import Settings from './Settings'
 import Asiakasrekisteri from './Asiakasrekisteri'
 import AsiakaslomakeRenderoijalla from './AsiakaslomakeRenderoijalla'
 import UudenAsiakkaanTarkistus from './UudenAsiakkaanTarkistus'
+// AB-T5c: uusi yhdistetyn lomakkeen flow "+ Uusi asiakas" -näkymälle
+import HoitajanPalveluValinta from './HoitajanPalveluValinta'
+import UusiKayntiContainer from './UusiKayntiContainer'
 import Hoitokirjaus from './Hoitokirjaus'
 import JulkinenLomake from './JulkinenLomake'
 import PalveluValinta from './PalveluValinta'
@@ -130,6 +133,10 @@ export default function App() {
   // operaation jälkeen (uusi käynti, vahvistus, lomakkeen tallennus).
   const [rekisteriAvain, setRekisteriAvain] = useState(0)
 
+  // AB-T5c: "+ Uusi asiakas" -flow:n valittu palvelu. Null = palveluvalinta auki,
+  // set = UusiKayntiContainer renderöityy ja ohjaa lomakkeen avauksen.
+  const [valittuPalvelu, setValittuPalvelu] = useState(null)
+
   // Pala B9b — online/offline-tila + offline-jonon synkronointi
   const online = useOnline()
   const [jonoa, setJonoa] = useState(0)
@@ -170,6 +177,7 @@ export default function App() {
   function paluuRekisteriin() {
     setRekisteriAvain((n) => n + 1)
     setTestimoodi(false)
+    setValittuPalvelu(null)   // AB-T5c: nollaa palveluvalinta poistuessa flow:sta
     setNakyma('rekisteri')
   }
 
@@ -730,11 +738,24 @@ export default function App() {
           </div>
         )}
 
-        {/* UUSI KÄYNTI — uuden asiakkaan luonti tyhjällä lomakkeella */}
-        {nakyma === 'uusi-kaynti' && (
-          <AsiakaslomakeRenderoijalla
-            asiakas={null}
+        {/* AB-T5c: UUSI KÄYNTI — uuden asiakkaan + käynnin luonti yhdistetyllä lomakkeella.
+            1. Ensin palveluvalinta-modaali (tai peruutus → rekisteriin)
+            2. Palvelun valinnan jälkeen UusiKayntiContainer hoitaa setupin ja renderöi
+               LomakeRenderoija:n auto-savella + "Tallenna käynti" -lukituksella.
+            Vanha AsiakaslomakeRenderoijalla-polku säilyy 'kaynti'-näkymän
+            olemassa olevien asiakkaiden flow:ssa kunnes AB-T6 korvaa myös sen. */}
+        {nakyma === 'uusi-kaynti' && !valittuPalvelu && (
+          <HoitajanPalveluValinta
+            auki={true}
+            onValitse={(p) => setValittuPalvelu(p)}
+            onSulje={paluuRekisteriin}
+          />
+        )}
+        {nakyma === 'uusi-kaynti' && valittuPalvelu && (
+          <UusiKayntiContainer
+            palvelu={valittuPalvelu}
             onValmis={paluuRekisteriin}
+            onPeruuta={paluuRekisteriin}
           />
         )}
 
