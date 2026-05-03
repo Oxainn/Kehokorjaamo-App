@@ -571,8 +571,19 @@ export default function App() {
           />
         )}
 
-        {/* KÄYNTI — asiakas valittu */}
-        {nakyma === 'kaynti' && asiakas && (
+        {/* AB-T6b: KÄYNTI — asiakas valittu rekisteristä.
+            Vahvistettu + valittuPalvelu → container hallitsee oman yläpalkin.
+            Container on erillinen lohko jotta App-yläpalkki ei näy. */}
+        {nakyma === 'kaynti' && asiakas && asiakas.vahvistettu !== false && valittuPalvelu && (
+          <UusiKayntiContainer
+            asiakasId={asiakas.id}
+            palvelu={valittuPalvelu}
+            onValmis={paluuRekisteriin}
+            onPeruuta={paluuRekisteriin}
+          />
+        )}
+        {/* Vahvistamaton-polku TAI ennen palvelun valintaa: App-yläpalkki + sisältö. */}
+        {nakyma === 'kaynti' && asiakas && (asiakas.vahvistettu === false || !valittuPalvelu) && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 0 12px', borderBottom: '1px solid #e2e8f0', marginBottom: '16px' }}>
               <button
@@ -587,15 +598,32 @@ export default function App() {
             </div>
             {asiakas.vahvistettu === false ? (
               // Vahvistamaton asiakas → tarkistusnäkymä joka EI muokkaa lomakeversiota.
-              // "Tallenna asiakas" -nappi on tarkistusnäkymässä sisällä.
+              // Säilyy AB-T6b:n jälkeen vanhojen vahvistamattomien tietueiden käsittelyä varten.
               <UudenAsiakkaanTarkistus
                 asiakas={asiakas}
                 onValmis={paluuRekisteriin}
               />
             ) : (
-              // Vahvistettu asiakas → "+ Uusi käynti" -toimintonappi yläreunassa
-              // sekä lomakerenderöijä jolla muokataan asiakkaan ainoaa lomaketta.
-              <>
+              // AB-T6b: vahvistettu asiakas → palveluvalinta avautuu heti
+              // (klikkaus rekisteristä = "aloita uusi käynti" -aikomus). Valinnan
+              // jälkeen valittuPalvelu set ja UusiKayntiContainer renderöityy
+              // ylläolevasta lohkosta. Vanha "+ Uusi käynti" -nappi +
+              // AsiakaslomakeRenderoijalla -käyttö poistettu — Hoitokirjaus-näkymä
+              // jää käyttämättä mutta säilyy repoon AB-T8:n siivoukseen.
+              <HoitajanPalveluValinta
+                auki={true}
+                onValitse={(p) => setValittuPalvelu(p)}
+                onSulje={paluuRekisteriin}
+              />
+            )}
+          </div>
+        )}
+        {/* Vanha vahvistettu-haaran "+ Uusi käynti" -nappi + AsiakaslomakeRenderoijalla
+            + vahvistusModaali poistettu AB-T6b:ssä — palveluvalinta avautuu suoraan.
+            Tyhjä Fragment alla pitää JSX-rakenteen syntaksin pätevänä — voidaan
+            poistaa kokonaan AB-T8:ssa kun setVahvistusAuki/kaynnistetaan/jne -tilat siivotaan. */}
+        {false && (
+          <>
                 <button
                   type="button"
                   onClick={() => setVahvistusAuki(true)}
@@ -733,9 +761,7 @@ export default function App() {
                     </div>
                   </div>
                 )}
-              </>
-            )}
-          </div>
+          </>
         )}
 
         {/* AB-T5c: UUSI KÄYNTI — uuden asiakkaan + käynnin luonti yhdistetyllä lomakkeella.
