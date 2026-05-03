@@ -94,6 +94,8 @@ import {
   luoUusiKentta,
   paivitaKentanPysyvyys,
   haeLomakepohja,
+  tallennaKayntiVastauksilla,
+  haeKayntiVastauksilla,
 } from './db'
 
 describe('tallennaAsiakas', () => {
@@ -956,5 +958,155 @@ describe('haeLomakepohja — osion rooli normalisointi (AB-T2a)', () => {
     expect(tulos.rakenne.osiot[1].rooli).toBe('asiakas')
     expect(tulos.rakenne.osiot[2].rooli).toBe('asiakas')
     expect(tulos.rakenne.osiot[3].rooli).toBe('asiakas')
+  })
+})
+
+describe('tallennaKayntiVastauksilla (AB-T4a)', () => {
+  let errorVakooja
+
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+    errorVakooja = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    errorVakooja.mockRestore()
+  })
+
+  it('tallentaa vastaukset jsonb-saraakkeeseen + uusi versio', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data:  [{ id: 'h1', versio: 1 }],
+      error: null,
+    })
+
+    const tulos = await tallennaKayntiVastauksilla('h1', { otsikko: 'Niska', kipu: 5 })
+
+    expect(tulos).toEqual({ virhe: null, versio: 1 })
+
+    // UPDATE-rivi sisältää vastaukset-jsonbin + paivitetty + versio
+    const muutokset = apurit.tila.updateJonot.hoitokaynnit[0]
+    expect(muutokset.vastaukset).toEqual({ otsikko: 'Niska', kipu: 5 })
+    expect(muutokset.versio).toBe(1)
+    expect(typeof muutokset.paivitetty).toBe('string')
+
+    // odotettuVersio = null → eq:lle vain ('id', 'h1'), ei ('versio', N)
+    const eqit = apurit.tila.eqKutsut.hoitokaynnit ?? []
+    expect(eqit).toEqual([['id', 'h1']])
+  })
+
+  it('optimistinen lukko ristiriidassa palauttaa { ristiriita: true, nykyinenVersio }', async () => {
+    // 1. Update palauttaa 0 päivitettyä riviä → versio ei täsmännyt
+    apurit.lisaaTulos('hoitokaynnit', { data: [], error: null })
+    // 2. Seuraava select hakee nykyisen DB-version
+    apurit.lisaaTulos('hoitokaynnit', { data: { versio: 7 }, error: null })
+
+    const tulos = await tallennaKayntiVastauksilla('h1', { foo: 'bar' }, 3)
+
+    expect(tulos).toMatchObject({
+      ristiriita:     true,
+      nykyinenVersio: 7,
+    })
+    expect(typeof tulos.virhe).toBe('string')
+
+    // optimistinen lukko: WHERE id=h1 AND versio=3
+    const eqit = apurit.tila.eqKutsut.hoitokaynnit ?? []
+    expect(eqit[0]).toEqual(['id', 'h1'])
+    expect(eqit[1]).toEqual(['versio', 3])
+  })
+
+  it('virheellinen vastaukset-arvo (null/array) → palauttaa virheen, ei DB-kutsuja', async () => {
+    expect(await tallennaKayntiVastauksilla('h1', null)).toEqual({ virhe: 'Vastaukset puuttuvat tai virheellinen muoto' })
+    expect(await tallennaKayntiVastauksilla('h1', [])).toEqual({ virhe: 'Vastaukset puuttuvat tai virheellinen muoto' })
+    expect(apurit.fromVakooja).not.toHaveBeenCalled()
+  })
+})
+
+describe('haeKayntiVastauksilla (AB-T4a)', () => {
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+  })
+
+  it('uusi käynti (vastaukset jsonb täynnä) → palauttaa lahde="hoitokaynnit"', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data: {
+        id:               'h1',
+        vastaukset:       { otsikko: 'Niska', kipu: 5 },
+        tila:             'luonnos',
+        versio:           3,
+        otsikko:          'Niska',
+        pvm:              '2026-05-03T10:00:00Z',
+        lomake_versio_id: 'v1',  // vaikka linkki olemassa, jsonb otetaan etusijalle
+      },
+      error: null,
+    })
+
+    const tulos = await haeKayntiVastauksilla('h1')
+
+    expect(tulos).toEqual({
+      vastaukset: { otsikko: 'Niska', kipu: 5 },
+      tila:       'luonnos',
+      versio:     3,
+      otsikko:    'Niska',
+      pvm:        '2026-05-03T10:00:00Z',
+      lahde:      'hoitokaynnit',
+    })
+    // Ei toista DB-kutsua — uusi formaatti riittää
+    expect(apurit.fromVakooja).toHaveBeenCalledTimes(1)
+  })
+
+  it('vanha käynti (vastaukset tyhjä, lomake_versio_id) → palauttaa lisakentat asiakastietolomake_versiot:sta', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data: {
+        id:               'h2',
+        vastaukset:       {},
+        tila:             'valmis',
+        versio:           1,
+        otsikko:          'Vanha käynti',
+        pvm:              '2026-04-15T10:00:00Z',
+        lomake_versio_id: 'v-vanha',
+      },
+      error: null,
+    })
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { lisakentat: { kehonkartta_piirros: 'data:image/...', oma_kentta: 'X' } },
+      error: null,
+    })
+
+    const tulos = await haeKayntiVastauksilla('h2')
+
+    expect(tulos).toEqual({
+      vastaukset: { kehonkartta_piirros: 'data:image/...', oma_kentta: 'X' },
+      tila:       'valmis',
+      versio:     1,
+      otsikko:    'Vanha käynti',
+      pvm:        '2026-04-15T10:00:00Z',
+      lahde:      'asiakastietolomake_versiot',
+    })
+    // 2 kutsua: hoitokaynnit + asiakastietolomake_versiot
+    expect(apurit.fromVakooja).toHaveBeenCalledTimes(2)
+  })
+
+  it('uusi luonnos jossa vastaukset vielä tyhjä, ei lomake_versio_id:tä → palauttaa tyhjän objektin', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data: {
+        id:               'h3',
+        vastaukset:       {},
+        tila:             'luonnos',
+        versio:           0,
+        otsikko:          null,
+        pvm:              null,
+        lomake_versio_id: null,
+      },
+      error: null,
+    })
+
+    const tulos = await haeKayntiVastauksilla('h3')
+
+    expect(tulos.vastaukset).toEqual({})
+    expect(tulos.lahde).toBe('hoitokaynnit')
   })
 })

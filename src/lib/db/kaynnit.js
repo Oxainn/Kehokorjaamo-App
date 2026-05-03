@@ -428,3 +428,125 @@ export const haeKaynit = async (asiakasId) => {
   }
   return data
 }
+
+// ─── A+B-yhdistetty lomake (AB-T4) ─────────────────────────────────────────
+// Vaihtoehto Z (hybrid): asiakas-perustiedot säilyy asiakkaat-taulussa,
+// kaikki muut lomake-vastaukset → hoitokaynnit.vastaukset jsonbiin.
+
+// Tallenna A+B-lomakkeen vastaukset hoitokayntiin. Auto-save:n päätoiminto.
+//
+// Optimistinen lukko hoitokaynnit.versio:n kautta — sama mekanismi kuin
+// tallennaHoitokirjaus. Jos versio annettu (number) ja DB:n versio on suurempi,
+// joku muu on tallentanut välissä → palauta { ristiriita: true, nykyinenVersio }.
+// Jos odotettuVersio = null, lukko ohitetaan (uusi luonnos jossa ei vielä versiota).
+//
+// Palauttaa: { virhe: null, versio } | { virhe: msg } | { ristiriita: true, ... }
+export const tallennaKayntiVastauksilla = async (hoitokayntiId, vastaukset, odotettuVersio = null) => {
+  if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
+  if (!vastaukset || typeof vastaukset !== 'object' || Array.isArray(vastaukset)) {
+    return { virhe: 'Vastaukset puuttuvat tai virheellinen muoto' }
+  }
+
+  const muutokset = {
+    vastaukset,
+    paivitetty: new Date().toISOString(),
+    versio:     (odotettuVersio ?? 0) + 1,
+  }
+
+  let kysely = supabase
+    .from('hoitokaynnit')
+    .update(muutokset)
+    .eq('id', hoitokayntiId)
+  if (odotettuVersio !== null) kysely = kysely.eq('versio', odotettuVersio)
+
+  const { data, error } = await kysely.select('id, versio')
+  if (error) {
+    console.error('Käynnin vastausten tallennus epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  if (odotettuVersio !== null && (!data || data.length === 0)) {
+    // Versio ei täsmännyt → joku muu tallentanut välissä
+    const { data: nyk } = await supabase
+      .from('hoitokaynnit')
+      .select('versio')
+      .eq('id', hoitokayntiId)
+      .maybeSingle()
+    return {
+      virhe: 'Käynti on muokattu toisessa ikkunassa. Päivitä sivu nähdäksesi uusin tila tai peru muutokset.',
+      ristiriita: true,
+      nykyinenVersio: nyk?.versio ?? null,
+    }
+  }
+  return { virhe: null, versio: data?.[0]?.versio ?? null }
+}
+
+// Hae käynnin vastaukset tukien sekä uutta (AB-T4) että vanhaa formaattia.
+//
+// Uusi käynti: vastaukset hoitokaynnit.vastaukset jsonbissa.
+// Vanha käynti (ennen AB-T4): vastaukset hajautettu asiakastietolomake_versiot-
+//   tauluun (lomake-sarakkeet + lisakentat-jsonb). Lomakekenttien (hoitoon_syy
+//   jne) takaisinmappausta uuteen formaattiin EI tehdä — palautetaan vain
+//   lisakentat-jsonb joka on jo renderöijän vastaukset-formaatissa. AB-T8:ssa
+//   katsotaan tarvitaanko tarkka mappaus tai jätetäänkö vanhat read-only-tilaan
+//   omassa Hoitokirjaus.jsx-näkymässään.
+//
+// Palauttaa: { vastaukset, tila, versio, otsikko, pvm, lahde } | null
+//   lahde = 'hoitokaynnit' (uusi) | 'asiakastietolomake_versiot' (vanhan lisakentat)
+export const haeKayntiVastauksilla = async (hoitokayntiId) => {
+  if (!hoitokayntiId) return null
+
+  const { data: kaynti, error: kayntiVirhe } = await supabase
+    .from('hoitokaynnit')
+    .select('id, vastaukset, tila, versio, otsikko, pvm, lomake_versio_id')
+    .eq('id', hoitokayntiId)
+    .maybeSingle()
+  if (kayntiVirhe) {
+    console.error('Käynnin haku epäonnistui:', kayntiVirhe)
+    return null
+  }
+  if (!kaynti) return null
+
+  const onUudessaFormaatissa = kaynti.vastaukset
+    && typeof kaynti.vastaukset === 'object'
+    && !Array.isArray(kaynti.vastaukset)
+    && Object.keys(kaynti.vastaukset).length > 0
+
+  if (onUudessaFormaatissa) {
+    return {
+      vastaukset: kaynti.vastaukset,
+      tila:       kaynti.tila,
+      versio:     kaynti.versio,
+      otsikko:    kaynti.otsikko,
+      pvm:        kaynti.pvm,
+      lahde:      'hoitokaynnit',
+    }
+  }
+
+  // Vanha formaatti TAI uusi luonnos jolla ei vielä vastauksia.
+  // Yritä lukea linkitettyä A-lomakeversiota — vain lisakentat-jsonb
+  // (joka on jo renderöijän vastaukset-formaatissa).
+  let vanhatVastaukset = {}
+  let lahde = 'hoitokaynnit'
+  if (kaynti.lomake_versio_id) {
+    const { data: versio } = await supabase
+      .from('asiakastietolomake_versiot')
+      .select('lisakentat')
+      .eq('id', kaynti.lomake_versio_id)
+      .maybeSingle()
+    if (versio?.lisakentat && typeof versio.lisakentat === 'object') {
+      vanhatVastaukset = versio.lisakentat
+      if (Object.keys(vanhatVastaukset).length > 0) {
+        lahde = 'asiakastietolomake_versiot'
+      }
+    }
+  }
+
+  return {
+    vastaukset: vanhatVastaukset,
+    tila:       kaynti.tila,
+    versio:     kaynti.versio,
+    otsikko:    kaynti.otsikko,
+    pvm:        kaynti.pvm,
+    lahde,
+  }
+}
