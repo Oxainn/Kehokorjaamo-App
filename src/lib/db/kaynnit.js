@@ -550,3 +550,110 @@ export const haeKayntiVastauksilla = async (hoitokayntiId) => {
     lahde,
   }
 }
+
+// AB-T4c: lukitse käynti snapshotiksi — UPDATE tila='valmis' optimistisella
+// lukolla. Auto-save:n viimeisin tallennus on jo mennyt läpi (UI suorittaa
+// pendingit ennen lukitusta), tämä funktio vain vaihtaa tilan + inkrementoi
+// version.
+//
+// Palauttaa: { virhe: null, versio } | { virhe: msg } | { ristiriita: true, ... }
+export const lukitseKaynti = async (hoitokayntiId, odotettuVersio = null) => {
+  if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
+
+  const muutokset = {
+    tila:       'valmis',
+    versio:     (odotettuVersio ?? 0) + 1,
+    paivitetty: new Date().toISOString(),
+  }
+
+  let kysely = supabase
+    .from('hoitokaynnit')
+    .update(muutokset)
+    .eq('id', hoitokayntiId)
+  if (odotettuVersio !== null) kysely = kysely.eq('versio', odotettuVersio)
+
+  const { data, error } = await kysely.select('id, versio')
+  if (error) {
+    console.error('Käynnin lukitus epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  if (odotettuVersio !== null && (!data || data.length === 0)) {
+    const { data: nyk } = await supabase
+      .from('hoitokaynnit')
+      .select('versio')
+      .eq('id', hoitokayntiId)
+      .maybeSingle()
+    return {
+      virhe: 'Käynti on muokattu toisessa ikkunassa. Päivitä sivu nähdäksesi uusin tila tai peru muutokset.',
+      ristiriita: true,
+      nykyinenVersio: nyk?.versio ?? null,
+    }
+  }
+  return { virhe: null, versio: data?.[0]?.versio ?? null }
+}
+
+// AB-T4c: avaa lukittu käynti uudelleen muokattavaksi. Snapshot-mallin
+// turvarajoite: jokainen avaus inkrementoi avattu_uudelleen_kerralla-laskuria
+// ja appendaa avattu_uudelleen_kasittely-jsonbiin merkinnän { aikaleima,
+// hoitaja_id, syy? }. Aiempi data säilyy.
+//
+// Käyttää ehdollista UPDATE:a (WHERE tila='valmis') jotta race condition jossa
+// joku muu on jo avannut ei ylikirjoita lukijatietoja. Read-then-write -malli
+// on ok lokille koska kaksi samanaikaista avausta on harvinainen tilanne.
+export const avaaKayntiUudelleen = async (hoitokayntiId, syy = null) => {
+  if (!hoitokayntiId) return { virhe: 'Hoitokaynti-id puuttuu' }
+
+  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
+  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
+
+  // 1. Hae nykyinen loki + tila — varmista että käynti on todella lukittu
+  const { data: kaynti, error: hakuVirhe } = await supabase
+    .from('hoitokaynnit')
+    .select('avattu_uudelleen_kerralla, avattu_uudelleen_kasittely, tila')
+    .eq('id', hoitokayntiId)
+    .maybeSingle()
+  if (hakuVirhe) {
+    console.error('Käynnin haku ennen avaamista epäonnistui:', hakuVirhe)
+    return { virhe: hakuVirhe.message }
+  }
+  if (!kaynti) return { virhe: 'Käyntiä ei löytynyt' }
+  if (kaynti.tila !== 'valmis') {
+    return { virhe: 'Käynti ei ole lukittu (tila ei ole "valmis")' }
+  }
+
+  // 2. Rakenna uusi loki ja UPDATE ehdollisesti
+  const aiempiLoki = Array.isArray(kaynti.avattu_uudelleen_kasittely)
+    ? kaynti.avattu_uudelleen_kasittely
+    : []
+  const uusiLoki = [
+    ...aiempiLoki,
+    {
+      aikaleima:  new Date().toISOString(),
+      hoitaja_id: user.id,
+      syy:        syy?.trim() || null,
+    },
+  ]
+  const uusiLaskuri = (kaynti.avattu_uudelleen_kerralla ?? 0) + 1
+
+  const { data, error: paivitysVirhe } = await supabase
+    .from('hoitokaynnit')
+    .update({
+      tila:                       'luonnos',
+      avattu_uudelleen_kerralla:  uusiLaskuri,
+      avattu_uudelleen_kasittely: uusiLoki,
+      paivitetty:                 new Date().toISOString(),
+    })
+    .eq('id', hoitokayntiId)
+    .eq('tila', 'valmis')             // race-suojaus
+    .select('id')
+  if (paivitysVirhe) {
+    console.error('Käynnin avaaminen epäonnistui:', paivitysVirhe)
+    return { virhe: paivitysVirhe.message }
+  }
+  if (!data || data.length === 0) {
+    // Joku muu on jo avannut käynnin samanaikaisesti — read-then-write race
+    return { virhe: 'Joku muu on jo avannut käynnin' }
+  }
+
+  return { virhe: null, avattuKerralla: uusiLaskuri }
+}

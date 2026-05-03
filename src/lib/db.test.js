@@ -96,6 +96,8 @@ import {
   haeLomakepohja,
   tallennaKayntiVastauksilla,
   haeKayntiVastauksilla,
+  lukitseKaynti,
+  avaaKayntiUudelleen,
 } from './db'
 
 describe('tallennaAsiakas', () => {
@@ -1108,5 +1110,140 @@ describe('haeKayntiVastauksilla (AB-T4a)', () => {
 
     expect(tulos.vastaukset).toEqual({})
     expect(tulos.lahde).toBe('hoitokaynnit')
+  })
+})
+
+describe('lukitseKaynti (AB-T4c)', () => {
+  let errorVakooja
+
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+    errorVakooja = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    errorVakooja.mockRestore()
+  })
+
+  it('onnistunut lukitus → asettaa tila="valmis" + uusi versio', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data:  [{ id: 'h1', versio: 6 }],
+      error: null,
+    })
+
+    const tulos = await lukitseKaynti('h1', 5)
+
+    expect(tulos).toEqual({ virhe: null, versio: 6 })
+
+    const muutokset = apurit.tila.updateJonot.hoitokaynnit[0]
+    expect(muutokset.tila).toBe('valmis')
+    expect(muutokset.versio).toBe(6)            // 5 + 1
+    expect(typeof muutokset.paivitetty).toBe('string')
+
+    // Optimistinen lukko: WHERE id=h1 AND versio=5
+    const eqit = apurit.tila.eqKutsut.hoitokaynnit ?? []
+    expect(eqit).toEqual([['id', 'h1'], ['versio', 5]])
+  })
+
+  it('versio-ristiriita → palauttaa { ristiriita: true, nykyinenVersio }', async () => {
+    apurit.lisaaTulos('hoitokaynnit', { data: [], error: null })       // 0 päivitettyä
+    apurit.lisaaTulos('hoitokaynnit', { data: { versio: 9 }, error: null })
+
+    const tulos = await lukitseKaynti('h1', 3)
+
+    expect(tulos).toMatchObject({
+      ristiriita:     true,
+      nykyinenVersio: 9,
+    })
+    expect(typeof tulos.virhe).toBe('string')
+  })
+})
+
+describe('avaaKayntiUudelleen (AB-T4c)', () => {
+  let errorVakooja
+
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+    errorVakooja = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    errorVakooja.mockRestore()
+  })
+
+  it('onnistunut avaus → tila="luonnos", laskuri+1, uusi loki-merkintä', async () => {
+    // 1. Hae nykyinen loki + tila
+    apurit.lisaaTulos('hoitokaynnit', {
+      data: {
+        avattu_uudelleen_kerralla:  2,
+        avattu_uudelleen_kasittely: [
+          { aikaleima: '2026-04-01T10:00:00Z', hoitaja_id: 'h-eka', syy: null },
+          { aikaleima: '2026-04-15T11:30:00Z', hoitaja_id: 'h-eka', syy: 'unohtui' },
+        ],
+        tila: 'valmis',
+      },
+      error: null,
+    })
+    // 2. UPDATE
+    apurit.lisaaTulos('hoitokaynnit', {
+      data:  [{ id: 'h1' }],
+      error: null,
+    })
+
+    const tulos = await avaaKayntiUudelleen('h1', '  Päivän kipu väärin merkitty  ')
+
+    expect(tulos).toEqual({ virhe: null, avattuKerralla: 3 })
+
+    const muutokset = apurit.tila.updateJonot.hoitokaynnit[0]
+    expect(muutokset.tila).toBe('luonnos')
+    expect(muutokset.avattu_uudelleen_kerralla).toBe(3)
+    expect(muutokset.avattu_uudelleen_kasittely).toHaveLength(3)
+    // Uusin merkintä on viimeinen
+    const uusin = muutokset.avattu_uudelleen_kasittely[2]
+    expect(uusin.hoitaja_id).toBe('mock-uid')
+    expect(uusin.syy).toBe('Päivän kipu väärin merkitty')   // trimmattu
+    expect(typeof uusin.aikaleima).toBe('string')
+    // Aiempi loki säilyy
+    expect(muutokset.avattu_uudelleen_kasittely[0].syy).toBeNull()
+    expect(muutokset.avattu_uudelleen_kasittely[1].syy).toBe('unohtui')
+
+    // Eq-kutsut: 1) hae-vaiheen id, 2) UPDATE:n id, 3) UPDATE:n race-suojaus tila='valmis'
+    const eqit = apurit.tila.eqKutsut.hoitokaynnit ?? []
+    expect(eqit).toEqual([
+      ['id',   'h1'],   // select-vaihe
+      ['id',   'h1'],   // update-vaihe
+      ['tila', 'valmis'],// race-suojaus
+    ])
+  })
+
+  it('käynti ei ole "valmis" → palauttaa virheen, ei UPDATE-kutsua', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data: { avattu_uudelleen_kerralla: 0, avattu_uudelleen_kasittely: [], tila: 'luonnos' },
+      error: null,
+    })
+
+    const tulos = await avaaKayntiUudelleen('h1')
+
+    expect(tulos).toEqual({ virhe: 'Käynti ei ole lukittu (tila ei ole "valmis")' })
+    expect(apurit.tila.updateJonot.hoitokaynnit).toBeUndefined()
+  })
+
+  it('race condition: joku muu on jo avannut → palauttaa virheen', async () => {
+    // Hae onnistuu, tila='valmis' edelleen
+    apurit.lisaaTulos('hoitokaynnit', {
+      data: { avattu_uudelleen_kerralla: 0, avattu_uudelleen_kasittely: [], tila: 'valmis' },
+      error: null,
+    })
+    // UPDATE palauttaa 0 riviä koska WHERE tila='valmis' ei matchaa
+    // (joku muu vaihtoi sen 'luonnos':ksi väliin)
+    apurit.lisaaTulos('hoitokaynnit', { data: [], error: null })
+
+    const tulos = await avaaKayntiUudelleen('h1')
+
+    expect(tulos).toEqual({ virhe: 'Joku muu on jo avannut käynnin' })
   })
 })
