@@ -1,7 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLomakepohja } from '../../../hooks/useLomakepohja'
 import { validoiVastaukset } from '../../../lib/lomakeValidointi'
-import { normalisoiPohjaRakenne, tallennaKayntiVastauksilla } from '../../../lib/db'
+import {
+  normalisoiPohjaRakenne,
+  tallennaKayntiVastauksilla,
+  lukitseKaynti,
+  avaaKayntiUudelleen,
+} from '../../../lib/db'
 import NayttoYksiSivu from './nayttotyylit/NayttoYksiSivu'
 import NayttoCKerrallaan from './nayttotyylit/NayttoCKerrallaan'
 import NayttoAccordion from './nayttotyylit/NayttoAccordion'
@@ -91,6 +96,126 @@ function muotoileKlo(date) {
   return date.toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' })
 }
 
+// AB-T4c: lukutila-lippu yläosassa kun käynti on 'valmis'
+const lukutilaLippuTyyli = {
+  display:        'flex',
+  alignItems:     'center',
+  gap:            '10px',
+  padding:        '12px 16px',
+  borderRadius:   '10px',
+  background:     '#f0fdf4',     // emerald-50
+  border:         '1px solid #bbf7d0',  // emerald-200
+  color:          '#065f46',     // emerald-800
+  fontSize:       '13px',
+  fontWeight:     '600',
+}
+
+// AB-T4c: "Tallenna käynti" -nappi alaosassa kun tila='luonnos'
+const tallennaNappiTyyli = {
+  width:         '100%',
+  minHeight:     '60px',
+  background:    '#1e40af',     // blue-800 (vahva)
+  color:         'white',
+  fontSize:      '16px',
+  fontWeight:    '700',
+  letterSpacing: '0.06em',
+  borderRadius:  '12px',
+  border:        'none',
+  cursor:        'pointer',
+  marginTop:     '12px',
+  padding:       '16px 24px',
+  boxShadow:     '0 2px 8px rgba(30, 64, 175, 0.3)',
+  transition:    'background 0.15s',
+}
+
+// AB-T4c: "Avaa muokattavaksi" -nappi kun tila='valmis'
+const avaaNappiTyyli = {
+  display:       'inline-flex',
+  alignItems:    'center',
+  gap:           '8px',
+  padding:       '10px 18px',
+  background:    'white',
+  color:         '#374151',
+  fontSize:      '13px',
+  fontWeight:    '500',
+  border:        '1px solid #d1d5db',
+  borderRadius:  '8px',
+  cursor:        'pointer',
+  marginTop:     '12px',
+}
+
+// AB-T4c: yhteinen vahvistus-modaali (lukitus + avaus käyttää)
+function Vahvistusmodaali({ otsikko, teksti, vahvistusTeksti, vahvistusVari = '#1e40af', onVahvista, onPeruuta, kaynnissa = false }) {
+  return (
+    <div
+      style={{
+        position:       'fixed',
+        inset:          0,
+        background:     'rgba(0,0,0,0.5)',
+        display:        'flex',
+        alignItems:     'center',
+        justifyContent: 'center',
+        zIndex:         50,
+        padding:        '16px',
+      }}
+      role="dialog"
+      aria-modal="true"
+    >
+      <div style={{
+        background:   'white',
+        borderRadius: '16px',
+        padding:      '24px',
+        maxWidth:     '420px',
+        width:        '100%',
+        boxShadow:    '0 10px 40px rgba(0,0,0,0.2)',
+      }}>
+        <h3 style={{ margin: '0 0 12px 0', fontSize: '16px', fontWeight: '700', color: '#111827' }}>
+          {otsikko}
+        </h3>
+        <p style={{ margin: '0 0 16px 0', fontSize: '14px', color: '#374151', lineHeight: 1.5 }}>
+          {teksti}
+        </p>
+        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            onClick={onPeruuta}
+            disabled={kaynnissa}
+            style={{
+              padding:      '8px 16px',
+              background:   'transparent',
+              border:       '1px solid #d1d5db',
+              borderRadius: '8px',
+              cursor:       kaynnissa ? 'wait' : 'pointer',
+              fontSize:     '13px',
+              color:        '#6b7280',
+            }}
+          >
+            Peruuta
+          </button>
+          <button
+            type="button"
+            onClick={onVahvista}
+            disabled={kaynnissa}
+            style={{
+              padding:      '8px 16px',
+              background:   vahvistusVari,
+              border:       'none',
+              borderRadius: '8px',
+              cursor:       kaynnissa ? 'wait' : 'pointer',
+              fontSize:     '13px',
+              fontWeight:   '600',
+              color:        'white',
+              opacity:      kaynnissa ? 0.6 : 1,
+            }}
+          >
+            {kaynnissa ? 'Odota…' : vahvistusTeksti}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // LomakeRenderoija voi saada rakenteen kahdella tavalla:
 // 1. pohjaId — useLomakepohja-hookki lataa rakenteen + kentät tietokannasta
 // 2. valmiitTiedot = { rakenne, kentat } — käytä suoraan annettuja arvoja
@@ -99,9 +224,15 @@ function muotoileKlo(date) {
 // AB-T4b: jos hoitokayntiId annettu, vastaukset auto-tallentuu 3s viiveen
 // jälkeen tallennaKayntiVastauksilla:n kautta. alkuVersio (default null)
 // on optimistisen lukon lähtöarvo — null ohittaa lukon ensimmäisellä kutsulla.
+//
+// AB-T4c: tila-prop ('luonnos' | 'valmis') kontrolloi lukutilaa. Lukutilassa
+// auto-save deaktivoidaan ja lomake näkyy disabloituna. onTilaMuutos-callback
+// kutsutaan kun käyttäjä lukitsee tai avaa käynnin (parent voi refreshata
+// tilan).
 export default function LomakeRenderoija({
   pohjaId, valmiitTiedot, vastaukset, onMuutos, onLahetys,
   hoitokayntiId = null, alkuVersio = null,
+  tila = 'luonnos', onTilaMuutos = null,
 }) {
   const haetut = useLomakepohja(valmiitTiedot ? null : pohjaId)
 
@@ -125,6 +256,12 @@ export default function LomakeRenderoija({
   const [viimeisinTallennus,  setViimeisinTallennus]  = useState(null)
   const [virheviesti,         setVirheviesti]         = useState(null)
   const [ristiriita,          setRistiriita]          = useState(null)
+
+  // AB-T4c: lukitus/avaus-modaalit + niiden toimintojen tilat
+  const [lukitusVahvistus,    setLukitusVahvistus]    = useState(false)
+  const [avausVahvistus,      setAvausVahvistus]      = useState(false)
+  const [lukitusKaynnissa,    setLukitusKaynnissa]    = useState(false)
+  const [avausKaynnissa,      setAvausKaynnissa]      = useState(false)
 
   // AB-T4b: refit auto-save -mekanismille
   const debounceTimerRef    = useRef(null)
@@ -162,8 +299,10 @@ export default function LomakeRenderoija({
   }, [])
 
   // AB-T4b: auto-save — 3s debounce vastaukset-muutoksesta
+  // AB-T4c: tila='valmis' tilassa auto-save deaktivoidaan (lukutila)
   useEffect(() => {
     if (!hoitokayntiId) return
+    if (tila === 'valmis') return            // AB-T4c: ei auto-savea lukutilassa
     if (ekaRenderRef.current) {
       // Skip ensimmäinen render: parent antaa initial vastaukset, niitä ei tallenneta
       ekaRenderRef.current = false
@@ -178,7 +317,7 @@ export default function LomakeRenderoija({
     }, AUTO_SAVE_DEBOUNCE_MS)
     // Riippuvuudet: vain vastaukset — debounce käynnistyy joka muutoksesta.
     // suoritaTallennus on vakaa funktio joka käyttää refejä.
-  }, [vastaukset, hoitokayntiId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [vastaukset, hoitokayntiId, tila]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // AB-T4b: tallennuksen suorittaminen — kutsutaan debouncesta tai retry:stä
   async function suoritaTallennus(vastauksetSuoritushetkella) {
@@ -251,6 +390,7 @@ export default function LomakeRenderoija({
   }
 
   function paivitaKentta(tunniste, uusiArvo) {
+    if (tila === 'valmis') return            // AB-T4c: lukutilassa ei muutoksia
     // Funktionaalinen päivitys jotta stale-closurella varustetut komponentit
     // (esim. AllekirjoitusPad jonka useEffect on tallentanut callback-referenssin)
     // eivät yliaja toisten kenttien arvoja.
@@ -260,6 +400,56 @@ export default function LomakeRenderoija({
       const { [tunniste]: _, ...loput } = prev
       return loput
     })
+  }
+
+  // AB-T4c: lukitse käynti — kutsutaan vahvistusmodaalin "Tallenna ja lukitse" -napista.
+  // Auto-save:n viimeisin tallennus on jo mennyt läpi (3s debouncen päässä) — jos
+  // pendingejä on, ne ehtivät joko toteutua tai ne overritettavat tämän jälkeen
+  // koska seuraava lataus näkee uuden tilan/vastaukset.
+  async function suoritaLukitus() {
+    if (!hoitokayntiId) return
+    setLukitusKaynnissa(true)
+
+    // Jos pending debounce → suorita se synkronisesti ennen lukitusta
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+      debounceTimerRef.current = null
+      await suoritaTallennus(vastauksetRef.current)
+    }
+
+    const tulos = await lukitseKaynti(hoitokayntiId, nykyinenVersioRef.current)
+    setLukitusKaynnissa(false)
+    setLukitusVahvistus(false)
+
+    if (tulos.ristiriita) {
+      setRistiriita(tulos)
+      return
+    }
+    if (tulos.virhe) {
+      setVirheviesti(tulos.virhe)
+      setTallennusTila('virhe')
+      return
+    }
+
+    nykyinenVersioRef.current = tulos.versio ?? nykyinenVersioRef.current
+    if (onTilaMuutos) onTilaMuutos('valmis')
+  }
+
+  // AB-T4c: avaa lukittu käynti uudelleen muokattavaksi
+  async function suoritaAvaus() {
+    if (!hoitokayntiId) return
+    setAvausKaynnissa(true)
+
+    const tulos = await avaaKayntiUudelleen(hoitokayntiId)
+    setAvausKaynnissa(false)
+    setAvausVahvistus(false)
+
+    if (tulos.virhe) {
+      setVirheviesti(tulos.virhe)
+      setTallennusTila('virhe')
+      return
+    }
+    if (onTilaMuutos) onTilaMuutos('luonnos')
   }
 
   function lahetaLomake() {
@@ -275,8 +465,19 @@ export default function LomakeRenderoija({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* AB-T4b: tallennustila-indikaattori (näytetään kun hoitokayntiId asetettu) */}
-      {hoitokayntiId && tallennusTila !== 'idle' && (
+      {/* AB-T4c: lukutila-lippu yläosaan kun käynti on tallennettu valmiina */}
+      {tila === 'valmis' && (
+        <div style={lukutilaLippuTyyli} role="status">
+          <span style={{ fontSize: '16px' }}>✓</span>
+          <span>
+            Käynti tallennettu (lukittu)
+            {viimeisinTallennus && ` · klo ${muotoileKlo(viimeisinTallennus)}`}
+          </span>
+        </div>
+      )}
+
+      {/* AB-T4b: tallennustila-indikaattori (näytetään kun hoitokayntiId asetettu, ei lukutilassa) */}
+      {hoitokayntiId && tila !== 'valmis' && tallennusTila !== 'idle' && (
         <div style={tallennusIndikatorTyyli(tallennusTila)} role="status" aria-live="polite">
           {tallennusTila === 'tallennetaan' && <span>💾 Tallennetaan…</span>}
           {tallennusTila === 'tallennettu' && (
@@ -314,16 +515,74 @@ export default function LomakeRenderoija({
         </div>
       )}
 
-      <Naytto
-        rakenne={rakenne}
-        kentat={kentat}
-        vastaukset={vastaukset ?? {}}
-        virheet={virheet}
-        onKenttamuutos={paivitaKentta}
-        onLahetys={onLahetys ? lahetaLomake : null}
-        uusiKayntiAloitettu={uusiKayntiAloitettu}
-        onAloitaUusiKaynti={() => setUusiKayntiAloitettu(true)}
-      />
+      {/* AB-T4c: lukutilassa Naytto on disabloitu — pointer-events:none + opacity */}
+      <div
+        style={{
+          pointerEvents: tila === 'valmis' ? 'none' : 'auto',
+          opacity:       tila === 'valmis' ? 0.7   : 1,
+          transition:    'opacity 0.15s',
+        }}
+        aria-disabled={tila === 'valmis'}
+      >
+        <Naytto
+          rakenne={rakenne}
+          kentat={kentat}
+          vastaukset={vastaukset ?? {}}
+          virheet={virheet}
+          onKenttamuutos={paivitaKentta}
+          onLahetys={onLahetys ? lahetaLomake : null}
+          uusiKayntiAloitettu={uusiKayntiAloitettu}
+          onAloitaUusiKaynti={() => setUusiKayntiAloitettu(true)}
+        />
+      </div>
+
+      {/* AB-T4c: "Tallenna käynti" -nappi alaosassa kun tila='luonnos' ja hoitokayntiId set */}
+      {hoitokayntiId && tila === 'luonnos' && (
+        <button
+          type="button"
+          onClick={() => setLukitusVahvistus(true)}
+          style={tallennaNappiTyyli}
+        >
+          💾 Tallenna käynti
+        </button>
+      )}
+
+      {/* AB-T4c: "Avaa muokattavaksi" -nappi kun tila='valmis' */}
+      {hoitokayntiId && tila === 'valmis' && (
+        <button
+          type="button"
+          onClick={() => setAvausVahvistus(true)}
+          style={avaaNappiTyyli}
+        >
+          🔓 Avaa muokattavaksi
+        </button>
+      )}
+
+      {/* AB-T4c: lukitus-vahvistusmodaali */}
+      {lukitusVahvistus && (
+        <Vahvistusmodaali
+          otsikko="Tallenna ja lukitse käynti"
+          teksti="Käynnin tallentamisen jälkeen lomake lukitaan. Voit avata sen uudelleen muokattavaksi tarvittaessa, mutta jokainen avaus tallentuu lokijälkeen."
+          vahvistusTeksti="Tallenna ja lukitse"
+          vahvistusVari="#1e40af"
+          onVahvista={suoritaLukitus}
+          onPeruuta={() => setLukitusVahvistus(false)}
+          kaynnissa={lukitusKaynnissa}
+        />
+      )}
+
+      {/* AB-T4c: avaa-vahvistusmodaali */}
+      {avausVahvistus && (
+        <Vahvistusmodaali
+          otsikko="Avaa käynti uudelleen muokattavaksi"
+          teksti="Tämä käynti on tallennettu valmiina. Avataanko uudelleen muokattavaksi? Toiminnasta jää lokijälki (aikaleima + hoitajan tunnus)."
+          vahvistusTeksti="Avaa muokattavaksi"
+          vahvistusVari="#dc2626"
+          onVahvista={suoritaAvaus}
+          onPeruuta={() => setAvausVahvistus(false)}
+          kaynnissa={avausKaynnissa}
+        />
+      )}
 
       {/* AB-T4b: ristiriita-modaali — käynti muokattu toisessa ikkunassa */}
       {ristiriita && (

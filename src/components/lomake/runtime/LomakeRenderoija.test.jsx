@@ -5,18 +5,20 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 // käytämme valmiitTiedot-polkua (top-level createClient kaatuu env-puutteen takia).
 vi.mock('../../../services/supabase', () => ({ supabase: {} }))
 
-// AB-T4b: mockaa vain tallennaKayntiVastauksilla, säilytä muut funktiot
-// (importOriginal). Muut renderöinnin alikomponentit (esim. CheckboxLista)
-// importtaa db.js:stä eri funktioita — actual:in lataus pitää ne saatavilla.
+// AB-T4b/c: mockaa vain T4-funktiot, säilytä muut (importOriginal).
+// Muut renderöinnin alikomponentit (esim. CheckboxLista) importtaa db.js:stä
+// eri funktioita — actual:in lataus pitää ne saatavilla.
 vi.mock('../../../lib/db', async () => {
   const actual = await vi.importActual('../../../lib/db')
   return {
     ...actual,
     tallennaKayntiVastauksilla: vi.fn(),
+    lukitseKaynti:              vi.fn(),
+    avaaKayntiUudelleen:        vi.fn(),
   }
 })
 
-import { tallennaKayntiVastauksilla } from '../../../lib/db'
+import { tallennaKayntiVastauksilla, lukitseKaynti, avaaKayntiUudelleen } from '../../../lib/db'
 
 // LomakeRenderoija käyttää useLomakepohja-hookkia jos pohjaId annettu.
 // Käytämme valmiitTiedot-polkua bypassaamaan DB ja keskittymään puhtaasti
@@ -269,5 +271,136 @@ describe('LomakeRenderoija — auto-save 3s debouncella (AB-T4b)', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByText(/muokattu toisessa ikkunassa/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Päivitä sivu/i })).toBeInTheDocument()
+  })
+})
+
+describe('LomakeRenderoija — Tallenna käynti -nappi + lukutila + Avaa muokattavaksi (AB-T4c)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  const POHJA = teeValmiitTiedot(
+    {},
+    [{ id: 'o1', otsikko: 'Asiakas', rooli: 'asiakas', kenttat: [] }]
+  )
+
+  it('"Tallenna käynti" -nappi näkyy luonnos-tilassa kun hoitokayntiId asetettu', () => {
+    render(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        valmiitTiedot={POHJA}
+        vastaukset={{}}
+        onMuutos={() => {}}
+      />
+    )
+
+    expect(screen.getByRole('button', { name: /Tallenna käynti/i })).toBeInTheDocument()
+    // Lukutila-lippua ei näy
+    expect(screen.queryByText(/lukittu/i)).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Avaa muokattavaksi/i })).not.toBeInTheDocument()
+  })
+
+  it('"Tallenna käynti" -klikkaus avaa lukitusmodaalin', () => {
+    render(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        valmiitTiedot={POHJA}
+        vastaukset={{}}
+        onMuutos={() => {}}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Tallenna käynti/i }))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText(/Tallenna ja lukitse käynti/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Tallenna ja lukitse$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Peruuta/i })).toBeInTheDocument()
+  })
+
+  it('lukitusmodaalin vahvistus kutsuu lukitseKaynti + onTilaMuutos("valmis")', async () => {
+    lukitseKaynti.mockResolvedValue({ virhe: null, versio: 5 })
+    const onTilaMuutos = vi.fn()
+
+    render(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        alkuVersio={4}
+        valmiitTiedot={POHJA}
+        vastaukset={{ a: 1 }}
+        onMuutos={() => {}}
+        onTilaMuutos={onTilaMuutos}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Tallenna käynti/i }))
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Tallenna ja lukitse$/i }))
+    })
+
+    expect(lukitseKaynti).toHaveBeenCalledWith('h1', 4)
+    expect(onTilaMuutos).toHaveBeenCalledWith('valmis')
+  })
+
+  it('lukutila (tila="valmis"): lukutila-lippu + "Avaa muokattavaksi" -nappi näkyy, "Tallenna käynti" piilossa', () => {
+    render(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        valmiitTiedot={POHJA}
+        vastaukset={{}}
+        onMuutos={() => {}}
+        tila="valmis"
+      />
+    )
+
+    expect(screen.getByText(/Käynti tallennettu \(lukittu\)/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Avaa muokattavaksi/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Tallenna käynti$/i })).not.toBeInTheDocument()
+  })
+
+  it('"Avaa muokattavaksi" -modaalin vahvistus kutsuu avaaKayntiUudelleen + onTilaMuutos("luonnos")', async () => {
+    avaaKayntiUudelleen.mockResolvedValue({ virhe: null, avattuKerralla: 1 })
+    const onTilaMuutos = vi.fn()
+
+    render(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        valmiitTiedot={POHJA}
+        vastaukset={{}}
+        onMuutos={() => {}}
+        tila="valmis"
+        onTilaMuutos={onTilaMuutos}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Avaa muokattavaksi/i }))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Avaa muokattavaksi$/i }))
+    })
+
+    expect(avaaKayntiUudelleen).toHaveBeenCalledWith('h1')
+    expect(onTilaMuutos).toHaveBeenCalledWith('luonnos')
+  })
+
+  it('lukutilassa Naytto-wrapperi disabloitu (aria-disabled)', () => {
+    const { container } = render(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        valmiitTiedot={POHJA}
+        vastaukset={{}}
+        onMuutos={() => {}}
+        tila="valmis"
+      />
+    )
+
+    // aria-disabled wrapper on Naytto:n ympärillä
+    const disabled = container.querySelector('[aria-disabled="true"]')
+    expect(disabled).toBeInTheDocument()
+    // CSS pointer-events: none + opacity 0.7
+    expect(disabled.style.pointerEvents).toBe('none')
   })
 })
