@@ -265,6 +265,46 @@ export const luoUusiKentta = async ({
   return { kenttaId: kentta.id, tunniste: tunniste.trim(), virhe: null }
 }
 
+// Päivittää olemassa olevan kentän pysyvyyden — kutsutaan editorin checkboxista.
+// Päivittää aina kentän AKTIIVISIN version (suurin versio_nro jolla aktiivinen=true),
+// joka on sama jonka haeKenttakirjasto ja haeLomakepohja palauttavat.
+//
+// AB-T1b1: pysyvyys on operationaalinen ominaisuus (kuten aktiivinen-lippu),
+// EI sisältöversioon kuuluva tieto → ei luo uutta versiota, vain UPDATE.
+export const paivitaKentanPysyvyys = async (kenttaId, pysyva) => {
+  if (!kenttaId) return { virhe: 'Kentta-id puuttuu' }
+  if (typeof pysyva !== 'boolean') return { virhe: 'pysyva-arvo puuttuu (true/false)' }
+
+  // Hae aktiivisin versio
+  const { data: versio, error: hakuVirhe } = await supabase
+    .from('kentan_versiot')
+    .select('id')
+    .eq('kentta_id', kenttaId)
+    .eq('aktiivinen', true)
+    .order('versio', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (hakuVirhe) {
+    console.error('Aktiivisen kentäversion haku epäonnistui:', hakuVirhe)
+    return { virhe: hakuVirhe.message }
+  }
+  if (!versio) {
+    return { virhe: 'Kentällä ei ole aktiivista versiota' }
+  }
+
+  const { error: paivitysVirhe } = await supabase
+    .from('kentan_versiot')
+    .update({ pysyva })
+    .eq('id', versio.id)
+
+  if (paivitysVirhe) {
+    console.error('Pysyvyyden päivitys epäonnistui:', paivitysVirhe)
+    return { virhe: paivitysVirhe.message }
+  }
+  return { virhe: null }
+}
+
 // Hakee koko kenttäkirjaston editorin käyttöön — kentän tunniste + tyyppi + suomenkielinen otsikko.
 // Palautusmuoto: [{ id, tunniste, tyyppi, otsikko, apurivi, placeholder, validointi, oletukset, pysyva }]
 export const haeKenttakirjasto = async () => {

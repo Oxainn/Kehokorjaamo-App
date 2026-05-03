@@ -92,6 +92,7 @@ import {
   tallennaHoitokirjaus,
   tallennaRenderoijastaLomake,
   luoUusiKentta,
+  paivitaKentanPysyvyys,
 } from './db'
 
 describe('tallennaAsiakas', () => {
@@ -829,5 +830,55 @@ describe('luoUusiKentta — pysyva-kentän käsittely (AB-T1a)', () => {
 
     const versioRivi = apurit.tila.insertJonot.kentan_versiot[0]
     expect(versioRivi.pysyva).toBe(false)
+  })
+})
+
+describe('paivitaKentanPysyvyys (AB-T1b1)', () => {
+  let errorVakooja
+
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+    errorVakooja = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    errorVakooja.mockRestore()
+  })
+
+  it('kenttaId puuttuu → palauttaa virheen, ei DB-kutsuja', async () => {
+    expect(await paivitaKentanPysyvyys(null, true)).toEqual({ virhe: 'Kentta-id puuttuu' })
+    expect(apurit.fromVakooja).not.toHaveBeenCalled()
+  })
+
+  it('pysyva ei ole boolean → palauttaa virheen, ei DB-kutsuja', async () => {
+    expect(await paivitaKentanPysyvyys('k1', 'true')).toEqual({ virhe: 'pysyva-arvo puuttuu (true/false)' })
+    expect(await paivitaKentanPysyvyys('k1', 1)).toEqual({ virhe: 'pysyva-arvo puuttuu (true/false)' })
+    expect(await paivitaKentanPysyvyys('k1', undefined)).toEqual({ virhe: 'pysyva-arvo puuttuu (true/false)' })
+    expect(apurit.fromVakooja).not.toHaveBeenCalled()
+  })
+
+  it('happy path → hakee aktiivisen version ja päivittää sen pysyva-kentän', async () => {
+    // 1. Hae aktiivinen versio
+    apurit.lisaaTulos('kentan_versiot', { data: { id: 'versio-1' }, error: null })
+    // 2. Päivitä pysyva
+    apurit.lisaaTulos('kentan_versiot', { error: null })
+
+    const tulos = await paivitaKentanPysyvyys('kentta-id-1', true)
+
+    expect(tulos).toEqual({ virhe: null })
+    // Update-rivi sisältää vain pysyva-kentän
+    expect(apurit.tila.updateJonot.kentan_versiot).toHaveLength(1)
+    expect(apurit.tila.updateJonot.kentan_versiot[0]).toEqual({ pysyva: true })
+  })
+
+  it('kentällä ei ole aktiivista versiota → palauttaa virheen, ei UPDATE-kutsua', async () => {
+    apurit.lisaaTulos('kentan_versiot', { data: null, error: null })
+
+    const tulos = await paivitaKentanPysyvyys('kentta-id-orphan', false)
+
+    expect(tulos).toEqual({ virhe: 'Kentällä ei ole aktiivista versiota' })
+    expect(apurit.tila.updateJonot.kentan_versiot).toBeUndefined()
   })
 })
