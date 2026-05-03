@@ -1,5 +1,6 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, Fragment } from 'react'
 import Osio from '../Osio'
+import { RoolitransitioOtsikko, osionReunaTyyli, lisaaTransitiot } from '../roolitransitio'
 
 const lahetysTyyli = {
   width:        '100%',
@@ -116,15 +117,19 @@ export default function NayttoAccordion({ rakenne, kentat, vastaukset, virheet, 
     })
   }, [virheet, osiot])
 
+  const lista = lisaaTransitiot(osiot)
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {osiot.map((osio) => {
+      {lista.map(({ osio, naytaTransitio, rooli }) => {
         const otsikko = typeof osio.otsikko === 'object' ? (osio.otsikko.fi ?? osio.id) : (osio.otsikko ?? osio.id)
         const auki = aukiSet.has(osio.id)
         const status = laskeOsionStatus(osio, vastaukset, kentat, virheet)
 
         return (
-          <div key={osio.id} style={containerTyyli(status.sisaltaaVirheen)}>
+          <Fragment key={osio.id}>
+            {naytaTransitio && <RoolitransitioOtsikko rooli={rooli} />}
+            <div style={{ ...containerTyyli(status.sisaltaaVirheen), ...osionReunaTyyli(rooli) }}>
             <button
               type="button"
               onClick={() => toggle(osio.id)}
@@ -153,7 +158,8 @@ export default function NayttoAccordion({ rakenne, kentat, vastaukset, virheet, 
                 />
               </div>
             )}
-          </div>
+            </div>
+          </Fragment>
         )
       })}
 

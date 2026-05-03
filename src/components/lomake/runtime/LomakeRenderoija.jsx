@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useLomakepohja } from '../../../hooks/useLomakepohja'
 import { validoiVastaukset } from '../../../lib/lomakeValidointi'
+import { normalisoiPohjaRakenne } from '../../../lib/db'
 import NayttoYksiSivu from './nayttotyylit/NayttoYksiSivu'
 import NayttoCKerrallaan from './nayttotyylit/NayttoCKerrallaan'
 import NayttoAccordion from './nayttotyylit/NayttoAccordion'
@@ -43,7 +44,11 @@ const yhteenvetoTyyli = {
 export default function LomakeRenderoija({ pohjaId, valmiitTiedot, vastaukset, onMuutos, onLahetys }) {
   const haetut = useLomakepohja(valmiitTiedot ? null : pohjaId)
 
-  const rakenne = valmiitTiedot?.rakenne ?? haetut.rakenne
+  const rakenneRaaka = valmiitTiedot?.rakenne ?? haetut.rakenne
+  // AB-T2c: normalisoi defensiivisesti — `valmiitTiedot.rakenne` voi tulla
+  // esikatselusta normalisoimattomana. haeLomakepohja palauttaa jo normalisoidun,
+  // joten tässä uudelleenkutsu on idempotent.
+  const rakenne = useMemo(() => normalisoiPohjaRakenne(rakenneRaaka), [rakenneRaaka])
   const kentat  = valmiitTiedot?.kentat  ?? haetut.kentat
   const lataa   = !valmiitTiedot && haetut.lataa
   const virhe   = !valmiitTiedot && haetut.virhe
