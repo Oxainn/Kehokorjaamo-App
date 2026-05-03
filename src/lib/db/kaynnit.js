@@ -415,34 +415,6 @@ export const haeHoitokayntiVersionPerusteella = async (lomakeVersioId) => {
   return data?.id ?? null
 }
 
-export const tallennaKaynti = async (
-  asiakasId, havainnot, loyodokset,
-  hoitosuunnitelma, kuvaAnalyysit,
-  pvm
-) => {
-  const { data: { user } } = await supabase.auth.getUser()
-
-  const { data, error } = await supabase
-    .from('hoitokaynit')
-    .insert({
-      asiakas_id:      asiakasId,
-      hoitaja_id:      user.id,
-      havainnot,
-      loyodokset,
-      hoitosuunnitelma,
-      kuva_analyysit:  kuvaAnalyysit,
-      pvm:             pvm ? new Date(pvm).toISOString() : new Date().toISOString(),
-    })
-    .select()
-    .single()
-
-  if (error) {
-    console.error('Käynti epäonnistui:', error)
-    return null
-  }
-  return data
-}
-
 export const haeKaynit = async (asiakasId) => {
   const { data, error } = await supabase
     .from('hoitokaynit')
@@ -455,44 +427,4 @@ export const haeKaynit = async (asiakasId) => {
     return []
   }
   return data
-}
-
-export const haeAsiakkaatKaynneilla = async () => {
-  const { data, error } = await supabase
-    .from('asiakkaat')
-    .select(`
-      *,
-      hoitokaynit (
-        id,
-        pvm
-      )
-    `)
-    .order('luotu', { ascending: false })
-
-  if (error) {
-    console.error('Haku epäonnistui:', error)
-    return []
-  }
-
-  return data.map(a => ({
-    ...a,
-    viimeisinKaynti: a.hoitokaynit
-      ?.sort((x, y) => new Date(y.pvm) - new Date(x.pvm))[0]?.pvm ?? null,
-    kaynteja: a.hoitokaynit?.length ?? 0,
-  }))
-}
-
-export const haeKaynnitViikolle = async () => {
-  const viikkoAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
-
-  const { data, error } = await supabase
-    .from('hoitokaynit')
-    .select('id, pvm')
-    .gte('pvm', viikkoAgo)
-
-  if (error) {
-    console.error('Virhe:', error)
-    return 0
-  }
-  return data.length
 }
