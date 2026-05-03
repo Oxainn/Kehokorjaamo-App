@@ -198,6 +198,9 @@ export const paivitaLomakeTekstikentat = async (asiakasId, data) => {
 
 // Luo uuden kentän kenttäkirjastoon (rivit kenttakirjasto + kentan_versiot).
 // Tunniste on uniikki per hoitaja — tarkistus tietokannan UNIQUE-rajoituksen kautta.
+//
+// pysyva (default false): jos true, kentän arvo säilyy "Aloita uusi käynti"
+// -toiminnon jälkeen. AB-T1a — DB-sarake `kentan_versiot.pysyva`.
 export const luoUusiKentta = async ({
   tunniste,
   tyyppi,
@@ -208,6 +211,7 @@ export const luoUusiKentta = async ({
   sisalto = '',
   validointi = {},
   oletukset = {},
+  pysyva = false,
 }) => {
   if (!tunniste?.trim()) return { virhe: 'Tunniste puuttuu' }
   if (!tyyppi)           return { virhe: 'Kenttätyyppi puuttuu' }
@@ -250,6 +254,7 @@ export const luoUusiKentta = async ({
         en: { otsikko: '', apurivi: '', placeholder: '', virheilmoitus: '', sisalto: '' },
       },
       aktiivinen: true,
+      pysyva,
     })
 
   if (versioVirhe) {
@@ -261,11 +266,11 @@ export const luoUusiKentta = async ({
 }
 
 // Hakee koko kenttäkirjaston editorin käyttöön — kentän tunniste + tyyppi + suomenkielinen otsikko.
-// Palautusmuoto: [{ id, tunniste, tyyppi, otsikko, apurivi, placeholder, validointi, oletukset }]
+// Palautusmuoto: [{ id, tunniste, tyyppi, otsikko, apurivi, placeholder, validointi, oletukset, pysyva }]
 export const haeKenttakirjasto = async () => {
   const { data, error } = await supabase
     .from('kenttakirjasto')
-    .select('id, kentta_id_tunniste, kenttatyyppi, validointi, oletukset, kentan_versiot(versio, kaannokset, aktiivinen)')
+    .select('id, kentta_id_tunniste, kenttatyyppi, validointi, oletukset, kentan_versiot(versio, kaannokset, aktiivinen, pysyva)')
     .order('kentta_id_tunniste')
 
   if (error) {
@@ -288,6 +293,7 @@ export const haeKenttakirjasto = async () => {
       sisalto:     fi.sisalto ?? '',
       validointi:  k.validointi ?? {},
       oletukset:   k.oletukset ?? {},
+      pysyva:      v?.pysyva ?? false,
     }
   })
 }
@@ -338,7 +344,7 @@ export const haeLomakepohja = async (pohjaId) => {
   if (tunnisteet.length > 0) {
     const { data: kenttaRivit, error: kenttaVirhe } = await supabase
       .from('kenttakirjasto')
-      .select('id, kentta_id_tunniste, kenttatyyppi, validointi, oletukset, kentan_versiot(versio, kaannokset)')
+      .select('id, kentta_id_tunniste, kenttatyyppi, validointi, oletukset, kentan_versiot(versio, kaannokset, pysyva)')
       .in('kentta_id_tunniste', tunnisteet)
 
     if (kenttaVirhe) {
@@ -354,6 +360,7 @@ export const haeLomakepohja = async (pohjaId) => {
         validointi:   k.validointi ?? {},
         oletukset:    k.oletukset ?? {},
         kaannokset:   v?.kaannokset ?? {},
+        pysyva:       v?.pysyva ?? false,
       }
     }
   }

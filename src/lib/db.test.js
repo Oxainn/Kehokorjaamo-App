@@ -91,6 +91,7 @@ import {
   aloitaUusiKaynti,
   tallennaHoitokirjaus,
   tallennaRenderoijastaLomake,
+  luoUusiKentta,
 } from './db'
 
 describe('tallennaAsiakas', () => {
@@ -760,5 +761,73 @@ describe('tallennaRenderoijastaLomake', () => {
     })
     expect(apurit.fromVakooja).not.toHaveBeenCalledWith('lomake_sairaudet')
     expect(apurit.tila.insertJonot.lomake_sairaudet).toBeUndefined()
+  })
+})
+
+describe('luoUusiKentta — pysyva-kentän käsittely (AB-T1a)', () => {
+  let errorVakooja
+
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+    errorVakooja = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    errorVakooja.mockRestore()
+  })
+
+  // Apuri: setupoi mockit kahdelle insertille (kenttakirjasto + kentan_versiot)
+  const setupOnnistuvaLuonti = (kenttaId = 'kentta-1') => {
+    // 1. kenttakirjasto.insert.select('id').single() → palauttaa luodun kentän id:n
+    apurit.lisaaTulos('kenttakirjasto', { data: { id: kenttaId }, error: null })
+    // 2. kentan_versiot.insert → onnistuu (ei .select(), terminaali on insert itse)
+    apurit.lisaaTulos('kentan_versiot', { error: null })
+  }
+
+  it('ilman pysyva-parametria → tallentaa kentan_versiot-riviin pysyva: false (default)', async () => {
+    setupOnnistuvaLuonti('uusi-id')
+
+    const tulos = await luoUusiKentta({
+      tunniste: 'oma_kentta',
+      tyyppi:   'tekstikentta',
+      otsikko:  'Oma kenttä',
+    })
+
+    expect(tulos).toEqual({ kenttaId: 'uusi-id', tunniste: 'oma_kentta', virhe: null })
+
+    // kentan_versiot-insertissä pitäisi olla pysyva: false
+    expect(apurit.tila.insertJonot.kentan_versiot).toHaveLength(1)
+    const versioRivi = apurit.tila.insertJonot.kentan_versiot[0]
+    expect(versioRivi.pysyva).toBe(false)
+  })
+
+  it('pysyva: true annettu → välittyy kentan_versiot-insertiin sellaisenaan', async () => {
+    setupOnnistuvaLuonti('uusi-id-2')
+
+    await luoUusiKentta({
+      tunniste: 'sahkoposti',
+      tyyppi:   'sahkoposti',
+      otsikko:  'Sähköposti',
+      pysyva:   true,
+    })
+
+    const versioRivi = apurit.tila.insertJonot.kentan_versiot[0]
+    expect(versioRivi.pysyva).toBe(true)
+  })
+
+  it('pysyva: false annettu eksplisiittisesti → välittyy kentan_versiot-insertiin', async () => {
+    setupOnnistuvaLuonti('uusi-id-3')
+
+    await luoUusiKentta({
+      tunniste: 'paivan_kipu',
+      tyyppi:   'numero',
+      otsikko:  'Päivän kipu',
+      pysyva:   false,
+    })
+
+    const versioRivi = apurit.tila.insertJonot.kentan_versiot[0]
+    expect(versioRivi.pysyva).toBe(false)
   })
 })
