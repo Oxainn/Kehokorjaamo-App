@@ -1,9 +1,22 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 
 // Mockaa supabase-clientti — useLomakepohja → db.js -ketju lataa sen vaikka
 // käytämme valmiitTiedot-polkua (top-level createClient kaatuu env-puutteen takia).
 vi.mock('../../../services/supabase', () => ({ supabase: {} }))
+
+// AB-T4b: mockaa vain tallennaKayntiVastauksilla, säilytä muut funktiot
+// (importOriginal). Muut renderöinnin alikomponentit (esim. CheckboxLista)
+// importtaa db.js:stä eri funktioita — actual:in lataus pitää ne saatavilla.
+vi.mock('../../../lib/db', async () => {
+  const actual = await vi.importActual('../../../lib/db')
+  return {
+    ...actual,
+    tallennaKayntiVastauksilla: vi.fn(),
+  }
+})
+
+import { tallennaKayntiVastauksilla } from '../../../lib/db'
 
 // LomakeRenderoija käyttää useLomakepohja-hookkia jos pohjaId annettu.
 // Käytämme valmiitTiedot-polkua bypassaamaan DB ja keskittymään puhtaasti
@@ -85,5 +98,176 @@ describe('LomakeRenderoija — Aloita uusi käynti tyhjentää muuttuvat (AB-T3b
 
     const tulos = onMuutos.mock.calls[0][0]({ kipu: '7', otsikko: 'Niska' })
     expect(tulos).toEqual({})
+  })
+})
+
+describe('LomakeRenderoija — auto-save 3s debouncella (AB-T4b)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.clearAllMocks()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  // KRIITTINEN: säilytä sama valmiitTiedot-referenssi yli rerenderin, jotta
+  // LomakeRenderoija:n reset-useEffect (joka tarkkailee valmiitTiedot-prop)
+  // ei nollaa ekaRenderRef:iä → muuten auto-save skipataan ekana ajona.
+  const POHJA_REFERENSSI = teeValmiitTiedot(
+    {},
+    [{ id: 'o1', otsikko: 'Asiakas', rooli: 'asiakas', kenttat: [] }]
+  )
+
+  it('hoitokayntiId puuttuu → ei auto-savea vaikka vastaukset muuttuu', async () => {
+    const { rerender } = render(
+      <LomakeRenderoija
+        valmiitTiedot={POHJA_REFERENSSI}
+        vastaukset={{ a: 1 }}
+        onMuutos={() => {}}
+      />
+    )
+    rerender(
+      <LomakeRenderoija
+        valmiitTiedot={POHJA_REFERENSSI}
+        vastaukset={{ a: 2 }}
+        onMuutos={() => {}}
+      />
+    )
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(tallennaKayntiVastauksilla).not.toHaveBeenCalled()
+  })
+
+  it('vastaukset-muutos triggeröi auto-saven 3s viiveen jälkeen, ei aikaisemmin', async () => {
+    tallennaKayntiVastauksilla.mockResolvedValue({ virhe: null, versio: 1 })
+
+    const { rerender } = render(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        valmiitTiedot={POHJA_REFERENSSI}
+        vastaukset={{ a: 1 }}
+        onMuutos={() => {}}
+      />
+    )
+
+    // Initial render: ei tallennusta (ekaRenderRef skip)
+    await vi.advanceTimersByTimeAsync(5000)
+    expect(tallennaKayntiVastauksilla).not.toHaveBeenCalled()
+
+    // vastaukset muuttuu
+    rerender(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        valmiitTiedot={POHJA_REFERENSSI}
+        vastaukset={{ a: 2 }}
+        onMuutos={() => {}}
+      />
+    )
+
+    // Ennen 3s: ei kutsuttu
+    await vi.advanceTimersByTimeAsync(2500)
+    expect(tallennaKayntiVastauksilla).not.toHaveBeenCalled()
+
+    // 3s täyttyy → kutsuttu
+    await vi.advanceTimersByTimeAsync(500)
+    expect(tallennaKayntiVastauksilla).toHaveBeenCalledTimes(1)
+    expect(tallennaKayntiVastauksilla).toHaveBeenCalledWith('h1', { a: 2 }, null)
+  })
+
+  it('onnistunut tallennus näyttää "Tallennettu" -indikaattorin', async () => {
+    tallennaKayntiVastauksilla.mockResolvedValue({ virhe: null, versio: 5 })
+
+    const { rerender } = render(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        alkuVersio={4}
+        valmiitTiedot={POHJA_REFERENSSI}
+        vastaukset={{ a: 1 }}
+        onMuutos={() => {}}
+      />
+    )
+
+    rerender(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        alkuVersio={4}
+        valmiitTiedot={POHJA_REFERENSSI}
+        vastaukset={{ a: 2 }}
+        onMuutos={() => {}}
+      />
+    )
+
+    // act-wrapper: advanceTimersByTime + microtask-flush jotta async tallennus
+    // ehtii valmistua + Reactin state-päivitykset näkyä DOMissa
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+
+    expect(screen.getByText(/Tallennettu klo/i)).toBeInTheDocument()
+    // alkuVersio välittyi DB-kutsuun
+    expect(tallennaKayntiVastauksilla).toHaveBeenCalledWith('h1', { a: 2 }, 4)
+  })
+
+  it('verkkovirhe → näyttää virhe-indikaattorin + retry-napin', async () => {
+    tallennaKayntiVastauksilla.mockResolvedValue({ virhe: 'verkkovirhe' })
+
+    const { rerender } = render(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        valmiitTiedot={POHJA_REFERENSSI}
+        vastaukset={{ a: 1 }}
+        onMuutos={() => {}}
+      />
+    )
+    rerender(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        valmiitTiedot={POHJA_REFERENSSI}
+        vastaukset={{ a: 2 }}
+        onMuutos={() => {}}
+      />
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+
+    expect(screen.getByText(/Tallennus epäonnistui/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Yritä nyt/i })).toBeInTheDocument()
+  })
+
+  it('optimistinen lukon ristiriita → näyttää modaalin', async () => {
+    tallennaKayntiVastauksilla.mockResolvedValue({
+      ristiriita:     true,
+      nykyinenVersio: 7,
+      virhe:          'Käynti on muokattu toisessa ikkunassa',
+    })
+
+    const { rerender } = render(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        alkuVersio={3}
+        valmiitTiedot={POHJA_REFERENSSI}
+        vastaukset={{ a: 1 }}
+        onMuutos={() => {}}
+      />
+    )
+    rerender(
+      <LomakeRenderoija
+        hoitokayntiId="h1"
+        alkuVersio={3}
+        valmiitTiedot={POHJA_REFERENSSI}
+        vastaukset={{ a: 2 }}
+        onMuutos={() => {}}
+      />
+    )
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText(/muokattu toisessa ikkunassa/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Päivitä sivu/i })).toBeInTheDocument()
   })
 })
