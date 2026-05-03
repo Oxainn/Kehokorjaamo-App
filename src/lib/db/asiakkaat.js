@@ -358,3 +358,30 @@ export const haeAsiakkaanSairaudet = async (asiakasId) => {
   }
   return data ?? []
 }
+
+// AB-T5b: luo tyhjä asiakas-rivi placeholder-nimellä — käytetään
+// "+ Uusi asiakas" -flow:ssa kun hoitaja avaa uuden käynnin lomakkeen.
+// Lomakkeen identiteetti-kentät (etunimi, sukunimi, sähköposti jne.)
+// päivittyvät asiakkaat-tauluun erikseen kun hoitaja täyttää niitä.
+//
+// Hoitajan luoma asiakas on heti vahvistettu (vahvistettu=true) — eri kuin
+// julkisen lomakkeen kautta tullut (vahvistettu=false → UudenAsiakkaanTarkistus).
+export const luoTyhjaAsiakas = async () => {
+  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
+  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
+
+  const { data, error } = await supabase
+    .from('asiakkaat')
+    .insert({
+      hoitaja_id:  user.id,
+      nimi:        'Uusi asiakas',
+      vahvistettu: true,
+    })
+    .select('id')
+    .single()
+  if (error) {
+    console.error('Tyhjän asiakkaan luonti epäonnistui:', error)
+    return { virhe: error.message }
+  }
+  return { id: data.id, virhe: null }
+}
