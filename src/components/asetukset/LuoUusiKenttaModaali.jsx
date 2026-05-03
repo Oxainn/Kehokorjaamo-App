@@ -1,5 +1,5 @@
 // Modaali uuden kentän luomiseksi kenttäkirjastoon.
-// Tukee 12 kenttätyyppiä, tyyppikohtaiset asetukset (numero/liukusaadin/checkbox_lista/infoteksti).
+// Tukee 13 kenttätyyppiä, tyyppikohtaiset asetukset (numero/liukusaadin/checkbox_lista/infoteksti).
 
 import { useState, useMemo, useEffect } from 'react'
 import { luoUusiKentta } from '../../lib/db'
@@ -17,6 +17,7 @@ const KENTTATYYPIT = [
   { arvo: 'checkbox_lista', nimi: 'Lista (rastit, useita valittavissa)' },
   { arvo: 'kehonkartta',    nimi: 'Kehonkartta (piirros)' },
   { arvo: 'allekirjoitus',  nimi: 'Allekirjoitus' },
+  { arvo: 'kuvantaminen',   nimi: 'Kuvantaminen (4 asentokuvaa + AI-analyysi)' },
 ]
 
 const VARIKOODAUS_VAIHTOEHDOT = [

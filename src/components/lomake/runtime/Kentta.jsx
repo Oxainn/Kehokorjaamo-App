@@ -10,6 +10,7 @@ import CheckboxLista from './kenttatyypit/CheckboxLista'
 import Kehonkartta from './kenttatyypit/Kehonkartta'
 import Allekirjoitus from './kenttatyypit/Allekirjoitus'
 import Infoteksti from './kenttatyypit/Infoteksti'
+import Kuvantaminen from './kenttatyypit/Kuvantaminen'
 
 const KENTTATYYPIT = {
   tekstirivi:    Tekstirivi,
@@ -24,11 +25,13 @@ const KENTTATYYPIT = {
   kehonkartta:   Kehonkartta,
   allekirjoitus: Allekirjoitus,
   infoteksti:    Infoteksti,
+  kuvantaminen:  Kuvantaminen,
 }
 
 // Tyypit jotka hoitavat oman otsikkonsa ja apurivinsä komponentin sisällä —
 // Kentta-wrapperi ei piirrä yläpuolen labelia näille.
-const SISAINEN_LABEL = new Set(['checkbox', 'infoteksti'])
+// AB-T7: kuvantaminen sisältää omat ryhmäotsikot eikä tunne pakollinen/pysyvä-semantiikkaa.
+const SISAINEN_LABEL = new Set(['checkbox', 'infoteksti', 'kuvantaminen'])
 
 const labelTyyli = {
   fontSize:   '13px',

@@ -220,6 +220,7 @@ export default function UusiKayntiContainer({
         vastaukset={vastaukset}
         onMuutos={setVastaukset}
         hoitokayntiId={hoitokayntiId}
+        asiakasId={asiakasId}
         alkuVersio={null}
         tila="luonnos"
         onTilaMuutos={onTilaMuutos}

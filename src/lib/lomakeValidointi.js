@@ -41,8 +41,11 @@ export const validoiVastaukset = (rakenne, kentat, vastaukset) => {
       const kentta   = kentat[tunniste]
       if (!kentta) continue
 
-      // Infoteksti on staattinen sisältö — ei syötettä, ei pakollisuutta
+      // Infoteksti on staattinen sisältö — ei syötettä, ei pakollisuutta.
+      // Kuvantaminen (AB-T7) ei tallenna omaa arvoa vastauksiin (data elää
+      // asentokuvat/ai_loydos_analyysit -tauluissa) — pakollisuus ei semanttisesti sovi.
       if (kentta.tyyppi === 'infoteksti') continue
+      if (kentta.tyyppi === 'kuvantaminen') continue
 
       const arvo       = vastaukset?.[tunniste]
       const pakollinen = kf.pakollinen || kentta.validointi?.pakollinen

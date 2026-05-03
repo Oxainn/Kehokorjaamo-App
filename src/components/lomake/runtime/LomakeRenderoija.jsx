@@ -7,6 +7,7 @@ import {
   lukitseKaynti,
   avaaKayntiUudelleen,
 } from '../../../lib/db'
+import { LomakeKontekstiProvider } from '../../../lib/lomakeKonteksti'
 import NayttoYksiSivu from './nayttotyylit/NayttoYksiSivu'
 import NayttoCKerrallaan from './nayttotyylit/NayttoCKerrallaan'
 import NayttoAccordion from './nayttotyylit/NayttoAccordion'
@@ -232,8 +233,15 @@ function Vahvistusmodaali({ otsikko, teksti, vahvistusTeksti, vahvistusVari = '#
 export default function LomakeRenderoija({
   pohjaId, valmiitTiedot, vastaukset, onMuutos, onLahetys,
   hoitokayntiId = null, alkuVersio = null,
+  asiakasId = null, asiakasPituusCm = null,
   tila = 'luonnos', onTilaMuutos = null,
 }) {
+  // AB-T7: Memoidaan konteksti-arvo jotta provider ei rerenderöi turhaan
+  // kuluttavia kenttätyyppejä (Kuvantaminen lataa raskaita TF-malleja).
+  const lomakeKontekstiArvo = useMemo(
+    () => ({ hoitokayntiId, asiakasId, asiakasPituusCm }),
+    [hoitokayntiId, asiakasId, asiakasPituusCm]
+  )
   const haetut = useLomakepohja(valmiitTiedot ? null : pohjaId)
 
   const rakenneRaaka = valmiitTiedot?.rakenne ?? haetut.rakenne
@@ -464,6 +472,7 @@ export default function LomakeRenderoija({
   const virheidenMaara = Object.keys(virheet).length
 
   return (
+    <LomakeKontekstiProvider value={lomakeKontekstiArvo}>
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* AB-T4c: lukutila-lippu yläosaan kun käynti on tallennettu valmiina */}
       {tila === 'valmis' && (
@@ -632,5 +641,6 @@ export default function LomakeRenderoija({
         </div>
       )}
     </div>
+    </LomakeKontekstiProvider>
   )
 }
