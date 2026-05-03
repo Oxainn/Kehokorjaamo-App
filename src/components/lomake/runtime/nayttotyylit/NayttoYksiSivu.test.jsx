@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 // Mokkaa Osio-komponentti yksinkertaiseksi divillä — tämä testi keskittyy
 // vain rooli-erotteluun, ei kenttien renderöintiin.
@@ -71,5 +71,99 @@ describe('NayttoYksiSivu — rooli-erottelu (AB-T2c)', () => {
     // Mutta osiot renderöityvät silti
     expect(screen.getByTestId('osio-o1')).toBeInTheDocument()
     expect(screen.getByTestId('osio-o3')).toBeInTheDocument()
+  })
+})
+
+describe('NayttoYksiSivu — Aloita uusi käynti -nappi (AB-T3a)', () => {
+  it('näyttää napin asiakkaan ja hoitajan osioiden välissä', () => {
+    const rakenne = teePohja([
+      { id: 'o1', otsikko: 'Asiakas', rooli: 'asiakas' },
+      { id: 'o2', otsikko: 'Hoitaja', rooli: 'hoitaja' },
+    ])
+
+    render(
+      <NayttoYksiSivu
+        rakenne={rakenne}
+        kentat={{}}
+        vastaukset={{}}
+        virheet={{}}
+        onKenttamuutos={() => {}}
+        uusiKayntiAloitettu={false}
+        onAloitaUusiKaynti={() => {}}
+      />
+    )
+
+    // Iso "ALOITA UUSI KÄYNTI" -nappi näkyy
+    const nappi = screen.getByRole('button', { name: /Aloita uusi käynti/i })
+    expect(nappi).toBeInTheDocument()
+    // Info-tilaa ei näy ennen klikkausta
+    expect(screen.queryByText(/Käynti aloitettu/i)).not.toBeInTheDocument()
+  })
+
+  it('aloitettu-tilassa näkyy infoteksti, ei nappia', () => {
+    const rakenne = teePohja([
+      { id: 'o1', otsikko: 'Asiakas', rooli: 'asiakas' },
+      { id: 'o2', otsikko: 'Hoitaja', rooli: 'hoitaja' },
+    ])
+
+    render(
+      <NayttoYksiSivu
+        rakenne={rakenne}
+        kentat={{}}
+        vastaukset={{}}
+        virheet={{}}
+        onKenttamuutos={() => {}}
+        uusiKayntiAloitettu={true}
+        onAloitaUusiKaynti={() => {}}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /Aloita uusi käynti/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/Käynti aloitettu/i)).toBeInTheDocument()
+  })
+
+  it('napin klikkaus kutsuu onAloitaUusiKaynti-callbackia', () => {
+    const onAloita = vi.fn()
+    const rakenne = teePohja([
+      { id: 'o1', otsikko: 'Asiakas', rooli: 'asiakas' },
+      { id: 'o2', otsikko: 'Hoitaja', rooli: 'hoitaja' },
+    ])
+
+    render(
+      <NayttoYksiSivu
+        rakenne={rakenne}
+        kentat={{}}
+        vastaukset={{}}
+        virheet={{}}
+        onKenttamuutos={() => {}}
+        uusiKayntiAloitettu={false}
+        onAloitaUusiKaynti={onAloita}
+      />
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Aloita uusi käynti/i }))
+    expect(onAloita).toHaveBeenCalledTimes(1)
+  })
+
+  it('lomake jossa on vain asiakas-osioita → ei nappia näy', () => {
+    const rakenne = teePohja([
+      { id: 'o1', otsikko: 'Asiakas 1', rooli: 'asiakas' },
+      { id: 'o2', otsikko: 'Asiakas 2', rooli: 'asiakas' },
+    ])
+
+    render(
+      <NayttoYksiSivu
+        rakenne={rakenne}
+        kentat={{}}
+        vastaukset={{}}
+        virheet={{}}
+        onKenttamuutos={() => {}}
+        uusiKayntiAloitettu={false}
+        onAloitaUusiKaynti={() => {}}
+      />
+    )
+
+    expect(screen.queryByRole('button', { name: /Aloita uusi käynti/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Käynti aloitettu/i)).not.toBeInTheDocument()
   })
 })

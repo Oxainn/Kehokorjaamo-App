@@ -1,6 +1,12 @@
 import { Fragment } from 'react'
 import Osio from '../Osio'
-import { RoolitransitioOtsikko, osionReunaTyyli, lisaaTransitiot } from '../roolitransitio'
+import {
+  RoolitransitioOtsikko,
+  AloitaUusiKayntiNappi,
+  osionReunaTyyli,
+  lisaaTransitiot,
+  ensimmainenHoitajaIndeksi,
+} from '../roolitransitio'
 
 const lahetysTyyli = {
   width:        '100%',
@@ -16,14 +22,24 @@ const lahetysTyyli = {
   transition:   'background 0.15s',
 }
 
-export default function NayttoYksiSivu({ rakenne, kentat, vastaukset, virheet, onKenttamuutos, onLahetys }) {
+export default function NayttoYksiSivu({
+  rakenne, kentat, vastaukset, virheet, onKenttamuutos, onLahetys,
+  uusiKayntiAloitettu, onAloitaUusiKaynti,
+}) {
   const osiot = (rakenne?.osiot ?? []).slice().sort((a, b) => (a.jarjestys ?? 0) - (b.jarjestys ?? 0))
   const lista = lisaaTransitiot(osiot)
+  const aloitusIdx = ensimmainenHoitajaIndeksi(osiot)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      {lista.map(({ osio, naytaTransitio, rooli }) => (
+      {lista.map(({ osio, naytaTransitio, rooli }, idx) => (
         <Fragment key={osio.id}>
+          {idx === aloitusIdx && (
+            <AloitaUusiKayntiNappi
+              aloitettu={uusiKayntiAloitettu}
+              onAloita={onAloitaUusiKaynti}
+            />
+          )}
           {naytaTransitio && <RoolitransitioOtsikko rooli={rooli} />}
           <div
             style={{

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useSwipeable } from 'react-swipeable'
 import Osio from '../Osio'
-import { osionReunaTyyli, RooliTunniste } from '../roolitransitio'
+import { osionReunaTyyli, RooliTunniste, AloitaUusiKayntiNappi, ensimmainenHoitajaIndeksi } from '../roolitransitio'
 
 const pisteTyyli = (aktiivinen, sisaltaaVirheen, valmis) => ({
   width:        '28px',
@@ -96,7 +96,10 @@ const lahetaTyyli = {
   marginTop:    '4px',
 }
 
-export default function NayttoCKerrallaan({ rakenne, kentat, vastaukset, virheet, onKenttamuutos, onLahetys }) {
+export default function NayttoCKerrallaan({
+  rakenne, kentat, vastaukset, virheet, onKenttamuutos, onLahetys,
+  uusiKayntiAloitettu, onAloitaUusiKaynti,
+}) {
   const osiot = useMemo(
     () => (rakenne?.osiot ?? []).slice().sort((a, b) => (a.jarjestys ?? 0) - (b.jarjestys ?? 0)),
     [rakenne]
@@ -138,6 +141,11 @@ export default function NayttoCKerrallaan({ rakenne, kentat, vastaukset, virheet
   const rooli       = osio.rooli === 'hoitaja' ? 'hoitaja' : 'asiakas'
   const ekassa      = nykyinen === 0
   const viimeisessa = nykyinen === osiot.length - 1
+  // AB-T3a: näytä "Aloita uusi käynti" -nappi/info kun nykyinen osio on
+  // ekan hoitaja-osion kohta (ainoa tapa CKerrallaan-näkymässä koska osiot
+  // näytetään yksi kerrallaan)
+  const aloitusIdx     = ensimmainenHoitajaIndeksi(osiot)
+  const aloitusVaihees = aloitusIdx >= 0 && nykyinen === aloitusIdx
 
   function edellinen() { if (!ekassa) setNykyinen((n) => n - 1) }
   function seuraava()  { if (!viimeisessa) setNykyinen((n) => n + 1) }
@@ -217,6 +225,14 @@ export default function NayttoCKerrallaan({ rakenne, kentat, vastaukset, virheet
           userSelect:    'text',
         }}
       >
+        {aloitusVaihees && (
+          <div style={{ marginBottom: '20px' }}>
+            <AloitaUusiKayntiNappi
+              aloitettu={uusiKayntiAloitettu}
+              onAloita={onAloitaUusiKaynti}
+            />
+          </div>
+        )}
         <Osio
           osio={osio}
           kentat={kentat}

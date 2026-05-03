@@ -75,3 +75,69 @@ export function lisaaTransitiot(osiot) {
     return { osio, naytaTransitio, rooli }
   })
 }
+
+// Etsi ensimmäisen hoitaja-osion indeksi joka tulee asiakas-osion JÄLKEEN.
+// Palauttaa -1 jos selvää transitiota ei löydy (vain asiakas, vain hoitaja,
+// tai hoitaja ennen ensimmäistä asiakasta).
+//
+// Käytetään AB-T3a:ssa "Aloita uusi käynti" -napin sijoitukseen — nappi
+// näytetään tämän indeksin osion edessä (tai sen sisällä CKerrallaan-näkymässä).
+export function ensimmainenHoitajaIndeksi(osiot) {
+  let nahnytAsiakas = false
+  for (let i = 0; i < osiot.length; i++) {
+    const rooli = osiot[i]?.rooli === 'hoitaja' ? 'hoitaja' : 'asiakas'
+    if (rooli === 'asiakas') {
+      nahnytAsiakas = true
+    } else if (nahnytAsiakas) {
+      return i
+    }
+  }
+  return -1
+}
+
+// AB-T3a: "Aloita uusi käynti" -nappi joka renderöityy roolitransition kohdalla.
+// Klikkauksen jälkeen muuttuu pieneksi infoteksiksi.
+// Tila ja klikkaus-handler tulevat propeina LomakeRenderoija:lta.
+const napinTyyli = {
+  width:         '100%',
+  minHeight:     '56px',
+  background:    '#10b981',     // emerald-500
+  color:         'white',
+  fontSize:      '15px',
+  fontWeight:    '700',
+  letterSpacing: '0.06em',
+  borderRadius:  '12px',
+  border:        'none',
+  cursor:        'pointer',
+  margin:        '12px 0',
+  padding:       '14px 20px',
+  boxShadow:     '0 2px 8px rgba(16, 185, 129, 0.25)',
+  transition:    'background 0.15s',
+}
+
+const infoTeksitTyyli = {
+  background:    '#f0fdf4',     // emerald-50
+  border:        '1px solid #bbf7d0',  // emerald-200
+  borderRadius:  '10px',
+  padding:       '10px 16px',
+  margin:        '8px 0',
+  fontSize:      '13px',
+  color:         '#065f46',     // emerald-800
+  textAlign:     'center',
+  fontWeight:    '500',
+}
+
+export function AloitaUusiKayntiNappi({ aloitettu, onAloita }) {
+  if (aloitettu) {
+    return (
+      <div style={infoTeksitTyyli} role="status">
+        ✓ Käynti aloitettu — voit täyttää hoitajan kirjaukset
+      </div>
+    )
+  }
+  return (
+    <button type="button" onClick={onAloita} style={napinTyyli}>
+      ▶ ALOITA UUSI KÄYNTI
+    </button>
+  )
+}

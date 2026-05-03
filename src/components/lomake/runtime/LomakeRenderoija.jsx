@@ -55,10 +55,14 @@ export default function LomakeRenderoija({ pohjaId, valmiitTiedot, vastaukset, o
 
   const [virheet,  setVirheet]  = useState({})
   const [yritetty, setYritetty] = useState(false)
+  // AB-T3a: kun hoitaja klikkaa "Aloita uusi käynti" -nappia, tila vaihtuu true:ksi.
+  // Resetoidaan kun pohja vaihtuu (uusi lomake = uusi käynti).
+  const [uusiKayntiAloitettu, setUusiKayntiAloitettu] = useState(false)
 
   useEffect(() => {
     setVirheet({})
     setYritetty(false)
+    setUusiKayntiAloitettu(false)
   }, [pohjaId, valmiitTiedot])
 
   if (lataa) return <div style={tilaTyyli}>Ladataan lomakepohjaa…</div>
@@ -115,6 +119,8 @@ export default function LomakeRenderoija({ pohjaId, valmiitTiedot, vastaukset, o
         virheet={virheet}
         onKenttamuutos={paivitaKentta}
         onLahetys={onLahetys ? lahetaLomake : null}
+        uusiKayntiAloitettu={uusiKayntiAloitettu}
+        onAloitaUusiKaynti={() => setUusiKayntiAloitettu(true)}
       />
     </div>
   )

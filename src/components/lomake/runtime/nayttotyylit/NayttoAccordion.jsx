@@ -1,6 +1,12 @@
 import { useState, useMemo, useEffect, Fragment } from 'react'
 import Osio from '../Osio'
-import { RoolitransitioOtsikko, osionReunaTyyli, lisaaTransitiot } from '../roolitransitio'
+import {
+  RoolitransitioOtsikko,
+  AloitaUusiKayntiNappi,
+  osionReunaTyyli,
+  lisaaTransitiot,
+  ensimmainenHoitajaIndeksi,
+} from '../roolitransitio'
 
 const lahetysTyyli = {
   width:        '100%',
@@ -79,7 +85,10 @@ function laskeOsionStatus(osio, vastaukset, kentat, virheet) {
   return { taytetty, yhteensa, sisaltaaVirheen: virhetta }
 }
 
-export default function NayttoAccordion({ rakenne, kentat, vastaukset, virheet, onKenttamuutos, onLahetys }) {
+export default function NayttoAccordion({
+  rakenne, kentat, vastaukset, virheet, onKenttamuutos, onLahetys,
+  uusiKayntiAloitettu, onAloitaUusiKaynti,
+}) {
   const osiot = useMemo(
     () => (rakenne?.osiot ?? []).slice().sort((a, b) => (a.jarjestys ?? 0) - (b.jarjestys ?? 0)),
     [rakenne]
@@ -118,16 +127,23 @@ export default function NayttoAccordion({ rakenne, kentat, vastaukset, virheet, 
   }, [virheet, osiot])
 
   const lista = lisaaTransitiot(osiot)
+  const aloitusIdx = ensimmainenHoitajaIndeksi(osiot)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-      {lista.map(({ osio, naytaTransitio, rooli }) => {
+      {lista.map(({ osio, naytaTransitio, rooli }, idx) => {
         const otsikko = typeof osio.otsikko === 'object' ? (osio.otsikko.fi ?? osio.id) : (osio.otsikko ?? osio.id)
         const auki = aukiSet.has(osio.id)
         const status = laskeOsionStatus(osio, vastaukset, kentat, virheet)
 
         return (
           <Fragment key={osio.id}>
+            {idx === aloitusIdx && (
+              <AloitaUusiKayntiNappi
+                aloitettu={uusiKayntiAloitettu}
+                onAloita={onAloitaUusiKaynti}
+              />
+            )}
             {naytaTransitio && <RoolitransitioOtsikko rooli={rooli} />}
             <div style={{ ...containerTyyli(status.sisaltaaVirheen), ...osionReunaTyyli(rooli) }}>
             <button
