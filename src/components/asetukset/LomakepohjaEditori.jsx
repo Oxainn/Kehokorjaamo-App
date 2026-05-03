@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../services/supabase'
-import { haeKenttakirjasto, haePalvelutPohjalle } from '../../lib/db'
+import { haeKenttakirjasto, haePalvelutPohjalle, normalisoiPohjaRakenne } from '../../lib/db'
 import LisaaKenttaModaali from './LisaaKenttaModaali'
 import LomakeRenderoija from '../lomake/runtime/LomakeRenderoija'
 
@@ -35,13 +35,18 @@ function osioidenJsonStringi(osiot) {
     id: o.id,
     otsikko: o.otsikko,
     jarjestys: o.jarjestys,
+    rooli: o.rooli,                  // AB-T2b: rooli-muutos lasketaan onMuutoksia():iin
     kenttat: o.kenttat ?? [],
     ryhmittelyt: o.ryhmittelyt ?? [],
   })))
 }
 
 export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPeruuta }) {
-  const alkuosiot = (rakenne?.osiot ?? []).map((o, i) => ({
+  // Normalisoi rakenne ennen kuin osioista rakennetaan editorin alkutila —
+  // takaa että jokaisella osiolla on rooli (default 'asiakas'). Saamme rakenteen
+  // joko haeLomakepohja:n (jo normalisoitu) tai LomakeKirjasto:n (raakaa) kautta.
+  const normalisoitu = normalisoiPohjaRakenne(rakenne)
+  const alkuosiot = (normalisoitu?.osiot ?? []).map((o, i) => ({
     ...o,
     jarjestys: o.jarjestys ?? (i + 1),
     kenttat: o.kenttat ?? [],
@@ -138,6 +143,7 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
         id: luoTunniste(),
         jarjestys: osiot.length + 1,
         otsikko: { fi: '', en: '' },
+        rooli: 'asiakas',                // AB-T2b: default asiakkaan osio
         kenttat: [],
         ryhmittelyt: [],
       },
@@ -165,6 +171,11 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
       const nykyinen = typeof o.otsikko === 'object' ? o.otsikko : { fi: o.otsikko ?? '', en: '' }
       return { ...o, otsikko: { ...nykyinen, fi: fiTeksti } }
     }))
+  }
+
+  function paivitaOsionRooli(id, rooli) {
+    if (rooli !== 'asiakas' && rooli !== 'hoitaja') return
+    setOsiot(osiot.map((o) => o.id === id ? { ...o, rooli } : o))
   }
 
   // ─── Kenttä-funktiot ───────────────────────────────────────────────────────
@@ -501,8 +512,44 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
         {osiot.map((osio, i) => {
           const otsikkoFi = typeof osio.otsikko === 'object' ? (osio.otsikko?.fi ?? '') : (osio.otsikko ?? '')
           const kentat = osio.kenttat ?? []
+          const onAsiakas = osio.rooli === 'asiakas'
+          // Kevyt vasen reuna roolin mukaan: sininen = asiakkaan osio, vihreä = hoitajan
+          const reunaLuokka = onAsiakas
+            ? 'border-l-4 border-l-blue-300'
+            : 'border-l-4 border-l-emerald-300'
           return (
-            <div key={osio.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col gap-3">
+            <div
+              key={osio.id}
+              className={`bg-white rounded-xl border border-gray-100 ${reunaLuokka} shadow-sm p-4 flex flex-col gap-3`}
+            >
+
+              {/* Rooli — kuka osion täyttää (AB-T2b) */}
+              <div
+                className="flex items-center gap-4 flex-wrap text-xs"
+                title="Asiakkaan kirjaukset (esim. perustiedot, oireet) vs hoitajan kirjaukset (havainnot, mittaukset). Vaikuttaa lomakkeen visuaaliseen erotteluun ja jatkossa siihen kuka osiota voi muokata."
+              >
+                <span className="font-medium text-gray-500 uppercase tracking-wide">Rooli</span>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`rooli-${osio.id}`}
+                    checked={onAsiakas}
+                    onChange={() => paivitaOsionRooli(osio.id, 'asiakas')}
+                    className="w-4 h-4 accent-blue-600 cursor-pointer"
+                  />
+                  <span className="text-gray-700 select-none">Asiakkaan osio</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`rooli-${osio.id}`}
+                    checked={!onAsiakas}
+                    onChange={() => paivitaOsionRooli(osio.id, 'hoitaja')}
+                    className="w-4 h-4 accent-emerald-600 cursor-pointer"
+                  />
+                  <span className="text-gray-700 select-none">Hoitajan osio</span>
+                </label>
+              </div>
 
               {/* Osion otsikko + nuolet + poisto */}
               <div className="flex items-center gap-2">
@@ -559,7 +606,17 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
                   return (
                     <div key={tunniste} className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm text-gray-800 truncate">{otsikko}</div>
+                        <div className="text-sm text-gray-800 truncate flex items-center gap-1.5">
+                          <span className="truncate">{otsikko}</span>
+                          {kentta?.pysyva && (
+                            <span
+                              className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 border border-blue-200 rounded font-medium flex-shrink-0"
+                              title="Pysyvä — kentän arvo säilyy seuraavalle käynnille (muokataan Kenttäkirjastosta)"
+                            >
+                              🔒 Pysyvä
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-gray-500">
                           {tyyppiNimi} · <code className="text-gray-400">{tunniste}</code>
                         </div>

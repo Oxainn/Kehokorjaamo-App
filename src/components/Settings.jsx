@@ -5,6 +5,7 @@ import ProductBoard from './ProductBoard'
 import KehonkarttaKalibrointi from './asetukset/KehonkarttaKalibrointi'
 import KotisivunLinkit from './asetukset/KotisivunLinkit'
 import PalvelutJaLomakkeet from './asetukset/PalvelutJaLomakkeet'
+import Kenttakirjasto from './asetukset/Kenttakirjasto'
 import ItsehoitoKirjasto from './asetukset/ItsehoitoKirjasto'
 import KehitysJaLaadunvalvonta from './asetukset/KehitysJaLaadunvalvonta'
 
@@ -335,6 +336,13 @@ export default function Settings({ hoitajaId, isAdmin = false, showDevTools = fa
         id="palvelut_lomakkeet" otsikko="Palvelut & lomakkeet" ikoni="🩺"
         auki={aukiOsio === 'palvelut_lomakkeet'} onToggle={toggle}
         lapset={<PalvelutJaLomakkeet />}
+      />
+
+      {/* ── Kenttäkirjasto (AB-T1b) — kentät joita lomakepohjat käyttävät ── */}
+      <AccordionOsio
+        id="kenttakirjasto" otsikko="Kenttäkirjasto" ikoni="🧩"
+        auki={aukiOsio === 'kenttakirjasto'} onToggle={toggle}
+        lapset={<Kenttakirjasto />}
       />
 
       {/* ── Itsehoito-kirjasto (Vaihe B Pala B5) ──────────────────────────── */}

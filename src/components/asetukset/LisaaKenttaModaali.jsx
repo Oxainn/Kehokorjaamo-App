@@ -100,9 +100,19 @@ export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet,
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex flex-col gap-0.5 min-w-0">
-                            <span className="text-sm font-semibold text-gray-800 truncate">
-                              {k.otsikko}
-                            </span>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-sm font-semibold text-gray-800 truncate">
+                                {k.otsikko}
+                              </span>
+                              {k.pysyva && (
+                                <span
+                                  className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 border border-blue-200 rounded font-medium flex-shrink-0"
+                                  title="Pysyvä — kentän arvo säilyy seuraavalle käynnille (muokataan Kenttäkirjastosta)"
+                                >
+                                  🔒 Pysyvä
+                                </span>
+                              )}
+                            </div>
                             <span className="text-xs text-gray-500">
                               {tyyppiNimi} · <code className="text-gray-400">{k.tunniste}</code>
                             </span>

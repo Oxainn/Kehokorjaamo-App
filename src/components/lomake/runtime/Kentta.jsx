@@ -10,6 +10,7 @@ import CheckboxLista from './kenttatyypit/CheckboxLista'
 import Kehonkartta from './kenttatyypit/Kehonkartta'
 import Allekirjoitus from './kenttatyypit/Allekirjoitus'
 import Infoteksti from './kenttatyypit/Infoteksti'
+import Kuvantaminen from './kenttatyypit/Kuvantaminen'
 
 const KENTTATYYPIT = {
   tekstirivi:    Tekstirivi,
@@ -24,11 +25,13 @@ const KENTTATYYPIT = {
   kehonkartta:   Kehonkartta,
   allekirjoitus: Allekirjoitus,
   infoteksti:    Infoteksti,
+  kuvantaminen:  Kuvantaminen,
 }
 
 // Tyypit jotka hoitavat oman otsikkonsa ja apurivinsä komponentin sisällä —
 // Kentta-wrapperi ei piirrä yläpuolen labelia näille.
-const SISAINEN_LABEL = new Set(['checkbox', 'infoteksti'])
+// AB-T7: kuvantaminen sisältää omat ryhmäotsikot eikä tunne pakollinen/pysyvä-semantiikkaa.
+const SISAINEN_LABEL = new Set(['checkbox', 'infoteksti', 'kuvantaminen'])
 
 const labelTyyli = {
   fontSize:   '13px',
@@ -41,6 +44,14 @@ const labelTyyli = {
 const tahti = {
   color:      '#EF4444',
   marginLeft: '3px',
+}
+
+// AB-T3b: pieni 🔒-merkki labelin perässä kun kenttä on pysyvä — säilyy
+// "Aloita uusi käynti" -tyhjennyksessä. Tooltip selittää.
+const lukko = {
+  marginLeft: '6px',
+  fontSize:   '11px',
+  opacity:    0.65,
 }
 
 const eiTuettu = {
@@ -84,6 +95,9 @@ export default function Kentta({ kentta, kenttamerkinta, arvo, virhe, onMuutos }
         <label style={labelTyyli}>
           {fi.otsikko ?? kentta.tunniste}
           {kenttamerkinta?.pakollinen && <span style={tahti}>*</span>}
+          {kentta.pysyva && (
+            <span style={lukko} title="Pysyvä kenttä — säilyy seuraavalle käynnille">🔒</span>
+          )}
         </label>
         <div style={eiTuettu}>
           Kenttätyyppiä &laquo;{kentta.tyyppi}&raquo; ei vielä tueta renderöijässä
@@ -112,6 +126,9 @@ export default function Kentta({ kentta, kenttamerkinta, arvo, virhe, onMuutos }
       <label style={labelTyyli}>
         {fi.otsikko ?? kentta.tunniste}
         {kenttamerkinta?.pakollinen && <span style={tahti}>*</span>}
+        {kentta.pysyva && (
+          <span style={lukko} title="Pysyvä kenttä — säilyy seuraavalle käynnille">🔒</span>
+        )}
       </label>
       <Komponentti
         kentta={kentta}
