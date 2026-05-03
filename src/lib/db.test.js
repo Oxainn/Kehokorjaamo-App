@@ -18,6 +18,7 @@ const apurit = vi.hoisted(() => {
     upsertJonot: {},
     insertJonot: {},
     updateJonot: {},
+    eqKutsut:    {},  // taulu → [[kentta, arvo], ...] järjestyksessä
   }
 
   const otaTulos = (taulu) => {
@@ -42,7 +43,7 @@ const apurit = vi.hoisted(() => {
     ketju.insert      = vi.fn((rivi) => { lisaaJonoon(tila.insertJonot, taulu, rivi); return ketju })
     ketju.update      = vi.fn((rivi) => { lisaaJonoon(tila.updateJonot, taulu, rivi); return ketju })
     ketju.upsert      = vi.fn((rivi) => { lisaaJonoon(tila.upsertJonot, taulu, rivi); return ketju })
-    ketju.eq          = vi.fn(() => ketju)
+    ketju.eq          = vi.fn((kentta, arvo) => { lisaaJonoon(tila.eqKutsut, taulu, [kentta, arvo]); return ketju })
     ketju.is          = vi.fn(() => ketju)
     ketju.neq         = vi.fn(() => ketju)
     ketju.order       = vi.fn(() => ketju)
@@ -66,6 +67,7 @@ const apurit = vi.hoisted(() => {
     tila.upsertJonot  = {}
     tila.insertJonot  = {}
     tila.updateJonot  = {}
+    tila.eqKutsut     = {}
     tila.getUserTulos = { data: { user: { id: 'mock-uid' } } }
   }
 
@@ -84,7 +86,7 @@ vi.mock('./lomakeTallennus', () => ({
   kokoaVastaukset: vi.fn(),
 }))
 
-import { tallennaAsiakas, aloitaUusiKaynti } from './db'
+import { tallennaAsiakas, aloitaUusiKaynti, tallennaHoitokirjaus } from './db'
 
 describe('tallennaAsiakas', () => {
   beforeEach(() => {
@@ -407,5 +409,141 @@ describe('aloitaUusiKaynti', () => {
     })
     expect(tulos.varoitus).toEqual(expect.stringContaining('B-lomakkeen päivitys epäonnistui'))
     expect(tulos.varoitus).toEqual(expect.stringContaining('verkkovirhe'))
+  })
+})
+
+describe('tallennaHoitokirjaus', () => {
+  let errorVakooja
+
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+    errorVakooja = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    errorVakooja.mockRestore()
+  })
+
+  it('palauttaa virheen jos hoitokaynti-id puuttuu', async () => {
+    expect(await tallennaHoitokirjaus(null, {})).toEqual({ virhe: 'Hoitokaynti-id puuttuu' })
+    expect(apurit.fromVakooja).not.toHaveBeenCalled()
+  })
+
+  it('tallentaa onnistuneesti ilman versio-numeroa — ei optimistista lukkoa', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data:  [{ id: 'h1', versio: 1 }],
+      error: null,
+    })
+
+    const tulos = await tallennaHoitokirjaus('h1', { otsikko: 'Niska' })
+
+    expect(tulos).toEqual({ virhe: null, versio: 1 })
+
+    // Optimistinen lukko ohitetaan kun versio-kenttää ei ole syötteessä:
+    // .eq-kutsujen joukossa pitäisi olla VAIN ('id', 'h1') — ei ('versio', ...)
+    const eqit = apurit.tila.eqKutsut.hoitokaynnit ?? []
+    expect(eqit).toEqual([['id', 'h1']])
+
+    // Versio-laskuri kuitenkin asetetaan: (null ?? 0) + 1 = 1
+    expect(apurit.tila.updateJonot.hoitokaynnit[0].versio).toBe(1)
+  })
+
+  it('tallentaa onnistuneesti versio-numerolla — lisää optimistisen lukon', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data:  [{ id: 'h1', versio: 6 }],
+      error: null,
+    })
+
+    const tulos = await tallennaHoitokirjaus('h1', { otsikko: 'Niska', versio: 5 })
+
+    expect(tulos).toEqual({ virhe: null, versio: 6 })
+
+    // Optimistinen lukko: WHERE id=h1 AND versio=5
+    const eqit = apurit.tila.eqKutsut.hoitokaynnit ?? []
+    expect(eqit).toEqual([
+      ['id',     'h1'],
+      ['versio', 5],
+    ])
+
+    // Versio kasvatetaan: 5 + 1 = 6
+    expect(apurit.tila.updateJonot.hoitokaynnit[0].versio).toBe(6)
+  })
+
+  it('vain sallitut kentät päivittyvät, ei-sallitut ohitetaan', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data:  [{ id: 'h1', versio: 1 }],
+      error: null,
+    })
+
+    await tallennaHoitokirjaus('h1', {
+      otsikko:           'Niska',
+      haitallinenKentta: 'XSS',
+      salasana:          'hack',
+      jokuMuu:           42,
+    })
+
+    const muutokset = apurit.tila.updateJonot.hoitokaynnit[0]
+    // Allowlist sallii vain otsikon. paivitetty + versio funktio lisää itse.
+    expect(Object.keys(muutokset).sort()).toEqual(['otsikko', 'paivitetty', 'versio'].sort())
+    expect(muutokset.otsikko).toBe('Niska')
+    expect(muutokset).not.toHaveProperty('haitallinenKentta')
+    expect(muutokset).not.toHaveProperty('salasana')
+    expect(muutokset).not.toHaveProperty('jokuMuu')
+  })
+
+  it('tyhjä merkkijono kentässä → tallennetaan null:na', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data:  [{ id: 'h1', versio: 1 }],
+      error: null,
+    })
+
+    await tallennaHoitokirjaus('h1', {
+      otsikko:   '',
+      kesto_min: 30,
+    })
+
+    const muutokset = apurit.tila.updateJonot.hoitokaynnit[0]
+    expect(muutokset.otsikko).toBeNull()
+    // Numerot ja muut ei-tyhjät arvot välittyvät sellaisenaan
+    expect(muutokset.kesto_min).toBe(30)
+  })
+
+  it('versio-ristiriita — palauttaa ristiriita: true + nykyinenVersio', async () => {
+    // 1. Update palauttaa 0 päivitettyä riviä → versio ei täsmännyt
+    apurit.lisaaTulos('hoitokaynnit', {
+      data:  [],
+      error: null,
+    })
+    // 2. Seuraava select hakee nykyisen DB-version
+    apurit.lisaaTulos('hoitokaynnit', {
+      data:  { versio: 7 },
+      error: null,
+    })
+
+    const tulos = await tallennaHoitokirjaus('h1', { otsikko: 'X', versio: 3 })
+
+    expect(tulos).toMatchObject({
+      ristiriita:     true,
+      nykyinenVersio: 7,
+    })
+    expect(typeof tulos.virhe).toBe('string')
+    expect(tulos.virhe.length).toBeGreaterThan(0)
+  })
+
+  it('DB-virhe update-kutsussa — palauttaa virhe.message', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data:  null,
+      error: { message: 'PostgreSQL connection lost' },
+    })
+
+    const tulos = await tallennaHoitokirjaus('h1', { otsikko: 'X' })
+
+    expect(tulos).toEqual({ virhe: 'PostgreSQL connection lost' })
+    expect(errorVakooja).toHaveBeenCalledWith(
+      'Hoitokirjauksen tallennus epäonnistui:',
+      expect.objectContaining({ message: 'PostgreSQL connection lost' }),
+    )
   })
 })
