@@ -129,6 +129,53 @@ export const aloitaUusiKaynti = async (asiakasId) => {
     }
   }
 
+  // AB-T4d: hae edellisen valmis-käynnin pysyvät vastaukset uuden käynnin
+  // alkuun. Pysyvät kentät (kentan_versiot.pysyva = true) säilyvät
+  // esitäytettyinä, muuttuvat jäävät tyhjiksi.
+  //
+  // Defensive: jos haku epäonnistuu, jatkamme ilman pysyviä — käynnin
+  // aloittaminen ei saa kaatua tähän. Hoitaja voi täyttää kentät käsin.
+  let pysyvatVastaukset = {}
+  try {
+    const { data: edellinen } = await supabase
+      .from('hoitokaynnit')
+      .select('vastaukset')
+      .eq('asiakas_id', asiakasId)
+      .eq('tila', 'valmis')
+      .order('luotu', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (edellinen?.vastaukset
+        && typeof edellinen.vastaukset === 'object'
+        && !Array.isArray(edellinen.vastaukset)
+        && Object.keys(edellinen.vastaukset).length > 0) {
+      // Hae kenttäkirjasto — kerää lista kenttä-tunnisteista joilla pysyva=true
+      const { data: kentat } = await supabase
+        .from('kenttakirjasto')
+        .select('kentta_id_tunniste, kentan_versiot(versio, aktiivinen, pysyva)')
+
+      if (kentat) {
+        const pysyvienTunnisteet = new Set()
+        for (const k of kentat) {
+          const v = (k.kentan_versiot ?? [])
+            .filter((x) => x.aktiivinen)
+            .sort((a, b) => b.versio - a.versio)[0]
+          if (v?.pysyva) pysyvienTunnisteet.add(k.kentta_id_tunniste)
+        }
+        // Suodata edellisen vastaukset: vain pysyvien arvot
+        for (const [tunniste, arvo] of Object.entries(edellinen.vastaukset)) {
+          if (pysyvienTunnisteet.has(tunniste)) {
+            pysyvatVastaukset[tunniste] = arvo
+          }
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Edellisen käynnin pysyvien kopiointi epäonnistui:', e)
+    pysyvatVastaukset = {}
+  }
+
   // 6. Käytä olemassa olevaa tyhjää B-lomaketta jos sellainen on
   // (asiakkaan vahvistuksessa luotu odottaa_kayntia-rivi). Muuten luo uusi.
   // Snapshot-malli: hoitokerta osoittaa siihen A-lomakkeen versioon joka
@@ -137,6 +184,7 @@ export const aloitaUusiKaynti = async (asiakasId) => {
     lomake_versio_id: avoin.id,   // A-lomake (asiakastietolomake_versiot)
     pvm:              nyt,
     tila:             'luonnos',
+    vastaukset:       pysyvatVastaukset,
   }
 
   const { data: tyhjaBLomake } = await supabase

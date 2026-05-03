@@ -268,7 +268,9 @@ describe('aloitaUusiKaynti', () => {
     })
     // 5. Kopioi sairaudet (insert → await)
     apurit.lisaaTulos('lomake_sairaudet', { error: null })
-    // 6. Hae tyhjä B-lomake (select.eq.eq.order.limit.maybeSingle)
+    // 6a. AB-T4d: hae edellinen valmis-käynti (null = ei edellistä → ei kopioi pysyviä)
+    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null })
+    // 6b. Hae tyhjä B-lomake (select.eq.eq.order.limit.maybeSingle)
     apurit.lisaaTulos('hoitokaynnit', {
       data: { id: 'tyhja-b-id' },
       error: null,
@@ -305,7 +307,8 @@ describe('aloitaUusiKaynti', () => {
       error: null,
     })
     // Sairauksien insertiä EI tule koska lista oli tyhjä
-    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null }) // ei tyhjää B
+    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null })  // AB-T4d: ei edellistä valmis-käyntiä
+    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null })  // ei tyhjää B
     apurit.lisaaTulos('hoitokaynnit', {
       data: { id: 'uusi-b-id' },
       error: null,
@@ -376,7 +379,8 @@ describe('aloitaUusiKaynti', () => {
       data: { id: 'uusi-versio-id' },
       error: null,
     })
-    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null })
+    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null })  // AB-T4d: ei edellistä valmis-käyntiä
+    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null })  // ei tyhjää B
     apurit.lisaaTulos('hoitokaynnit', { data: { id: 'b-id' }, error: null })
 
     await aloitaUusiKaynti('asiakas-1')
@@ -403,6 +407,7 @@ describe('aloitaUusiKaynti', () => {
       data: { id: 'uusi-versio-id' },
       error: null,
     })
+    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null })  // AB-T4d: ei edellistä valmis-käyntiä
     apurit.lisaaTulos('hoitokaynnit', {
       data: { id: 'tyhja-b-id' },
       error: null,
@@ -421,6 +426,130 @@ describe('aloitaUusiKaynti', () => {
     })
     expect(tulos.varoitus).toEqual(expect.stringContaining('B-lomakkeen päivitys epäonnistui'))
     expect(tulos.varoitus).toEqual(expect.stringContaining('verkkovirhe'))
+  })
+
+  // ─── AB-T4d: pysyvien kopiointi edellisestä valmis-käynnistä ──────────────
+
+  it('AB-T4d: kopioi pysyvät kentät edellisen valmis-käynnin vastauksista uuteen jsonbiin', async () => {
+    // Tavanomainen happy-path setup (avoin A + tyhjä B)
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { id: 'avoin-id', lisakentat: null },
+      error: null,
+    })
+    apurit.lisaaTulos('asiakastietolomake_versiot', { error: null })  // sulku
+    apurit.lisaaTulos('lomake_sairaudet', { data: [], error: null })
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { id: 'uusi-versio-id' },
+      error: null,
+    })
+    // AB-T4d: edellinen valmis-käynti löytyi vastausten kanssa
+    apurit.lisaaTulos('hoitokaynnit', {
+      data: {
+        vastaukset: {
+          etunimi:    'Sara',     // pysyvä → kopioidaan
+          sahkoposti: 'sara@example.com',  // pysyvä → kopioidaan
+          paivan_kipu: 7,         // muuttuva → ei kopioida
+          hoidon_kulku: 'aiemmin',// muuttuva → ei kopioida
+        },
+      },
+      error: null,
+    })
+    // Kenttäkirjasto-haku: kahdella kentällä pysyva=true, kahdella false
+    apurit.lisaaTulos('kenttakirjasto', {
+      data: [
+        { kentta_id_tunniste: 'etunimi',     kentan_versiot: [{ versio: 1, aktiivinen: true, pysyva: true }] },
+        { kentta_id_tunniste: 'sahkoposti',  kentan_versiot: [{ versio: 1, aktiivinen: true, pysyva: true }] },
+        { kentta_id_tunniste: 'paivan_kipu', kentan_versiot: [{ versio: 1, aktiivinen: true, pysyva: false }] },
+        { kentta_id_tunniste: 'hoidon_kulku', kentan_versiot: [{ versio: 1, aktiivinen: true, pysyva: false }] },
+      ],
+      error: null,
+    })
+    // Tyhjän B haku + päivitys
+    apurit.lisaaTulos('hoitokaynnit', { data: { id: 'tyhja-b-id' }, error: null })
+    apurit.lisaaTulos('hoitokaynnit', { error: null })
+
+    await aloitaUusiKaynti('asiakas-1')
+
+    // B-lomakkeen päivitykseen tuli vastaukset-jsonb jossa vain pysyvät
+    const paivitys = apurit.tila.updateJonot.hoitokaynnit[0]
+    expect(paivitys.vastaukset).toEqual({
+      etunimi:    'Sara',
+      sahkoposti: 'sara@example.com',
+    })
+    expect(paivitys.vastaukset).not.toHaveProperty('paivan_kipu')
+    expect(paivitys.vastaukset).not.toHaveProperty('hoidon_kulku')
+  })
+
+  it('AB-T4d: ensimmäinen käynti (ei edellistä valmis-käyntiä) → vastaukset on tyhjä jsonb', async () => {
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { id: 'avoin-id', lisakentat: null },
+      error: null,
+    })
+    apurit.lisaaTulos('asiakastietolomake_versiot', { error: null })
+    apurit.lisaaTulos('lomake_sairaudet', { data: [], error: null })
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { id: 'uusi-versio-id' },
+      error: null,
+    })
+    // AB-T4d: ei edellistä valmis-käyntiä → kenttäkirjasto-hakua EI tehdä
+    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null })
+    apurit.lisaaTulos('hoitokaynnit', { data: { id: 'tyhja-b-id' }, error: null })
+    apurit.lisaaTulos('hoitokaynnit', { error: null })
+
+    await aloitaUusiKaynti('asiakas-1')
+
+    const paivitys = apurit.tila.updateJonot.hoitokaynnit[0]
+    expect(paivitys.vastaukset).toEqual({})
+    // Kenttakirjasto-tauluun ei tehty kyselyä
+    expect(apurit.fromVakooja).not.toHaveBeenCalledWith('kenttakirjasto')
+  })
+
+  it('AB-T4d: edellisen valmis-käynnin vastaukset on tyhjä → kenttäkirjasto-hakua ei tehdä', async () => {
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { id: 'avoin-id', lisakentat: null },
+      error: null,
+    })
+    apurit.lisaaTulos('asiakastietolomake_versiot', { error: null })
+    apurit.lisaaTulos('lomake_sairaudet', { data: [], error: null })
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { id: 'uusi-versio-id' },
+      error: null,
+    })
+    // AB-T4d: edellinen löytyi mutta vastaukset on tyhjä → ei kannata hakea kenttäkirjastoa
+    apurit.lisaaTulos('hoitokaynnit', { data: { vastaukset: {} }, error: null })
+    apurit.lisaaTulos('hoitokaynnit', { data: { id: 'tyhja-b-id' }, error: null })
+    apurit.lisaaTulos('hoitokaynnit', { error: null })
+
+    await aloitaUusiKaynti('asiakas-1')
+
+    const paivitys = apurit.tila.updateJonot.hoitokaynnit[0]
+    expect(paivitys.vastaukset).toEqual({})
+    expect(apurit.fromVakooja).not.toHaveBeenCalledWith('kenttakirjasto')
+  })
+
+  it('AB-T4d: WHERE-ehto suodattaa vain valmis-tilaiset (ei luonnos-käyntejä)', async () => {
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { id: 'avoin-id', lisakentat: null },
+      error: null,
+    })
+    apurit.lisaaTulos('asiakastietolomake_versiot', { error: null })
+    apurit.lisaaTulos('lomake_sairaudet', { data: [], error: null })
+    apurit.lisaaTulos('asiakastietolomake_versiot', {
+      data: { id: 'uusi-versio-id' },
+      error: null,
+    })
+    // Mockkina edellisen valmis-käynnin haku → null (DB suodatti pois luonnos-käynnit)
+    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null })
+    apurit.lisaaTulos('hoitokaynnit', { data: { id: 'tyhja-b-id' }, error: null })
+    apurit.lisaaTulos('hoitokaynnit', { error: null })
+
+    await aloitaUusiKaynti('asiakas-1')
+
+    // Verifioi että edellisen-käynnin haku tehtiin ja sisältää tila='valmis' -ehdon
+    const eqit = apurit.tila.eqKutsut.hoitokaynnit ?? []
+    // Edellisen valmis-käynnin haku: ('asiakas_id', 'asiakas-1') + ('tila', 'valmis')
+    expect(eqit).toContainEqual(['asiakas_id', 'asiakas-1'])
+    expect(eqit).toContainEqual(['tila', 'valmis'])
   })
 })
 
