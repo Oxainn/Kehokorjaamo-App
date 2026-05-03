@@ -354,6 +354,27 @@ export const haeOletusLomakepohjaId = async () => {
   return data?.id ?? null
 }
 
+// Sallitut osion rooli-arvot lomakepohjan rakenteessa (AB-T2a).
+//   'asiakas' = osio jonka asiakas täyttää
+//   'hoitaja' = osio jonka hoitaja täyttää
+// Yhdistetty lomake jaetaan selvästi näihin kahteen osaan — ei kolmatta vaihtoehtoa.
+const SALLITUT_OSIO_ROOLIT = new Set(['asiakas', 'hoitaja'])
+
+// Normalisoi lomakepohjan rakenne luennassa: takaa että jokaisella osiolla
+// on rooli-kenttä (oletus 'asiakas'). Olemassa olevien pohjien yhteydessä
+// data-migraatiota ei tarvita — luenta-puolen normalisointi riittää.
+//
+// Vientifunktio jotta myös lomake-runtime ja editor voivat normalisoida
+// rakenteen jos saavat sen muulta polulta kuin haeLomakepohja:n kautta.
+export const normalisoiPohjaRakenne = (rakenne) => {
+  if (!rakenne || typeof rakenne !== 'object') return rakenne
+  const osiot = (rakenne.osiot ?? []).map((osio) => ({
+    ...osio,
+    rooli: SALLITUT_OSIO_ROOLIT.has(osio?.rooli) ? osio.rooli : 'asiakas',
+  }))
+  return { ...rakenne, osiot }
+}
+
 export const haeLomakepohja = async (pohjaId) => {
   if (!pohjaId) return { pohja: null, rakenne: null, kentat: {}, virhe: 'Pohjan id puuttuu' }
 
@@ -368,10 +389,11 @@ export const haeLomakepohja = async (pohjaId) => {
   }
 
   const versiot = (pohjaRivi.lomakepohja_versiot ?? []).slice().sort((a, b) => b.versio - a.versio)
-  const rakenne = versiot[0]?.rakenne ?? null
-  if (!rakenne) {
+  const rakenneRaakana = versiot[0]?.rakenne ?? null
+  if (!rakenneRaakana) {
     return { pohja: pohjaRivi, rakenne: null, kentat: {}, virhe: 'Pohjalla ei ole versiota' }
   }
+  const rakenne = normalisoiPohjaRakenne(rakenneRaakana)
 
   const tunnisteet = []
   for (const osio of rakenne.osiot ?? []) {

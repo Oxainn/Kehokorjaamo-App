@@ -93,6 +93,7 @@ import {
   tallennaRenderoijastaLomake,
   luoUusiKentta,
   paivitaKentanPysyvyys,
+  haeLomakepohja,
 } from './db'
 
 describe('tallennaAsiakas', () => {
@@ -880,5 +881,80 @@ describe('paivitaKentanPysyvyys (AB-T1b1)', () => {
 
     expect(tulos).toEqual({ virhe: 'Kentällä ei ole aktiivista versiota' })
     expect(apurit.tila.updateJonot.kentan_versiot).toBeUndefined()
+  })
+})
+
+describe('haeLomakepohja — osion rooli normalisointi (AB-T2a)', () => {
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+  })
+
+  // Apuri: tee mock-vaste 'lomakepohjat'-taululle annetuilla osioilla.
+  // Osiot ovat tyhjiä (kenttat: []), jotta haeLomakepohja ei tee toista
+  // kyselyä kenttäkirjastoon — testit fokusoivat vain rooli-normalisointiin.
+  const setupPohja = (osiot) => {
+    apurit.lisaaTulos('lomakepohjat', {
+      data: {
+        id:         'pohja-1',
+        nimi:       'Testipohja',
+        kuvaus:     null,
+        on_oletus:  false,
+        aktiivinen: true,
+        lomakepohja_versiot: [{
+          versio: 1,
+          rakenne: {
+            formaatti_versio: 1,
+            nayttotyyli: 'c',
+            osiot,
+          },
+        }],
+      },
+      error: null,
+    })
+  }
+
+  it('osio ilman rooli-kenttää saa oletuksen "asiakas"', async () => {
+    setupPohja([
+      { id: 'o1', otsikko: 'Asiakkaan osio', kenttat: [] },
+    ])
+
+    const tulos = await haeLomakepohja('pohja-1')
+
+    expect(tulos.virhe).toBeNull()
+    expect(tulos.rakenne.osiot).toHaveLength(1)
+    expect(tulos.rakenne.osiot[0].rooli).toBe('asiakas')
+    // Muut osio-kentät säilyvät
+    expect(tulos.rakenne.osiot[0].id).toBe('o1')
+    expect(tulos.rakenne.osiot[0].otsikko).toBe('Asiakkaan osio')
+  })
+
+  it('osio jolla on rooli "asiakas" tai "hoitaja" säilyttää sen', async () => {
+    setupPohja([
+      { id: 'o1', otsikko: 'Asiakkaan osio', rooli: 'asiakas', kenttat: [] },
+      { id: 'o2', otsikko: 'Hoitajan osio',  rooli: 'hoitaja', kenttat: [] },
+    ])
+
+    const tulos = await haeLomakepohja('pohja-1')
+
+    expect(tulos.rakenne.osiot[0].rooli).toBe('asiakas')
+    expect(tulos.rakenne.osiot[1].rooli).toBe('hoitaja')
+  })
+
+  it('virheellinen rooli-arvo normalisoituu "asiakas"-arvoksi', async () => {
+    setupPohja([
+      { id: 'o1', otsikko: 'Outo merkkijono', rooli: 'jokin_muu', kenttat: [] },
+      { id: 'o2', otsikko: 'Tyhjä',           rooli: '',           kenttat: [] },
+      { id: 'o3', otsikko: 'Null',            rooli: null,         kenttat: [] },
+      { id: 'o4', otsikko: 'Numero',          rooli: 42,           kenttat: [] },
+    ])
+
+    const tulos = await haeLomakepohja('pohja-1')
+
+    expect(tulos.rakenne.osiot[0].rooli).toBe('asiakas')
+    expect(tulos.rakenne.osiot[1].rooli).toBe('asiakas')
+    expect(tulos.rakenne.osiot[2].rooli).toBe('asiakas')
+    expect(tulos.rakenne.osiot[3].rooli).toBe('asiakas')
   })
 })
