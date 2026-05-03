@@ -43,6 +43,14 @@ const tahti = {
   marginLeft: '3px',
 }
 
+// AB-T3b: pieni 🔒-merkki labelin perässä kun kenttä on pysyvä — säilyy
+// "Aloita uusi käynti" -tyhjennyksessä. Tooltip selittää.
+const lukko = {
+  marginLeft: '6px',
+  fontSize:   '11px',
+  opacity:    0.65,
+}
+
 const eiTuettu = {
   fontSize:   '12px',
   color:      '#9ca3af',
@@ -84,6 +92,9 @@ export default function Kentta({ kentta, kenttamerkinta, arvo, virhe, onMuutos }
         <label style={labelTyyli}>
           {fi.otsikko ?? kentta.tunniste}
           {kenttamerkinta?.pakollinen && <span style={tahti}>*</span>}
+          {kentta.pysyva && (
+            <span style={lukko} title="Pysyvä kenttä — säilyy seuraavalle käynnille">🔒</span>
+          )}
         </label>
         <div style={eiTuettu}>
           Kenttätyyppiä &laquo;{kentta.tyyppi}&raquo; ei vielä tueta renderöijässä
@@ -112,6 +123,9 @@ export default function Kentta({ kentta, kenttamerkinta, arvo, virhe, onMuutos }
       <label style={labelTyyli}>
         {fi.otsikko ?? kentta.tunniste}
         {kenttamerkinta?.pakollinen && <span style={tahti}>*</span>}
+        {kentta.pysyva && (
+          <span style={lukko} title="Pysyvä kenttä — säilyy seuraavalle käynnille">🔒</span>
+        )}
       </label>
       <Komponentti
         kentta={kentta}

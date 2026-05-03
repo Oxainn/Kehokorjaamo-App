@@ -65,6 +65,27 @@ export default function LomakeRenderoija({ pohjaId, valmiitTiedot, vastaukset, o
     setUusiKayntiAloitettu(false)
   }, [pohjaId, valmiitTiedot])
 
+  // AB-T3b: kun uusi käynti aloitetaan, tyhjennä muuttuvat kentät vastauksista.
+  // Pysyvät kentät (kentat[tunniste].pysyva === true) säilyvät esitäytettyinä.
+  // Tämä koskee kaikkia kenttiä — sekä asiakkaan että hoitajan osioissa.
+  useEffect(() => {
+    if (!uusiKayntiAloitettu) return
+    if (!kentat) return
+
+    onMuutos((edellinen) => {
+      if (!edellinen) return edellinen
+      const tulokset = {}
+      for (const tunniste of Object.keys(edellinen)) {
+        if (kentat[tunniste]?.pysyva) {
+          tulokset[tunniste] = edellinen[tunniste]
+        }
+      }
+      return tulokset
+    })
+    // Riippuvuudet: vain uusiKayntiAloitettu — tyhjennys ajetaan kun tila vaihtuu.
+    // kentat-closure on edition tuore koska useEffect re-creataan render-syklissä.
+  }, [uusiKayntiAloitettu]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (lataa) return <div style={tilaTyyli}>Ladataan lomakepohjaa…</div>
   if (virhe) return <div style={virheTyyli}>Virhe: {virhe}</div>
   if (!rakenne) return <div style={tilaTyyli}>Lomakepohjaa ei löytynyt.</div>
