@@ -28,6 +28,12 @@ const KENTTATYYPPI_NIMET = {
   kehonkartta:   'Kehonkartta',
   allekirjoitus: 'Allekirjoitus',
   infoteksti:    'Infoteksti',
+  kuvantaminen:  'Kuvantaminen',
+  linjausmittari:           'Linjausmittari',
+  bodymap_havainnot:        'BodyMap-havainnot',
+  itsehoito_valinnat:       'Itsehoito-valinnat',
+  ai_loydosanalyysi:        'AI-löydösanalyysi',
+  edellisen_kaynnin_muista: 'Edellisen käynnin Muista',
 }
 
 function osioidenJsonStringi(osiot) {
@@ -691,6 +697,7 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
         <LisaaKenttaModaali
           kenttakirjasto={kenttakirjasto}
           kaytetytTunnisteet={lisayksenKaytetytTunnisteet}
+          osionRooli={lisayksenOsio?.rooli ?? 'asiakas'}
           onValitse={(tunniste) => lisaaKenttaOsioon(lisayksenKohde, tunniste)}
           onUusiKenttaLuotu={(tunniste) => uusiKenttaLuotu(lisayksenKohde, tunniste)}
           onSulje={() => setLisayksenKohde(null)}

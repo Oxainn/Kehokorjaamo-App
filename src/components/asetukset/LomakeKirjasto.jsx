@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../services/supabase'
+import { siirraPohja } from '../../lib/db'
 import { muotoilePvm } from '../../lib/muotoilu'
 import LomakepohjaEditori from './LomakepohjaEditori'
 
@@ -14,7 +15,7 @@ const NAYTTOTYYLIT = {
 // Valikkotila ja uudelleennimeäminen hallitaan komponenttipaikallisesti, jotta
 // ulkopuolinen sulkumekanismi ei häiritse Reactin event delegation -arkkitehtuuria.
 
-function PohjaKortti({ pohja, onRefresh, onAvaa, onKopioi, onAsetaOletus, onPoista }) {
+function PohjaKortti({ pohja, onRefresh, onAvaa, onKopioi, onAsetaOletus, onPoista, onSiirra, ekaRivilla, viimeRivilla }) {
   const [menuAuki, setMenuAuki] = useState(false)
   const [uudelleenNimi, setUudelleenNimi] = useState(null) // null = ei muokata
   const menuRef = useRef(null)
@@ -160,6 +161,29 @@ function PohjaKortti({ pohja, onRefresh, onAvaa, onKopioi, onAsetaOletus, onPois
 
       {/* Toimintonapit */}
       <div className="flex items-center gap-2 flex-wrap">
+        {/* Pala 2.16: ▲▼ siirrä järjestyksessä */}
+        <div className="flex items-center gap-1 mr-1">
+          <button
+            type="button"
+            onClick={() => onSiirra && onSiirra(pohja, -1)}
+            disabled={ekaRivilla}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-brand-500 hover:text-brand-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Siirrä ylös"
+            title="Siirrä ylös"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            onClick={() => onSiirra && onSiirra(pohja, 1)}
+            disabled={viimeRivilla}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-brand-500 hover:text-brand-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Siirrä alas"
+            title="Siirrä alas"
+          >
+            ▼
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => onAvaa(pohja)}
@@ -401,8 +425,8 @@ export default function LomakeKirjasto() {
     try {
       const { data, error } = await supabase
         .from('lomakepohjat')
-        .select('id, nimi, kuvaus, on_oletus, aktiivinen, luotu, paivitetty, lomakepohja_versiot(versio, rakenne, luotu)')
-        .order('on_oletus', { ascending: false })
+        .select('id, nimi, kuvaus, on_oletus, aktiivinen, jarjestys, luotu, paivitetty, lomakepohja_versiot(versio, rakenne, luotu)')
+        .order('jarjestys', { ascending: true })
         .order('paivitetty', { ascending: false })
       if (error) throw error
 
@@ -448,6 +472,13 @@ export default function LomakeKirjasto() {
     } finally {
       setLuoLataa(false)
     }
+  }
+
+  // Pala 2.16: ▲▼ siirrä pohjaa järjestyksessä
+  async function siirraPohjaKlikki(pohja, suunta) {
+    const tulos = await siirraPohja(pohja.id, suunta)
+    if (tulos.virhe) { alert('Siirto epäonnistui: ' + tulos.virhe); return }
+    await haePohjat()
   }
 
   async function kopioPohja(pohja) {
@@ -564,7 +595,7 @@ export default function LomakeKirjasto() {
       {lataa && <div className="text-sm text-gray-400 py-4 text-center">Ladataan…</div>}
       {virhe  && <div className="text-sm text-red-500 py-2">{virhe}</div>}
 
-      {!lataa && pohjat.map(pohja => (
+      {!lataa && pohjat.map((pohja, idx) => (
         <PohjaKortti
           key={pohja.id}
           pohja={pohja}
@@ -573,6 +604,9 @@ export default function LomakeKirjasto() {
           onKopioi={kopioPohja}
           onAsetaOletus={p => setVahvistus({ tyyppi: 'oletus', pohja: p })}
           onPoista={p => setVahvistus({ tyyppi: 'poisto', pohja: p })}
+          onSiirra={siirraPohjaKlikki}
+          ekaRivilla={idx === 0}
+          viimeRivilla={idx === pohjat.length - 1}
         />
       ))}
 

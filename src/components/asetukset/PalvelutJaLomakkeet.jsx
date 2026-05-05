@@ -12,6 +12,7 @@ import {
   paivitaPalvelu,
   poistaPalvelu,
   asetaPalvelunLomake,
+  siirraPalvelu,
 } from '../../lib/db'
 import LomakeKirjasto from './LomakeKirjasto'
 
@@ -299,7 +300,7 @@ function VaihdaLomakeModaali({ palvelu, nykyinenPohjaId, onTallennettu, onSulje 
 
 // ── Palvelukortti ───────────────────────────────────────────────────────────
 
-function PalveluKortti({ palvelu, onMuokkaa, onPoista, onToggleAktiivinen, onVaihdaLomake }) {
+function PalveluKortti({ palvelu, onMuokkaa, onPoista, onToggleAktiivinen, onVaihdaLomake, onSiirra, ekaRivilla, viimeRivilla }) {
   const lomake = palvelu.lomakepohja
   const [kopiointiTila, setKopiointiTila] = useState(null) // null | 'ok' | 'virhe'
 
@@ -404,6 +405,29 @@ function PalveluKortti({ palvelu, onMuokkaa, onPoista, onToggleAktiivinen, onVai
 
       {/* Toiminnot */}
       <div className="ml-7 flex items-center gap-2 flex-wrap">
+        {/* Pala 2.16: ▲▼ siirrä järjestyksessä */}
+        <div className="flex items-center gap-1 mr-1">
+          <button
+            type="button"
+            onClick={() => onSiirra && onSiirra(palvelu, -1)}
+            disabled={ekaRivilla}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-brand-500 hover:text-brand-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Siirrä ylös"
+            title="Siirrä ylös"
+          >
+            ▲
+          </button>
+          <button
+            type="button"
+            onClick={() => onSiirra && onSiirra(palvelu, 1)}
+            disabled={viimeRivilla}
+            className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-600 hover:border-brand-500 hover:text-brand-700 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Siirrä alas"
+            title="Siirrä alas"
+          >
+            ▼
+          </button>
+        </div>
         <button
           type="button"
           onClick={() => onMuokkaa(palvelu)}
@@ -468,6 +492,13 @@ export default function PalvelutJaLomakkeet() {
     await lataaPalvelut()
   }
 
+  // Pala 2.16: ▲▼ siirrä palvelua järjestyksessä
+  async function siirraPalveluKlikki(palvelu, suunta) {
+    const tulos = await siirraPalvelu(palvelu.id, suunta)
+    if (tulos.virhe) { alert('Siirto epäonnistui: ' + tulos.virhe); return }
+    await lataaPalvelut()
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {/* Palvelut-lista */}
@@ -499,7 +530,7 @@ export default function PalvelutJaLomakkeet() {
         </div>
       )}
 
-      {!lataa && palvelut.map((p) => (
+      {!lataa && palvelut.map((p, idx) => (
         <PalveluKortti
           key={p.id}
           palvelu={p}
@@ -507,6 +538,9 @@ export default function PalvelutJaLomakkeet() {
           onPoista={poista}
           onToggleAktiivinen={toggleAktiivinen}
           onVaihdaLomake={(palvelu) => setVaihtoModaali(palvelu)}
+          onSiirra={siirraPalveluKlikki}
+          ekaRivilla={idx === 0}
+          viimeRivilla={idx === palvelut.length - 1}
         />
       ))}
 

@@ -17,21 +17,106 @@ const KENTTATYYPPI_NIMET = {
   kehonkartta:   'Kehonkartta',
   allekirjoitus: 'Allekirjoitus',
   infoteksti:    'Infoteksti (staattinen)',
+  kuvantaminen:  'Kuvantaminen (asentokuvat + AI)',
+  linjausmittari:           'Linjausmittari (hoitajan asentokulma)',
+  bodymap_havainnot:        'BodyMap-havainnot (hoitajan löydökset)',
+  itsehoito_valinnat:       'Itsehoito-valinnat (käyntikohtainen)',
+  ai_loydosanalyysi:        'AI-löydösanalyysi (Claude-tulkinta)',
+  edellisen_kaynnin_muista: 'Edellisen käynnin Muista-nosto',
 }
 
-export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet, onValitse, onUusiKenttaLuotu, onSulje }) {
+// Pala 2.14: ryhmittely käyttää nyt kenttäkirjasto.kohderyhma -saraketta.
+// HOITAJAN_KENTTATYYPIT-set poistettu — luokitus on eksplisiittinen DB:ssä.
+// Yhteensopivuus: jos kohderyhma puuttuu (vanha rivi tai virhe), oletus 'asiakas'
+// (tämä hoidetaan db/lomake.js haeKenttakirjasto:ssa).
+
+// Pala 2.10: yksittäisen kenttärivin renderöinti — sama kummassakin ryhmässä
+// (hoitaja/asiakas). Aiemmin koodi oli inline kerran, nyt eriytetty jotta
+// voidaan käyttää molemmissa ryhmissä ilman duplikaatiota.
+function renderoiKenttarivi(k, kaytetytTunnisteet, onValitse, onSulje) {
+  const kaytetty = kaytetytTunnisteet.has(k.tunniste)
+  const tyyppiNimi = KENTTATYYPPI_NIMET[k.tyyppi] ?? k.tyyppi
+  return (
+    <li key={k.id}>
+      <button
+        type="button"
+        disabled={kaytetty}
+        onClick={() => { onValitse(k.tunniste); onSulje() }}
+        className={`w-full text-left rounded-lg border px-3 py-2.5 transition-colors ${
+          kaytetty
+            ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-60'
+            : 'border-gray-200 hover:border-brand-500 hover:bg-brand-50'
+        }`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-sm font-semibold text-gray-800 truncate">
+                {k.otsikko}
+              </span>
+              {k.pysyva && (
+                <span
+                  className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 border border-blue-200 rounded font-medium flex-shrink-0"
+                  title="Pysyvä — kentän arvo säilyy seuraavalle käynnille (muokataan Kenttäkirjastosta)"
+                >
+                  🔒 Pysyvä
+                </span>
+              )}
+            </div>
+            <span className="text-xs text-gray-500">
+              {tyyppiNimi} · <code className="text-gray-400">{k.tunniste}</code>
+            </span>
+          </div>
+          {kaytetty && (
+            <span className="text-xs text-gray-400 italic flex-shrink-0 mt-0.5">
+              jo lisätty
+            </span>
+          )}
+        </div>
+      </button>
+    </li>
+  )
+}
+
+export default function LisaaKenttaModaali({
+  kenttakirjasto,
+  kaytetytTunnisteet,
+  osionRooli = 'asiakas',  // Pala 2.15: estä vahingossa väärän roolin valinta
+  onValitse,
+  onUusiKenttaLuotu,
+  onSulje,
+}) {
   const [hakusana, setHakusana] = useState('')
   const [luoUusiAuki, setLuoUusiAuki] = useState(false)
+  // Pala 2.15: 'asiakas' | 'hoitaja' | 'kaikki' — oletus = osion rooli.
+  // Käyttäjä voi vaihtaa pillit-painikkeilla jos haluaa toisen roolin kentän.
+  const [naytettavaRooli, setNaytettavaRooli] = useState(osionRooli)
 
-  const suodatetut = useMemo(() => {
+  // Pala 2.10: ryhmittely roolin mukaan.
+  // Pala 2.15: lisätty näkyvyys-suodatus naytettavaRooli:n perusteella.
+  const { hoitajanKentat, asiakkaanKentat, suodatetutYhteensa, kokonaislukumaarat } = useMemo(() => {
     const haku = hakusana.trim().toLowerCase()
-    if (!haku) return kenttakirjasto
-    return kenttakirjasto.filter((k) =>
+    const haunMukaiset = !haku ? kenttakirjasto : kenttakirjasto.filter((k) =>
       k.otsikko.toLowerCase().includes(haku) ||
       k.tunniste.toLowerCase().includes(haku) ||
       (KENTTATYYPPI_NIMET[k.tyyppi] ?? '').toLowerCase().includes(haku)
     )
-  }, [kenttakirjasto, hakusana])
+    // Ryhmittely DB-arvon perusteella (kenttakirjasto.kohderyhma).
+    const kaikkiHoitajan  = haunMukaiset.filter((k) => k.kohderyhma === 'hoitaja')
+    const kaikkiAsiakkaan = haunMukaiset.filter((k) => k.kohderyhma !== 'hoitaja')
+
+    // Suodatus näkyvyyden mukaan (Pala 2.15)
+    const naytaHoitaja  = naytettavaRooli === 'hoitaja' || naytettavaRooli === 'kaikki'
+    const naytaAsiakas  = naytettavaRooli === 'asiakas' || naytettavaRooli === 'kaikki'
+
+    return {
+      hoitajanKentat:    naytaHoitaja  ? kaikkiHoitajan  : [],
+      asiakkaanKentat:   naytaAsiakas  ? kaikkiAsiakkaan : [],
+      suodatetutYhteensa: (naytaHoitaja ? kaikkiHoitajan.length : 0) + (naytaAsiakas ? kaikkiAsiakkaan.length : 0),
+      // Pillien laskurit näyttävät kokonaismäärät, vaikka ryhmä olisi piilossa
+      kokonaislukumaarat: { hoitaja: kaikkiHoitajan.length, asiakas: kaikkiAsiakkaan.length },
+    }
+  }, [kenttakirjasto, hakusana, naytettavaRooli])
 
   function uusiKenttaLuotu(tunniste) {
     setLuoUusiAuki(false)
@@ -76,58 +161,82 @@ export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet,
             </button>
           </div>
 
+          {/* Pala 2.15: rooli-suodatus pillit. Oletus = osion rooli, jotta vahingossa
+              ei lisätä asiakkaan kenttää hoitaja-osioon ja päinvastoin. */}
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide flex-shrink-0">
+              Näytä:
+            </span>
+            <button
+              type="button"
+              onClick={() => setNaytettavaRooli('asiakas')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors flex items-center gap-1.5 ${
+                naytettavaRooli === 'asiakas'
+                  ? 'bg-blue-100 border-blue-300 text-blue-800'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-blue-200 hover:bg-blue-50'
+              }`}
+            >
+              <span>👤</span>
+              <span>Asiakkaan ({kokonaislukumaarat.asiakas})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setNaytettavaRooli('hoitaja')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors flex items-center gap-1.5 ${
+                naytettavaRooli === 'hoitaja'
+                  ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-emerald-200 hover:bg-emerald-50'
+              }`}
+            >
+              <span>🧑‍⚕️</span>
+              <span>Hoitajan ({kokonaislukumaarat.hoitaja})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setNaytettavaRooli('kaikki')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                naytettavaRooli === 'kaikki'
+                  ? 'bg-gray-200 border-gray-400 text-gray-800'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+              }`}
+            >
+              Kaikki ({kokonaislukumaarat.asiakas + kokonaislukumaarat.hoitaja})
+            </button>
+          </div>
+
           <div className="px-5 py-3 max-h-[60vh] overflow-y-auto">
-            {suodatetut.length === 0 ? (
+            {suodatetutYhteensa === 0 ? (
               <p className="text-sm text-gray-400 italic text-center py-6">
                 Ei kenttiä haulla &laquo;{hakusana}&raquo;.
               </p>
             ) : (
-              <ul className="flex flex-col gap-2">
-                {suodatetut.map((k) => {
-                  const kaytetty = kaytetytTunnisteet.has(k.tunniste)
-                  const tyyppiNimi = KENTTATYYPPI_NIMET[k.tyyppi] ?? k.tyyppi
-                  return (
-                    <li key={k.id}>
-                      <button
-                        type="button"
-                        disabled={kaytetty}
-                        onClick={() => { onValitse(k.tunniste); onSulje() }}
-                        className={`w-full text-left rounded-lg border px-3 py-2.5 transition-colors ${
-                          kaytetty
-                            ? 'border-gray-100 bg-gray-50 cursor-not-allowed opacity-60'
-                            : 'border-gray-200 hover:border-brand-500 hover:bg-brand-50'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex flex-col gap-0.5 min-w-0">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-sm font-semibold text-gray-800 truncate">
-                                {k.otsikko}
-                              </span>
-                              {k.pysyva && (
-                                <span
-                                  className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 border border-blue-200 rounded font-medium flex-shrink-0"
-                                  title="Pysyvä — kentän arvo säilyy seuraavalle käynnille (muokataan Kenttäkirjastosta)"
-                                >
-                                  🔒 Pysyvä
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-500">
-                              {tyyppiNimi} · <code className="text-gray-400">{k.tunniste}</code>
-                            </span>
-                          </div>
-                          {kaytetty && (
-                            <span className="text-xs text-gray-400 italic flex-shrink-0 mt-0.5">
-                              jo lisätty
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
+              <div className="flex flex-col gap-4">
+                {/* 👤 Asiakkaan kentät — ensin koska lomakkeessa myös ensin */}
+                {asiakkaanKentat.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <span>👤</span>
+                      <span>Asiakkaan kentät ({asiakkaanKentat.length})</span>
+                    </h4>
+                    <ul className="flex flex-col gap-2">
+                      {asiakkaanKentat.map((k) => renderoiKenttarivi(k, kaytetytTunnisteet, onValitse, onSulje))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* 🧑‍⚕️ Hoitajan kentät — alaosaan koska lomakkeessa hoitaja-osiot tulevat asiakkaan jälkeen */}
+                {hoitajanKentat.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <span>🧑‍⚕️</span>
+                      <span>Hoitajan kentät ({hoitajanKentat.length})</span>
+                    </h4>
+                    <ul className="flex flex-col gap-2">
+                      {hoitajanKentat.map((k) => renderoiKenttarivi(k, kaytetytTunnisteet, onValitse, onSulje))}
+                    </ul>
+                  </div>
+                )}
+              </div>
             )}
           </div>
 

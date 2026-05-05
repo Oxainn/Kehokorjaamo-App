@@ -212,10 +212,14 @@ export const luoUusiKentta = async ({
   validointi = {},
   oletukset = {},
   pysyva = false,
+  kohderyhma = 'asiakas',  // Pala 2.13: 'asiakas' | 'hoitaja' — vaikuttaa LisaaKenttaModaali:n ryhmittelyyn
 }) => {
   if (!tunniste?.trim()) return { virhe: 'Tunniste puuttuu' }
   if (!tyyppi)           return { virhe: 'Kenttätyyppi puuttuu' }
   if (!otsikko?.trim())  return { virhe: 'Otsikko puuttuu' }
+  if (kohderyhma !== 'asiakas' && kohderyhma !== 'hoitaja') {
+    return { virhe: 'Kohderyhma pitää olla "asiakas" tai "hoitaja"' }
+  }
 
   const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
   if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
@@ -226,6 +230,7 @@ export const luoUusiKentta = async ({
       hoitaja_id:         user.id,
       kentta_id_tunniste: tunniste.trim(),
       kenttatyyppi:       tyyppi,
+      kohderyhma,         // Pala 2.13: 'asiakas' tai 'hoitaja'
       validointi,
       oletukset,
     })
@@ -306,11 +311,43 @@ export const paivitaKentanPysyvyys = async (kenttaId, pysyva) => {
 }
 
 // Hakee koko kenttäkirjaston editorin käyttöön — kentän tunniste + tyyppi + suomenkielinen otsikko.
-// Palautusmuoto: [{ id, tunniste, tyyppi, otsikko, apurivi, placeholder, validointi, oletukset, pysyva }]
+// Pala 2.16: siirrä lomakepohja ylös/alas vaihtamalla jarjestys-arvot viereisen
+// kanssa. suunta: -1 (ylös) tai +1 (alas). Jos jo reunassa, ei toimenpidettä.
+export const siirraPohja = async (pohjaId, suunta) => {
+  if (suunta !== -1 && suunta !== 1) return { virhe: 'Suunta pitää olla -1 tai 1' }
+  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
+  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
+
+  const { data: kaikki, error: hakuVirhe } = await supabase
+    .from('lomakepohjat')
+    .select('id, jarjestys')
+    .eq('hoitaja_id', user.id)
+    .order('jarjestys', { ascending: true })
+    .order('nimi', { ascending: true })
+  if (hakuVirhe) return { virhe: hakuVirhe.message }
+
+  const idx = (kaikki ?? []).findIndex((p) => p.id === pohjaId)
+  if (idx < 0) return { virhe: 'Pohjaa ei löytynyt' }
+
+  const uusiIdx = idx + suunta
+  if (uusiIdx < 0 || uusiIdx >= kaikki.length) return { virhe: null }  // reunassa
+
+  const nykyinen = kaikki[idx]
+  const naapuri  = kaikki[uusiIdx]
+
+  const { error: e1 } = await supabase.from('lomakepohjat').update({ jarjestys: naapuri.jarjestys }).eq('id', nykyinen.id)
+  if (e1) return { virhe: e1.message }
+  const { error: e2 } = await supabase.from('lomakepohjat').update({ jarjestys: nykyinen.jarjestys }).eq('id', naapuri.id)
+  if (e2) return { virhe: e2.message }
+
+  return { virhe: null }
+}
+
+// Palautusmuoto: [{ id, tunniste, tyyppi, kohderyhma, otsikko, apurivi, placeholder, validointi, oletukset, pysyva }]
 export const haeKenttakirjasto = async () => {
   const { data, error } = await supabase
     .from('kenttakirjasto')
-    .select('id, kentta_id_tunniste, kenttatyyppi, validointi, oletukset, kentan_versiot(versio, kaannokset, aktiivinen, pysyva)')
+    .select('id, kentta_id_tunniste, kenttatyyppi, kohderyhma, validointi, oletukset, kentan_versiot(versio, kaannokset, aktiivinen, pysyva)')
     .order('kentta_id_tunniste')
 
   if (error) {
@@ -327,6 +364,7 @@ export const haeKenttakirjasto = async () => {
       id:          k.id,
       tunniste:    k.kentta_id_tunniste,
       tyyppi:      k.kenttatyyppi,
+      kohderyhma:  k.kohderyhma ?? 'asiakas',  // Pala 2.14: oletus asiakas yhteensopivuuden vuoksi
       otsikko:     fi.otsikko ?? k.kentta_id_tunniste,
       apurivi:     fi.apurivi ?? '',
       placeholder: fi.placeholder ?? '',

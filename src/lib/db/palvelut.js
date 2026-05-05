@@ -101,6 +101,41 @@ export const asetaPalvelunLomake = async (palveluId, pohjaId) => {
   return paivitaPalvelu(palveluId, { lomakepohja_id: pohjaId ?? null })
 }
 
+// Pala 2.16: siirrä palvelu ylös/alas vaihtamalla jarjestys-arvot viereisen
+// kanssa. suunta: -1 (ylös) tai +1 (alas). Jos jo reunassa, palauttaa onnistuneesti
+// ilman muutoksia.
+export const siirraPalvelu = async (palveluId, suunta) => {
+  if (suunta !== -1 && suunta !== 1) return { virhe: 'Suunta pitää olla -1 tai 1' }
+  const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
+  if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
+
+  const { data: kaikki, error: hakuVirhe } = await supabase
+    .from('palvelut')
+    .select('id, jarjestys')
+    .eq('hoitaja_id', user.id)
+    .order('jarjestys', { ascending: true })
+    .order('nimi', { ascending: true })
+  if (hakuVirhe) return { virhe: hakuVirhe.message }
+
+  const idx = (kaikki ?? []).findIndex((p) => p.id === palveluId)
+  if (idx < 0) return { virhe: 'Palvelua ei löytynyt' }
+
+  const uusiIdx = idx + suunta
+  if (uusiIdx < 0 || uusiIdx >= kaikki.length) return { virhe: null }  // reunassa, ei muutosta
+
+  const nykyinen = kaikki[idx]
+  const naapuri  = kaikki[uusiIdx]
+
+  // Swap jarjestys-arvot kahdella UPDATE:lla. Ei UNIQUE-ehtoa joten
+  // välitilanne (molemmilla sama arvo) on hyväksyttävä.
+  const { error: e1 } = await supabase.from('palvelut').update({ jarjestys: naapuri.jarjestys }).eq('id', nykyinen.id)
+  if (e1) return { virhe: e1.message }
+  const { error: e2 } = await supabase.from('palvelut').update({ jarjestys: nykyinen.jarjestys }).eq('id', naapuri.id)
+  if (e2) return { virhe: e2.message }
+
+  return { virhe: null }
+}
+
 // Hakee palveluiden listan johon tämä pohja on liitetty (1:N — käänteinen suunta).
 // Käytetään editorin näkymässä jossa halutaan näyttää "tätä pohjaa käyttävät palvelut".
 export const haePalvelutPohjalle = async (pohjaId) => {
