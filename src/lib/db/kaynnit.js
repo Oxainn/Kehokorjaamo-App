@@ -39,8 +39,11 @@ export const aloitaUusiKaynti = async (asiakasId) => {
     return { virhe: hakuVirhe.message }
   }
 
-  // Jos avointa versiota ei ole, luodaan vain tyhjä uusi (reunatapaus —
-  // pitäisi olla harvinainen koska julkinen lomake luo aina version)
+  // Jos avointa versiota ei ole, luodaan tyhjä A-lomakeversio JA hoitokaynnit-rivi.
+  // Tämä reunatapaus laukeaa kun "+ Uusi asiakas" -polku on käytössä:
+  //   luoTyhjaAsiakas() luo pelkän asiakas-rivin, ei A-versiota → täällä luodaan molemmat.
+  // Pala 2.19 korjaus: aiemmin tämä haara palautti vain lomakeVersioId:n eikä
+  //   hoitokayntiId:tä → UusiKayntiContainer näytti virheen "Käyntiä ei luotu".
   if (!avoin) {
     const { data: uusi, error: luontiVirhe } = await supabase
       .from('asiakastietolomake_versiot')
@@ -55,7 +58,37 @@ export const aloitaUusiKaynti = async (asiakasId) => {
       console.error('Tyhjän version luonti epäonnistui:', luontiVirhe)
       return { virhe: luontiVirhe.message }
     }
-    return { lomakeVersioId: uusi.id, virhe: null }
+
+    // Luo myös hoitokaynnit-rivi joka osoittaa juuri luotuun A-versioon.
+    // Snapshot-mallin mukaisesti: B-lomake on linkattu siihen A-versioon
+    // joka oli voimassa hoidon alkaessa (tässä tapauksessa juuri luotu).
+    const { data: hoitokaynti, error: hoitokayntiVirhe } = await supabase
+      .from('hoitokaynnit')
+      .insert({
+        asiakas_id:       asiakasId,
+        hoitaja_id:       user.id,
+        lomake_versio_id: uusi.id,
+        pvm:              new Date().toISOString(),
+        tila:             'luonnos',
+        vastaukset:       {},
+      })
+      .select('id')
+      .single()
+    if (hoitokayntiVirhe) {
+      console.warn('Hoitokaynnit-rivin luonti epäonnistui:', hoitokayntiVirhe)
+      return {
+        lomakeVersioId: uusi.id,
+        hoitokayntiId:  null,
+        virhe:          null,
+        varoitus:       `Lomakeversio luotu mutta käynti ei: ${hoitokayntiVirhe.message}`,
+      }
+    }
+
+    return {
+      lomakeVersioId: uusi.id,
+      hoitokayntiId:  hoitokaynti.id,
+      virhe:          null,
+    }
   }
 
   // 2. Sulje nykyinen versio
