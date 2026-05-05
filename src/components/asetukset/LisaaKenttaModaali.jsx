@@ -158,20 +158,7 @@ export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet,
               </p>
             ) : (
               <div className="flex flex-col gap-4">
-                {/* 🧑‍⚕️ Hoitajan kentät */}
-                {hoitajanKentat.length > 0 && (
-                  <div>
-                    <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-                      <span>🧑‍⚕️</span>
-                      <span>Hoitajan kentät ({hoitajanKentat.length})</span>
-                    </h4>
-                    <ul className="flex flex-col gap-2">
-                      {hoitajanKentat.map((k) => renderoiKenttarivi(k, kaytetytTunnisteet, onValitse, onSulje))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* 👤 Asiakkaan kentät */}
+                {/* 👤 Asiakkaan kentät — ensin koska lomakkeessa myös ensin */}
                 {asiakkaanKentat.length > 0 && (
                   <div>
                     <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wide mb-2 flex items-center gap-1.5">
@@ -180,6 +167,19 @@ export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet,
                     </h4>
                     <ul className="flex flex-col gap-2">
                       {asiakkaanKentat.map((k) => renderoiKenttarivi(k, kaytetytTunnisteet, onValitse, onSulje))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* 🧑‍⚕️ Hoitajan kentät — alaosaan koska lomakkeessa hoitaja-osiot tulevat asiakkaan jälkeen */}
+                {hoitajanKentat.length > 0 && (
+                  <div>
+                    <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                      <span>🧑‍⚕️</span>
+                      <span>Hoitajan kentät ({hoitajanKentat.length})</span>
+                    </h4>
+                    <ul className="flex flex-col gap-2">
+                      {hoitajanKentat.map((k) => renderoiKenttarivi(k, kaytetytTunnisteet, onValitse, onSulje))}
                     </ul>
                   </div>
                 )}
