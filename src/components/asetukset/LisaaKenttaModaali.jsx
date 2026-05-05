@@ -17,6 +17,8 @@ const KENTTATYYPPI_NIMET = {
   kehonkartta:   'Kehonkartta',
   allekirjoitus: 'Allekirjoitus',
   infoteksti:    'Infoteksti (staattinen)',
+  kuvantaminen:  'Kuvantaminen (asentokuvat + AI)',
+  linjausmittari: 'Linjausmittari (hoitajan asentokulma)',
 }
 
 export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet, onValitse, onUusiKenttaLuotu, onSulje }) {

@@ -1,8 +1,9 @@
 // Modaali uuden kentän luomiseksi kenttäkirjastoon.
-// Tukee 13 kenttätyyppiä, tyyppikohtaiset asetukset (numero/liukusaadin/checkbox_lista/infoteksti).
+// Tukee 14 kenttätyyppiä, tyyppikohtaiset asetukset (numero/liukusaadin/checkbox_lista/infoteksti/linjausmittari).
 
 import { useState, useMemo, useEffect } from 'react'
 import { luoUusiKentta } from '../../lib/db'
+import { MITTARIT } from '../../data/linjausmittarit'
 
 const KENTTATYYPIT = [
   { arvo: 'infoteksti',     nimi: 'Infoteksti (näkyy lomakkeessa, ei syötettä)' },
@@ -18,6 +19,7 @@ const KENTTATYYPIT = [
   { arvo: 'kehonkartta',    nimi: 'Kehonkartta (piirros)' },
   { arvo: 'allekirjoitus',  nimi: 'Allekirjoitus' },
   { arvo: 'kuvantaminen',   nimi: 'Kuvantaminen (4 asentokuvaa + AI-analyysi)' },
+  { arvo: 'linjausmittari', nimi: 'Linjausmittari (hoitajan asentokulma)' },
 ]
 
 const VARIKOODAUS_VAIHTOEHDOT = [
@@ -66,6 +68,9 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
 
   // Checkbox-lista
   const [listaLahde,     setListaLahde]     = useState('sairaustyypit_taulu')
+
+  // Linjausmittari (Pala 1) — viittaus MITTARIT-listan sarakkeeseen
+  const [linjausmittariSarake, setLinjausmittariSarake] = useState(MITTARIT[0]?.sarake ?? '')
 
   // Infoteksti — sisältö (pidempi tekstilohko)
   const [infoSisalto,    setInfoSisalto]    = useState('')
@@ -120,8 +125,13 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
       }
       return o
     }
+    if (tyyppi === 'linjausmittari') {
+      // Viittaa MITTARIT-listan sarake-arvoon. Runtime (Linjausmittari.jsx) etsii
+      // MITTARIT.find(m => m.sarake === mittari_sarake) ja saa min/max/normaali sieltä.
+      return { mittari_sarake: linjausmittariSarake }
+    }
     return {}
-  }, [tyyppi, numeroYksikko, saadinAskel, saadinVari, saadinOhjeMin, saadinOhjeMax])
+  }, [tyyppi, numeroYksikko, saadinAskel, saadinVari, saadinOhjeMin, saadinOhjeMax, linjausmittariSarake])
 
   async function tallenna() {
     // Infoteksti voi olla ilman otsikkoa kunhan sisältö on annettu
@@ -361,6 +371,31 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
                 </select>
                 <p className="text-xs text-gray-500">
                   Toistaiseksi vain sairauslista on tuettu lähteenä.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Linjausmittari (Pala 1) — valitaan mistä MITTARIT-listan mittarista on kyse */}
+          {tyyppi === 'linjausmittari' && (
+            <div className="flex flex-col gap-3 p-3 bg-emerald-50 border border-emerald-100 rounded-lg">
+              <p className="text-xs font-semibold text-emerald-900 uppercase tracking-wide">Linjausmittari-asetukset</p>
+              <div className="flex flex-col gap-1">
+                <label className={labelLuokka}>Mikä mittari?</label>
+                <select
+                  value={linjausmittariSarake}
+                  onChange={(e) => setLinjausmittariSarake(e.target.value)}
+                  className={`${inputLuokka} bg-white`}
+                >
+                  {MITTARIT.map((m) => (
+                    <option key={m.sarake} value={m.sarake}>
+                      {m.nimi} ({m.yksikko})
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500">
+                  Mittarin asteikko, normaalialue ja yksikkö tulevat automaattisesti
+                  <code className="mx-1">data/linjausmittarit.js</code>:stä.
                 </p>
               </div>
             </div>

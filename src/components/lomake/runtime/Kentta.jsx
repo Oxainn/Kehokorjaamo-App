@@ -11,6 +11,7 @@ import Kehonkartta from './kenttatyypit/Kehonkartta'
 import Allekirjoitus from './kenttatyypit/Allekirjoitus'
 import Infoteksti from './kenttatyypit/Infoteksti'
 import Kuvantaminen from './kenttatyypit/Kuvantaminen'
+import Linjausmittari from './kenttatyypit/Linjausmittari'
 
 const KENTTATYYPIT = {
   tekstirivi:    Tekstirivi,
@@ -26,12 +27,15 @@ const KENTTATYYPIT = {
   allekirjoitus: Allekirjoitus,
   infoteksti:    Infoteksti,
   kuvantaminen:  Kuvantaminen,
+  linjausmittari: Linjausmittari,
 }
 
 // Tyypit jotka hoitavat oman otsikkonsa ja apurivinsä komponentin sisällä —
 // Kentta-wrapperi ei piirrä yläpuolen labelia näille.
 // AB-T7: kuvantaminen sisältää omat ryhmäotsikot eikä tunne pakollinen/pysyvä-semantiikkaa.
-const SISAINEN_LABEL = new Set(['checkbox', 'infoteksti', 'kuvantaminen'])
+// Pala 1.1: linjausmittari piirtää oman otsikon (mittari.nimi) MittariSliideri:n
+//           kautta — vältetään tupla-otsikko.
+const SISAINEN_LABEL = new Set(['checkbox', 'infoteksti', 'kuvantaminen', 'linjausmittari'])
 
 const labelTyyli = {
   fontSize:   '13px',

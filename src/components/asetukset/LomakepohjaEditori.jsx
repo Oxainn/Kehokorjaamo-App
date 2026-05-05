@@ -28,6 +28,8 @@ const KENTTATYYPPI_NIMET = {
   kehonkartta:   'Kehonkartta',
   allekirjoitus: 'Allekirjoitus',
   infoteksti:    'Infoteksti',
+  kuvantaminen:  'Kuvantaminen',
+  linjausmittari: 'Linjausmittari',
 }
 
 function osioidenJsonStringi(osiot) {
