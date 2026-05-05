@@ -29,7 +29,11 @@ const KENTTATYYPPI_NIMET = {
   allekirjoitus: 'Allekirjoitus',
   infoteksti:    'Infoteksti',
   kuvantaminen:  'Kuvantaminen',
-  linjausmittari: 'Linjausmittari',
+  linjausmittari:           'Linjausmittari',
+  bodymap_havainnot:        'BodyMap-havainnot',
+  itsehoito_valinnat:       'Itsehoito-valinnat',
+  ai_loydosanalyysi:        'AI-löydösanalyysi',
+  edellisen_kaynnin_muista: 'Edellisen käynnin Muista',
 }
 
 function osioidenJsonStringi(osiot) {

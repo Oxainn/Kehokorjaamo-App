@@ -18,8 +18,12 @@ const KENTTATYYPIT = [
   { arvo: 'checkbox_lista', nimi: 'Lista (rastit, useita valittavissa)' },
   { arvo: 'kehonkartta',    nimi: 'Kehonkartta (piirros)' },
   { arvo: 'allekirjoitus',  nimi: 'Allekirjoitus' },
-  { arvo: 'kuvantaminen',   nimi: 'Kuvantaminen (4 asentokuvaa + AI-analyysi)' },
-  { arvo: 'linjausmittari', nimi: 'Linjausmittari (hoitajan asentokulma)' },
+  { arvo: 'kuvantaminen',             nimi: 'Kuvantaminen (4 asentokuvaa + AI-analyysi)' },
+  { arvo: 'linjausmittari',           nimi: 'Linjausmittari (hoitajan asentokulma)' },
+  { arvo: 'bodymap_havainnot',        nimi: 'BodyMap-havainnot (hoitajan löydökset)' },
+  { arvo: 'itsehoito_valinnat',       nimi: 'Itsehoito-valinnat (käyntikohtainen)' },
+  { arvo: 'ai_loydosanalyysi',        nimi: 'AI-löydösanalyysi (Claude-tulkinta)' },
+  { arvo: 'edellisen_kaynnin_muista', nimi: 'Edellisen käynnin Muista-nosto' },
 ]
 
 const VARIKOODAUS_VAIHTOEHDOT = [

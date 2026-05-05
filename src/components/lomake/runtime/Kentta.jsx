@@ -12,6 +12,10 @@ import Allekirjoitus from './kenttatyypit/Allekirjoitus'
 import Infoteksti from './kenttatyypit/Infoteksti'
 import Kuvantaminen from './kenttatyypit/Kuvantaminen'
 import Linjausmittari from './kenttatyypit/Linjausmittari'
+import BodymapHavainnot from './kenttatyypit/BodymapHavainnot'
+import ItsehoitoValinnatKentta from './kenttatyypit/ItsehoitoValinnat'
+import AILoydosAnalyysiKentta from './kenttatyypit/AILoydosAnalyysi'
+import EdellisenKaynninMuista from './kenttatyypit/EdellisenKaynninMuista'
 
 const KENTTATYYPIT = {
   tekstirivi:    Tekstirivi,
@@ -27,15 +31,23 @@ const KENTTATYYPIT = {
   allekirjoitus: Allekirjoitus,
   infoteksti:    Infoteksti,
   kuvantaminen:  Kuvantaminen,
-  linjausmittari: Linjausmittari,
+  linjausmittari:           Linjausmittari,
+  bodymap_havainnot:        BodymapHavainnot,
+  itsehoito_valinnat:       ItsehoitoValinnatKentta,
+  ai_loydosanalyysi:        AILoydosAnalyysiKentta,
+  edellisen_kaynnin_muista: EdellisenKaynninMuista,
 }
 
 // Tyypit jotka hoitavat oman otsikkonsa ja apurivinsä komponentin sisällä —
 // Kentta-wrapperi ei piirrä yläpuolen labelia näille.
 // AB-T7: kuvantaminen sisältää omat ryhmäotsikot eikä tunne pakollinen/pysyvä-semantiikkaa.
-// Pala 1.1: linjausmittari piirtää oman otsikon (mittari.nimi) MittariSliideri:n
-//           kautta — vältetään tupla-otsikko.
-const SISAINEN_LABEL = new Set(['checkbox', 'infoteksti', 'kuvantaminen', 'linjausmittari'])
+// Pala 1.1: linjausmittari piirtää oman otsikon (mittari.nimi) MittariSliideri:n kautta.
+// Pala 2.4-2.7: hoitajan kentät renderöivät omat lohkonsa (BodyMap-välilehdet,
+//               itsehoito-kortit, AI-paneeli, "Muista" -nosto) — vältetään tupla-otsikko.
+const SISAINEN_LABEL = new Set([
+  'checkbox', 'infoteksti', 'kuvantaminen', 'linjausmittari',
+  'bodymap_havainnot', 'itsehoito_valinnat', 'ai_loydosanalyysi', 'edellisen_kaynnin_muista',
+])
 
 const labelTyyli = {
   fontSize:   '13px',

@@ -18,7 +18,11 @@ const KENTTATYYPPI_NIMET = {
   allekirjoitus: 'Allekirjoitus',
   infoteksti:    'Infoteksti (staattinen)',
   kuvantaminen:  'Kuvantaminen (asentokuvat + AI)',
-  linjausmittari: 'Linjausmittari (hoitajan asentokulma)',
+  linjausmittari:           'Linjausmittari (hoitajan asentokulma)',
+  bodymap_havainnot:        'BodyMap-havainnot (hoitajan löydökset)',
+  itsehoito_valinnat:       'Itsehoito-valinnat (käyntikohtainen)',
+  ai_loydosanalyysi:        'AI-löydösanalyysi (Claude-tulkinta)',
+  edellisen_kaynnin_muista: 'Edellisen käynnin Muista-nosto',
 }
 
 export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet, onValitse, onUusiKenttaLuotu, onSulje }) {
