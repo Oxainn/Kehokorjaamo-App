@@ -304,22 +304,26 @@ export const haeUusienAsiakkaidenMaara = async (hoitajaId) => {
   return count ?? 0
 }
 
+// Pala 2.18: pysyvä poisto. CASCADE-rajoitteet (asiakkaat-taulun PK:hon
+// viittaavat hoitokaynnit, asiakastietolomake_versiot, hoitosuunnitelma,
+// itsehoito_ohjelma, asentokuvat) hoitavat riippuvat rivit automaattisesti.
+// Aiempi versio yritti deletoida erikseen 'hoitokaynit'-taulusta — typo, oikea
+// nimi on 'hoitokaynnit', mutta sitä ei tarvita kun CASCADE on käytössä.
+//
+// Tämä on tarkoitettu vain arkisto-näkymään: aktiivisille asiakkaille käytä
+// arkistoiAsiakas-funktiota (soft-delete, palautettavissa).
 export const poistaAsiakas = async (id) => {
-  await supabase
-    .from('hoitokaynit')
-    .delete()
-    .eq('asiakas_id', id)
-
+  if (!id) return { virhe: 'Asiakas-id puuttuu' }
   const { error } = await supabase
     .from('asiakkaat')
     .delete()
     .eq('id', id)
 
   if (error) {
-    console.error('Poisto epäonnistui:', error)
-    return false
+    console.error('Pysyvä poisto epäonnistui:', error)
+    return { virhe: error.message }
   }
-  return true
+  return { virhe: null }
 }
 
 export const haeAsiakkaanSairaudet = async (asiakasId) => {
