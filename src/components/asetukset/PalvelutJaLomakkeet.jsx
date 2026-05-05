@@ -462,6 +462,7 @@ export default function PalvelutJaLomakkeet() {
   const [virhe,           setVirhe]           = useState(null)
   const [muokattava,      setMuokattava]      = useState(null)        // null tai palvelu tai 'uusi'
   const [vaihtoModaali,   setVaihtoModaali]   = useState(null)        // null tai palvelu
+  const [palvelutAuki,    setPalvelutAuki]    = useState(true)        // Pala 2.17: oletus auki
   const [pohjatAuki,      setPohjatAuki]      = useState(false)       // alaosan pohjien hallinta
 
   async function lataaPalvelut() {
@@ -500,52 +501,77 @@ export default function PalvelutJaLomakkeet() {
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Palvelut-lista */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <p className="text-sm text-gray-500 leading-relaxed">
-          Jokainen palvelu käyttää yhtä lomaketta. Sama lomake voi olla useassa palvelussa.
-        </p>
+    <div className="flex flex-col gap-3">
+      {/* Yläohjeteksti */}
+      <p className="text-sm text-gray-500 leading-relaxed">
+        Jokainen palvelu käyttää yhtä lomaketta. Sama lomake voi olla useassa palvelussa.
+      </p>
+
+      {/* Pala 2.17: Avattava paneeli 1 — Palvelut */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <button
           type="button"
-          onClick={() => setMuokattava('uusi')}
-          className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm whitespace-nowrap"
+          onClick={() => setPalvelutAuki((p) => !p)}
+          className="w-full flex items-center justify-between px-5 py-3 text-left hover:bg-gray-50 transition-colors"
         >
-          <span>+</span>
-          <span>Lisää palvelu</span>
+          <div className="flex items-center gap-2">
+            <span className="text-base">🩺</span>
+            <span className="text-sm font-semibold text-gray-700">Palvelut</span>
+            <span className="text-xs text-gray-400">({palvelut.length})</span>
+          </div>
+          <svg
+            className={`w-4 h-4 text-gray-400 transition-transform ${palvelutAuki ? 'rotate-180' : ''}`}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
         </button>
+        {palvelutAuki && (
+          <div className="px-5 pb-5 border-t border-gray-100 pt-4 flex flex-col gap-3">
+            <div className="flex items-center justify-end">
+              <button
+                type="button"
+                onClick={() => setMuokattava('uusi')}
+                className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold rounded-lg transition-colors shadow-sm whitespace-nowrap"
+              >
+                <span>+</span>
+                <span>Lisää palvelu</span>
+              </button>
+            </div>
+
+            {lataa && <div className="text-sm text-gray-400 py-4 text-center">Ladataan…</div>}
+            {virhe && <div className="text-sm text-red-500 py-2">{virhe}</div>}
+
+            {!lataa && palvelut.length === 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center flex flex-col gap-2 items-center">
+                <span className="text-3xl">🏥</span>
+                <p className="text-sm font-semibold text-amber-900">Et ole vielä luonut palveluita</p>
+                <p className="text-sm text-amber-800 leading-relaxed max-w-md">
+                  Klikkaa <strong>+ Lisää palvelu</strong> aloittaaksesi. Voit esimerkiksi lisätä jäsenkorjauksen,
+                  hieronnan tai energiahoidon. Jokaiselle palvelulle valitset oman lomakkeen.
+                </p>
+              </div>
+            )}
+
+            {!lataa && palvelut.map((p, idx) => (
+              <PalveluKortti
+                key={p.id}
+                palvelu={p}
+                onMuokkaa={(palvelu) => setMuokattava(palvelu)}
+                onPoista={poista}
+                onToggleAktiivinen={toggleAktiivinen}
+                onVaihdaLomake={(palvelu) => setVaihtoModaali(palvelu)}
+                onSiirra={siirraPalveluKlikki}
+                ekaRivilla={idx === 0}
+                viimeRivilla={idx === palvelut.length - 1}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      {lataa && <div className="text-sm text-gray-400 py-4 text-center">Ladataan…</div>}
-      {virhe && <div className="text-sm text-red-500 py-2">{virhe}</div>}
-
-      {!lataa && palvelut.length === 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 text-center flex flex-col gap-2 items-center">
-          <span className="text-3xl">🏥</span>
-          <p className="text-sm font-semibold text-amber-900">Et ole vielä luonut palveluita</p>
-          <p className="text-sm text-amber-800 leading-relaxed max-w-md">
-            Klikkaa <strong>+ Lisää palvelu</strong> aloittaaksesi. Voit esimerkiksi lisätä jäsenkorjauksen,
-            hieronnan tai energiahoidon. Jokaiselle palvelulle valitset oman lomakkeen.
-          </p>
-        </div>
-      )}
-
-      {!lataa && palvelut.map((p, idx) => (
-        <PalveluKortti
-          key={p.id}
-          palvelu={p}
-          onMuokkaa={(palvelu) => setMuokattava(palvelu)}
-          onPoista={poista}
-          onToggleAktiivinen={toggleAktiivinen}
-          onVaihdaLomake={(palvelu) => setVaihtoModaali(palvelu)}
-          onSiirra={siirraPalveluKlikki}
-          ekaRivilla={idx === 0}
-          viimeRivilla={idx === palvelut.length - 1}
-        />
-      ))}
-
-      {/* Lomakepohjien yleishallinta — avattava paneeli */}
-      <div className="mt-2 bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* Pala 2.17: Avattava paneeli 2 — Lomakepohjat (oma osio) */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         <button
           type="button"
           onClick={() => setPohjatAuki((p) => !p)}
@@ -553,8 +579,8 @@ export default function PalvelutJaLomakkeet() {
         >
           <div className="flex items-center gap-2">
             <span className="text-base">📋</span>
-            <span className="text-sm font-semibold text-gray-700">Hallitse lomakepohjia</span>
-            <span className="text-xs text-gray-400">(luo, muokkaa, kopioi)</span>
+            <span className="text-sm font-semibold text-gray-700">Lomakepohjat</span>
+            <span className="text-xs text-gray-400">(luo, muokkaa, kopioi, järjestä)</span>
           </div>
           <svg
             className={`w-4 h-4 text-gray-400 transition-transform ${pohjatAuki ? 'rotate-180' : ''}`}
