@@ -127,17 +127,14 @@ const infoTeksitTyyli = {
   fontWeight:    '500',
 }
 
-export function AloitaUusiKayntiNappi({ aloitettu, onAloita }) {
-  if (aloitettu) {
-    return (
-      <div style={infoTeksitTyyli} role="status">
-        ✓ Käynti aloitettu — voit täyttää hoitajan kirjaukset
-      </div>
-    )
-  }
-  return (
-    <button type="button" onClick={onAloita} style={napinTyyli}>
-      ▶ ALOITA UUSI KÄYNTI
-    </button>
-  )
+// KIIRE-FIX 3a (2026-05-05): nappi piilotettu näkyvistä — klikkaus avasi
+// virheellisesti palveluvalinnan ja sen jälkeen tyhjän lomakkeen. Komponentti
+// palauttaa null mutta säilyy export:ina koska näyttötyylit (NayttoYksiSivu /
+// NayttoCKerrallaan / NayttoAccordion) kutsuvat sitä. Tila
+// (LomakeRenderoija.uusiKayntiAloitettu) ja tyhjennys-useEffect jätetty
+// paikoilleen jotta ominaisuus voidaan palauttaa kun oikea käyttäytyminen on
+// määritelty. napinTyyli/infoTeksitTyyli ja db/kaynnit.js:n aloitaUusiKaynti
+// jäävät myös paikoilleen seuraavaa askelta varten.
+export function AloitaUusiKayntiNappi(_props) {
+  return null
 }

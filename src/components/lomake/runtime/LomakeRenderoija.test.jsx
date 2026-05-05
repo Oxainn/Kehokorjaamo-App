@@ -35,7 +35,11 @@ const teeValmiitTiedot = (kentat, osiot) => ({
   kentat,
 })
 
-describe('LomakeRenderoija — Aloita uusi käynti tyhjentää muuttuvat (AB-T3b)', () => {
+// KIIRE-FIX 3a (2026-05-05): nappi piilotettu UI:sta — testit skipataan
+// kunnes oikea käyttäytyminen on määritelty. Kentän tyhjennys-logiikka
+// (uusiKayntiAloitettu-tila, useEffect) jää LomakeRenderoija:han
+// paikoilleen jotta nämä testit voidaan palauttaa muutettuna.
+describe.skip('LomakeRenderoija — Aloita uusi käynti tyhjentää muuttuvat (AB-T3b)', () => {
   it('klikkaus tyhjentää muuttuvat kentät, säilyttää pysyvät', async () => {
     const onMuutos = vi.fn()
 
