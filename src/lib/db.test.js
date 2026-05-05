@@ -47,6 +47,8 @@ const apurit = vi.hoisted(() => {
     ketju.eq          = vi.fn((kentta, arvo) => { lisaaJonoon(tila.eqKutsut, taulu, [kentta, arvo]); return ketju })
     ketju.is          = vi.fn(() => ketju)
     ketju.neq         = vi.fn(() => ketju)
+    ketju.not         = vi.fn(() => ketju)
+    ketju.in          = vi.fn(() => ketju)
     ketju.order       = vi.fn(() => ketju)
     ketju.limit       = vi.fn(() => ketju)
     ketju.single      = vi.fn(() => ratkaise())
@@ -98,6 +100,7 @@ import {
   haeKayntiVastauksilla,
   lukitseKaynti,
   avaaKayntiUudelleen,
+  haeViimeisinKayntiPalvelulla,
 } from './db'
 
 describe('tallennaAsiakas', () => {
@@ -1374,5 +1377,44 @@ describe('avaaKayntiUudelleen (AB-T4c)', () => {
     const tulos = await avaaKayntiUudelleen('h1')
 
     expect(tulos).toEqual({ virhe: 'Joku muu on jo avannut käynnin' })
+  })
+})
+
+// KIIRE-FIX 2: Asiakasrekisterin "+ Aloita käynti" -nappi ohittaa
+// HoitajanPalveluValinta-modaalin kun asiakkaalla on aiempi valmis-käynti
+// jonka lomakepohjaan kytkeytyy yksiselitteisesti yksi aktiivinen palvelu.
+describe('haeViimeisinKayntiPalvelulla', () => {
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+  })
+
+  it('viimeisin valmis-käynti viittaa pohjaan jolla yksi aktiivinen palvelu → ohitetaan palveluvalinta', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data: { id: 'k1', lomakepohja_versio_id: 'v1' },
+      error: null,
+    })
+    apurit.lisaaTulos('lomakepohja_versiot', {
+      data: { pohja_id: 'p1' },
+      error: null,
+    })
+    apurit.lisaaTulos('palvelut', {
+      data: [{ id: 'pal1', nimi: 'Klassinen hieronta', lomakepohja_id: 'p1', aktiivinen: true }],
+      error: null,
+    })
+
+    const tulos = await haeViimeisinKayntiPalvelulla('asiakas-1')
+
+    expect(tulos.ohitaPalveluvalinta).toBe(true)
+    expect(tulos.palvelu).toMatchObject({ id: 'pal1', lomakepohja_id: 'p1' })
+  })
+
+  it('valmis-käyntejä ei ole → palauttaa ohitaPalveluvalinta=false (palveluvalinta avautuu)', async () => {
+    apurit.lisaaTulos('hoitokaynnit', { data: null, error: null })
+
+    const tulos = await haeViimeisinKayntiPalvelulla('asiakas-1')
+
+    expect(tulos).toEqual({ palvelu: null, ohitaPalveluvalinta: false })
   })
 })

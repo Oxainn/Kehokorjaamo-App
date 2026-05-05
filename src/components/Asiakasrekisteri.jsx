@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
-import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas, arkistoiAsiakas, poistaAsiakas } from '../lib/db'
+import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas, arkistoiAsiakas, poistaAsiakas, haeViimeisinKayntiPalvelulla } from '../lib/db'
 import { muotoilePvm, muodostaCSV, lataaTiedosto, jaaNimi } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
 import KayntiLomakeNakyma from './KayntiLomakeNakyma'
@@ -43,6 +43,8 @@ export default function Asiakasrekisteri({
   const [arkistoMaara, setArkistoMaara] = useState(0)
   // Lokaali "refresh" arkistotilassa kun palautus muuttaa listan
   const [paikallinenRefresh, setPaikallinenRefresh] = useState(0)
+  // Asiakkaan id jolle käynnistystä juuri parsitaan — estää tuplaklikkauksen
+  const [kaynnistettava, setKaynnistettava] = useState(null)
 
   useEffect(() => {
     const haeAsiakkaat = async () => {
@@ -103,6 +105,28 @@ export default function Asiakasrekisteri({
     const tulos = await arkistoiAsiakas(asiakas.id)
     if (tulos.virhe) { alert('Arkistointi epäonnistui: ' + tulos.virhe); return }
     setPaikallinenRefresh((n) => n + 1)
+  }
+
+  // KIIRE-FIX 2: asiakkaan klikkauksen polku — käynnillisillä ohitetaan
+  // palveluvalinta jos viimeisimmästä valmis-käynnistä voidaan päätellä
+  // yksiselitteinen palvelu (Y-strategia). Reuna-tapauksissa
+  // (haeViimeisinKayntiPalvelulla palauttaa ohitaPalveluvalinta=false)
+  // jätetään palvelu null:iksi → App.jsx avaa HoitajanPalveluValinta-modaalin.
+  async function aloitaUusiKaynti(a, kayntejaOlemassa) {
+    if (kaynnistettava === a.id) return        // suoja tuplaklikkaukselta
+    setKaynnistettava(a.id)
+    try {
+      if (kayntejaOlemassa) {
+        const { palvelu, ohitaPalveluvalinta } = await haeViimeisinKayntiPalvelulla(a.id)
+        if (ohitaPalveluvalinta && palvelu) {
+          onValitseAsiakas?.(a, palvelu)
+          return
+        }
+      }
+      onValitseAsiakas?.(a)
+    } finally {
+      setKaynnistettava(null)
+    }
   }
 
   // Pala 2.18: pysyvä poisto — vain arkisto-näkymässä saatavilla.
@@ -292,16 +316,14 @@ export default function Asiakasrekisteri({
           <button
             onClick={() => {
               if (arkistoTila) { palauta(a); return }
-              // Pala 2.22: vahvistetuilla joilla on käyntejä → avaa viimeisin
-              // (kaynnit[0] = uusin koska haeKayntienPaivamaarat palauttaa
-              // uusimmasta vanhimpaan). Vahvistamattomat (Tarkista) ja
-              // käynnittömät → vanha polku eli onValitseAsiakas → palveluvalinta.
-              if (!korostettu && kaynnit.length > 0) {
-                setAvoinKaynti({ lomakeVersioId: kaynnit[0].id, asiakas: a })
-                return
-              }
-              onValitseAsiakas?.(a)
+              if (korostettu) { onValitseAsiakas?.(a); return }
+              // KIIRE-FIX 2: päänappi käynnistää aina UUDEN käynnin (ei enää
+              // read-only modaali "Avaa"-napissa). Vanhat käynnit avautuvat
+              // pillerinapeista alla. Käynnillisillä ohitetaan palveluvalinta
+              // jos viimeisin valmis-käynti viittaa yksiselitteiseen palveluun.
+              aloitaUusiKaynti(a, kaynnit.length > 0)
             }}
+            disabled={kaynnistettava === a.id}
             style={{
               padding:      '7px 16px',
               borderRadius: '20px',
@@ -310,13 +332,14 @@ export default function Asiakasrekisteri({
               color:        'white',
               fontSize:     '13px',
               fontWeight:   500,
-              cursor:       'pointer',
+              cursor:       kaynnistettava === a.id ? 'wait' : 'pointer',
+              opacity:      kaynnistettava === a.id ? 0.6 : 1,
               flexShrink:   0,
             }}
           >
             {arkistoTila
               ? '↺ Palauta'
-              : (korostettu ? 'Tarkista' : (kaynnit.length > 0 ? 'Avaa' : '+ Aloita käynti'))}
+              : (korostettu ? 'Tarkista' : '+ Aloita käynti')}
           </button>
         </div>
 

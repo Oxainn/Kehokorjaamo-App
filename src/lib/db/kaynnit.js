@@ -441,6 +441,56 @@ export const haeEdellisetMittarit = async (asiakasId, paitsiId = null) => {
 // Hakee asiakkaan edellisen valmiiksi merkityn B-lomakkeen — käytetään
 // "Muista ensi kerralla" -nostoon Hoitokirjaus-näkymän yläosassa.
 // paitsiId: rajaa pois nykyinen hoitokäynti (jos se on jo tila='valmis'-tilassa).
+// Päättelee viimeisimmästä valmis-käynnistä palvelun, jota uusi käynti voi
+// käyttää ilman erillistä palveluvalintaa. Käytetään Asiakasrekisterin
+// "+ Aloita käynti" -napin asynkronisessa polussa: jos asiakkaalla on aiempi
+// valmis-käynti ja sen lomakepohja kuuluu yksiselitteisesti yhteen aktiiviseen
+// palveluun, ohitamme HoitajanPalveluValinta-modaalin ja avaamme suoraan
+// kyseisen palvelun lomakkeen (uusi käynti, AB-T4d kopioi pysyvät vastaukset).
+//
+// Polku tietokannassa:
+//   hoitokaynnit.lomakepohja_versio_id (Pala 2.24) → lomakepohja_versiot.pohja_id
+//   → palvelut WHERE lomakepohja_id = pohja_id AND aktiivinen = true
+//
+// Reuna-tapaukset palauttavat ohitaPalveluvalinta=false → kutsuva komponentti
+// näyttää palveluvalinnan varmuuden vuoksi:
+//   - vanha käynti ilman lomakepohja_versio_id:tä (ennen 2026-05-05)
+//   - lomakepohja on poistettu (versio-rivi voi silti olla, FK SET NULL)
+//   - pohja löytyy useammassa palvelussa (1:N -suhde sallii tämän)
+//   - pohjan ainoa palvelu on aktiivinen=false
+export const haeViimeisinKayntiPalvelulla = async (asiakasId) => {
+  const tyhjaTulos = { palvelu: null, ohitaPalveluvalinta: false }
+  if (!asiakasId) return tyhjaTulos
+
+  const { data: kaynti, error: kayntiVirhe } = await supabase
+    .from('hoitokaynnit')
+    .select('id, lomakepohja_versio_id')
+    .eq('asiakas_id', asiakasId)
+    .eq('tila', 'valmis')
+    .not('pvm', 'is', null)
+    .not('lomakepohja_versio_id', 'is', null)
+    .order('pvm', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (kayntiVirhe || !kaynti?.lomakepohja_versio_id) return tyhjaTulos
+
+  const { data: versio, error: versioVirhe } = await supabase
+    .from('lomakepohja_versiot')
+    .select('pohja_id')
+    .eq('id', kaynti.lomakepohja_versio_id)
+    .maybeSingle()
+  if (versioVirhe || !versio?.pohja_id) return tyhjaTulos
+
+  const { data: palvelut, error: palveluVirhe } = await supabase
+    .from('palvelut')
+    .select('id, nimi, lomakepohja_id, aktiivinen')
+    .eq('lomakepohja_id', versio.pohja_id)
+    .eq('aktiivinen', true)
+  if (palveluVirhe || !palvelut || palvelut.length !== 1) return tyhjaTulos
+
+  return { palvelu: palvelut[0], ohitaPalveluvalinta: true }
+}
+
 export const haeEdellinenValmiisKaynti = async (asiakasId, paitsiId = null) => {
   if (!asiakasId) return null
   let query = supabase

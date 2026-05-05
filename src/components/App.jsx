@@ -553,8 +553,13 @@ export default function App() {
           <Asiakasrekisteri
             hoitajaId={hoitajaId}
             refresh={rekisteriAvain}
-            onValitseAsiakas={(a) => {
+            onValitseAsiakas={(a, palvelu = null) => {
               setAsiakas(normalisoiAsiakas(a))
+              // KIIRE-FIX 2: jos rekisteri pystyi päättelemään yksiselitteisen
+              // palvelun viimeisimmästä valmis-käynnistä, ohitetaan
+              // HoitajanPalveluValinta-modaali ja avataan UusiKayntiContainer
+              // suoraan kyseisellä palvelulla.
+              if (palvelu) setValittuPalvelu(palvelu)
               setNakyma('kaynti')
             }}
             onSiirryArkistoon={() => setNakyma('arkisto')}
