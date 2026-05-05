@@ -3,6 +3,7 @@ import { supabase } from '../services/supabase'
 import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas, arkistoiAsiakas, poistaAsiakas } from '../lib/db'
 import { muotoilePvm, muodostaCSV, lataaTiedosto, jaaNimi } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
+import KayntiLomakeNakyma from './KayntiLomakeNakyma'
 import PikamuokkausModaali from './PikamuokkausModaali'
 
 // Asiakasrekisteri jakautuu kahteen osioon:
@@ -478,9 +479,12 @@ export default function Asiakasrekisteri({
         </div>
       )}
 
-      {/* Käyntimodaali — avautuu pillerin klikkauksesta */}
+      {/* Käyntimodaali — avautuu pillerin klikkauksesta tai Avaa-napista.
+          Pala 2.24: KayntiLomakeNakyma renderöi LomakeRenderoija:lla read-only
+          (alkuperäinen lomakerakenne). KayntiNakyma jää fallback:ksi vanhoille
+          käynneille joille lomakepohja_versio_id ei ole tallennettu. */}
       {avoinKaynti && (
-        <KayntiNakyma
+        <KayntiLomakeNakyma
           lomakeVersioId={avoinKaynti.lomakeVersioId}
           asiakas={avoinKaynti.asiakas}
           onSulje={() => setAvoinKaynti(null)}

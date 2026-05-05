@@ -501,18 +501,21 @@ export const haeLomakepohja = async (pohjaId) => {
 
   const { data: pohjaRivi, error: pohjaVirhe } = await supabase
     .from('lomakepohjat')
-    .select('id, nimi, kuvaus, on_oletus, aktiivinen, lomakepohja_versiot(versio, rakenne)')
+    .select('id, nimi, kuvaus, on_oletus, aktiivinen, lomakepohja_versiot(id, versio, rakenne)')
     .eq('id', pohjaId)
     .single()
 
   if (pohjaVirhe || !pohjaRivi) {
-    return { pohja: null, rakenne: null, kentat: {}, virhe: 'Pohjaa ei löytynyt' }
+    return { pohja: null, versioId: null, rakenne: null, kentat: {}, virhe: 'Pohjaa ei löytynyt' }
   }
 
   const versiot = (pohjaRivi.lomakepohja_versiot ?? []).slice().sort((a, b) => b.versio - a.versio)
   const rakenneRaakana = versiot[0]?.rakenne ?? null
+  // Pala 2.24: tallenna myös versio-id (lomakepohja_versiot.id) jotta hoitokäynti
+  // voi viitata siihen snapshot-malliin (KayntiLomakeNakyma renderöi alkuperäisellä).
+  const versioId = versiot[0]?.id ?? null
   if (!rakenneRaakana) {
-    return { pohja: pohjaRivi, rakenne: null, kentat: {}, virhe: 'Pohjalla ei ole versiota' }
+    return { pohja: pohjaRivi, versioId: null, rakenne: null, kentat: {}, virhe: 'Pohjalla ei ole versiota' }
   }
   const rakenne = normalisoiPohjaRakenne(rakenneRaakana)
 
