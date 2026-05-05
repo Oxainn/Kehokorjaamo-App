@@ -697,6 +697,7 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
         <LisaaKenttaModaali
           kenttakirjasto={kenttakirjasto}
           kaytetytTunnisteet={lisayksenKaytetytTunnisteet}
+          osionRooli={lisayksenOsio?.rooli ?? 'asiakas'}
           onValitse={(tunniste) => lisaaKenttaOsioon(lisayksenKohde, tunniste)}
           onUusiKenttaLuotu={(tunniste) => uusiKenttaLuotu(lisayksenKohde, tunniste)}
           onSulje={() => setLisayksenKohde(null)}

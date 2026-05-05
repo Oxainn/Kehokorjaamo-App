@@ -78,29 +78,45 @@ function renderoiKenttarivi(k, kaytetytTunnisteet, onValitse, onSulje) {
   )
 }
 
-export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet, onValitse, onUusiKenttaLuotu, onSulje }) {
+export default function LisaaKenttaModaali({
+  kenttakirjasto,
+  kaytetytTunnisteet,
+  osionRooli = 'asiakas',  // Pala 2.15: estä vahingossa väärän roolin valinta
+  onValitse,
+  onUusiKenttaLuotu,
+  onSulje,
+}) {
   const [hakusana, setHakusana] = useState('')
   const [luoUusiAuki, setLuoUusiAuki] = useState(false)
+  // Pala 2.15: 'asiakas' | 'hoitaja' | 'kaikki' — oletus = osion rooli.
+  // Käyttäjä voi vaihtaa pillit-painikkeilla jos haluaa toisen roolin kentän.
+  const [naytettavaRooli, setNaytettavaRooli] = useState(osionRooli)
 
   // Pala 2.10: ryhmittely roolin mukaan.
-  // Suodatetaan ensin hakusanalla, sitten jaetaan kahteen ryhmään.
-  const { hoitajanKentat, asiakkaanKentat, suodatetutYhteensa } = useMemo(() => {
+  // Pala 2.15: lisätty näkyvyys-suodatus naytettavaRooli:n perusteella.
+  const { hoitajanKentat, asiakkaanKentat, suodatetutYhteensa, kokonaislukumaarat } = useMemo(() => {
     const haku = hakusana.trim().toLowerCase()
-    const suodatetut = !haku ? kenttakirjasto : kenttakirjasto.filter((k) =>
+    const haunMukaiset = !haku ? kenttakirjasto : kenttakirjasto.filter((k) =>
       k.otsikko.toLowerCase().includes(haku) ||
       k.tunniste.toLowerCase().includes(haku) ||
       (KENTTATYYPPI_NIMET[k.tyyppi] ?? '').toLowerCase().includes(haku)
     )
-    // Pala 2.14: ryhmittely kohderyhma-arvon perusteella (asiakas/hoitaja).
-    // Vanhojen rivien yhteensopivuus: kohderyhma puuttuessa oletus 'asiakas'.
-    const hoitajan  = suodatetut.filter((k) => k.kohderyhma === 'hoitaja')
-    const asiakkaan = suodatetut.filter((k) => k.kohderyhma !== 'hoitaja')
+    // Ryhmittely DB-arvon perusteella (kenttakirjasto.kohderyhma).
+    const kaikkiHoitajan  = haunMukaiset.filter((k) => k.kohderyhma === 'hoitaja')
+    const kaikkiAsiakkaan = haunMukaiset.filter((k) => k.kohderyhma !== 'hoitaja')
+
+    // Suodatus näkyvyyden mukaan (Pala 2.15)
+    const naytaHoitaja  = naytettavaRooli === 'hoitaja' || naytettavaRooli === 'kaikki'
+    const naytaAsiakas  = naytettavaRooli === 'asiakas' || naytettavaRooli === 'kaikki'
+
     return {
-      hoitajanKentat:    hoitajan,
-      asiakkaanKentat:   asiakkaan,
-      suodatetutYhteensa: suodatetut.length,
+      hoitajanKentat:    naytaHoitaja  ? kaikkiHoitajan  : [],
+      asiakkaanKentat:   naytaAsiakas  ? kaikkiAsiakkaan : [],
+      suodatetutYhteensa: (naytaHoitaja ? kaikkiHoitajan.length : 0) + (naytaAsiakas ? kaikkiAsiakkaan.length : 0),
+      // Pillien laskurit näyttävät kokonaismäärät, vaikka ryhmä olisi piilossa
+      kokonaislukumaarat: { hoitaja: kaikkiHoitajan.length, asiakas: kaikkiAsiakkaan.length },
     }
-  }, [kenttakirjasto, hakusana])
+  }, [kenttakirjasto, hakusana, naytettavaRooli])
 
   function uusiKenttaLuotu(tunniste) {
     setLuoUusiAuki(false)
@@ -142,6 +158,49 @@ export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet,
               title="Tee kenttäkirjastoon uusi kenttä"
             >
               + Tee uusi
+            </button>
+          </div>
+
+          {/* Pala 2.15: rooli-suodatus pillit. Oletus = osion rooli, jotta vahingossa
+              ei lisätä asiakkaan kenttää hoitaja-osioon ja päinvastoin. */}
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wide flex-shrink-0">
+              Näytä:
+            </span>
+            <button
+              type="button"
+              onClick={() => setNaytettavaRooli('asiakas')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors flex items-center gap-1.5 ${
+                naytettavaRooli === 'asiakas'
+                  ? 'bg-blue-100 border-blue-300 text-blue-800'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-blue-200 hover:bg-blue-50'
+              }`}
+            >
+              <span>👤</span>
+              <span>Asiakkaan ({kokonaislukumaarat.asiakas})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setNaytettavaRooli('hoitaja')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors flex items-center gap-1.5 ${
+                naytettavaRooli === 'hoitaja'
+                  ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-emerald-200 hover:bg-emerald-50'
+              }`}
+            >
+              <span>🧑‍⚕️</span>
+              <span>Hoitajan ({kokonaislukumaarat.hoitaja})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setNaytettavaRooli('kaikki')}
+              className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                naytettavaRooli === 'kaikki'
+                  ? 'bg-gray-200 border-gray-400 text-gray-800'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50'
+              }`}
+            >
+              Kaikki ({kokonaislukumaarat.asiakas + kokonaislukumaarat.hoitaja})
             </button>
           </div>
 
