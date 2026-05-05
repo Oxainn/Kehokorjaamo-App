@@ -59,13 +59,70 @@ export default function Osio({ osio, kentat, vastaukset, virheet, onKenttamuutos
         </p>
       )}
 
-      {palaset.map((p) => {
-        if (p.tyyppi === 'kentta') {
+      {(() => {
+        // Pala 2.21: pari-puoli-leveiden kenttien renderöinti grid-2-sarakkeessa.
+        // Kun kahdella peräkkäisellä kentällä on oletukset.leveys === 'puoli',
+        // ne sijoitetaan samaan riviin (säästää tilaa: pituus + paino, Q-kulma
+        // vasen + oikea, navicular drop vasen + oikea jne.).
+        const tulokset = []
+        for (let i = 0; i < palaset.length; i++) {
+          const p = palaset[i]
+          if (p.tyyppi === 'ryhma') {
+            tulokset.push(
+              <Ryhma
+                key={p.ryhma.id}
+                ryhma={p.ryhma}
+                kentat={kentat}
+                kentanmerkinnat={p.kenttat}
+                vastaukset={vastaukset}
+                virheet={virheet}
+                onKenttamuutos={onKenttamuutos}
+              />
+            )
+            continue
+          }
+          // p.tyyppi === 'kentta'
           const tunniste = p.kf.kentta_id_tunniste
-          return (
+          const kentta   = kentat[tunniste]
+          const onPuoli  = kentta?.oletukset?.leveys === 'puoli'
+
+          // Tarkista onko seuraava pala myös puoli-leveä kenttä → pari samaan riviin
+          const seuraava = palaset[i + 1]
+          const seuraavaTunniste = seuraava?.tyyppi === 'kentta' ? seuraava.kf.kentta_id_tunniste : null
+          const seuraavaPuoli = seuraavaTunniste && kentat[seuraavaTunniste]?.oletukset?.leveys === 'puoli'
+
+          if (onPuoli && seuraavaPuoli) {
+            const seuraavaKentta = kentat[seuraavaTunniste]
+            tulokset.push(
+              <div
+                key={`${tunniste}-pari`}
+                style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}
+              >
+                <Kentta
+                  kentta={kentta}
+                  kenttamerkinta={p.kf}
+                  arvo={vastaukset[tunniste]}
+                  virhe={virheet?.[tunniste]}
+                  onMuutos={(uusiArvo) => onKenttamuutos(tunniste, uusiArvo)}
+                />
+                <Kentta
+                  kentta={seuraavaKentta}
+                  kenttamerkinta={seuraava.kf}
+                  arvo={vastaukset[seuraavaTunniste]}
+                  virhe={virheet?.[seuraavaTunniste]}
+                  onMuutos={(uusiArvo) => onKenttamuutos(seuraavaTunniste, uusiArvo)}
+                />
+              </div>
+            )
+            i++ // skippaa seuraava pala koska se on jo renderöity parina
+            continue
+          }
+
+          // Yksittäinen kenttä — koko leveys (oletus) tai pariton puoli-leveä
+          tulokset.push(
             <Kentta
               key={tunniste}
-              kentta={kentat[tunniste]}
+              kentta={kentta}
               kenttamerkinta={p.kf}
               arvo={vastaukset[tunniste]}
               virhe={virheet?.[tunniste]}
@@ -73,18 +130,8 @@ export default function Osio({ osio, kentat, vastaukset, virheet, onKenttamuutos
             />
           )
         }
-        return (
-          <Ryhma
-            key={p.ryhma.id}
-            ryhma={p.ryhma}
-            kentat={kentat}
-            kentanmerkinnat={p.kenttat}
-            vastaukset={vastaukset}
-            virheet={virheet}
-            onKenttamuutos={onKenttamuutos}
-          />
-        )
-      })}
+        return tulokset
+      })()}
     </section>
   )
 }
