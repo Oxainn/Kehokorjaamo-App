@@ -311,6 +311,89 @@ export const paivitaKentanPysyvyys = async (kenttaId, pysyva) => {
 }
 
 // Hakee koko kenttäkirjaston editorin käyttöön — kentän tunniste + tyyppi + suomenkielinen otsikko.
+// Pala 2.23: Päivittää asiakkaan AVOIMEN A-lomakeversion (asiakastietolomake_versiot)
+// + lomake_sairaudet-rivit lomakkeen vastausten pohjalta. Kutsutaan LomakeRenderoija:n
+// auto-saven yhteydessä — varmistaa että KayntiNakyma näyttää viimeisimmän tilan
+// kun hoitaja avaa olemassa olevan asiakkaan rekisteristä.
+//
+// jaettu = jaaVastaukset(vastaukset) → { asiakas, lomake, sairaudet, lisakentat }
+//   - lomake     → A-versio sarake-arvot (hoitoon_syy, kipu_taso, laakitys, ...)
+//   - sairaudet  → array sairaus_tyyppi_id:itä → lomake_sairaudet (delete + insert)
+//   - lisakentat → A-versio.lisakentat-jsonb (allekirjoitus, kehonkartta_piirros, ...)
+//
+// Snapshot-malli: aloitaUusiKaynti sulkee tämän A-version → näkyy historiassa
+// "edellisenä käyntinä" sellaisena kuin se oli sulkemishetkellä.
+export const paivitaAvoinAVersio = async (asiakasId, { lomake = {}, sairaudet = [], lisakentat = {} }) => {
+  if (!asiakasId) return { virhe: 'Asiakas-id puuttuu' }
+
+  // Hae avoin A-versio (voimassa_asti = null)
+  const { data: avoin, error: hakuVirhe } = await supabase
+    .from('asiakastietolomake_versiot')
+    .select('id')
+    .eq('asiakas_id', asiakasId)
+    .is('voimassa_asti', null)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (hakuVirhe) {
+    console.error('Avoimen A-version haku epäonnistui:', hakuVirhe)
+    return { virhe: hakuVirhe.message }
+  }
+  if (!avoin) {
+    // Ei avointa A-versiota — uusi-käynti-flowssa aloitaUusiKaynti luo sen,
+    // joten tämä on yleensä reunatapaus. Palautetaan onnistuneesti.
+    return { virhe: null }
+  }
+
+  // Päivitä A-versio (hoitoon_syy, kipu_taso, laakitys, diagnosoidut_sairaudet,
+  // vammat_huomiot, harrastukset, lisakentat)
+  const muutokset = {
+    paivitetty: new Date().toISOString(),
+    ...lomake,
+  }
+  // lisakentat-jsonb: yhdistä uusi data — säilytä aiempi sisältö jos lomakeOsa
+  // ei sisällä uutta arvoa avaimelle. Käytetään jsonb-merge:ä.
+  if (lisakentat && Object.keys(lisakentat).length > 0) {
+    muutokset.lisakentat = lisakentat
+  }
+
+  const { error: paivVirhe } = await supabase
+    .from('asiakastietolomake_versiot')
+    .update(muutokset)
+    .eq('id', avoin.id)
+  if (paivVirhe) {
+    console.error('A-version päivitys epäonnistui:', paivVirhe)
+    return { virhe: paivVirhe.message }
+  }
+
+  // Päivitä sairaudet: delete + insert. Yksinkertaisin ja kestää reorderia.
+  // RLS-policy varmistaa että vain saman hoitajan rivejä voi muokata.
+  const { error: dVirhe } = await supabase
+    .from('lomake_sairaudet')
+    .delete()
+    .eq('lomake_versio_id', avoin.id)
+  if (dVirhe) {
+    console.warn('Vanhojen sairausrivien poisto epäonnistui:', dVirhe)
+    // Ei palauteta virhettä — jatketaan, ehkä insertit menevät silti läpi
+  }
+  if (Array.isArray(sairaudet) && sairaudet.length > 0) {
+    const rivit = sairaudet.map((sairausId) => ({
+      lomake_versio_id:  avoin.id,
+      sairaus_tyyppi_id: sairausId,
+      on_voimassa:       true,
+    }))
+    const { error: iVirhe } = await supabase
+      .from('lomake_sairaudet')
+      .insert(rivit)
+    if (iVirhe) {
+      console.error('Sairausrivien insertti epäonnistui:', iVirhe)
+      return { virhe: iVirhe.message }
+    }
+  }
+
+  return { virhe: null, lomakeVersioId: avoin.id }
+}
+
 // Pala 2.16: siirrä lomakepohja ylös/alas vaihtamalla jarjestys-arvot viereisen
 // kanssa. suunta: -1 (ylös) tai +1 (alas). Jos jo reunassa, ei toimenpidettä.
 export const siirraPohja = async (pohjaId, suunta) => {
@@ -418,18 +501,21 @@ export const haeLomakepohja = async (pohjaId) => {
 
   const { data: pohjaRivi, error: pohjaVirhe } = await supabase
     .from('lomakepohjat')
-    .select('id, nimi, kuvaus, on_oletus, aktiivinen, lomakepohja_versiot(versio, rakenne)')
+    .select('id, nimi, kuvaus, on_oletus, aktiivinen, lomakepohja_versiot(id, versio, rakenne)')
     .eq('id', pohjaId)
     .single()
 
   if (pohjaVirhe || !pohjaRivi) {
-    return { pohja: null, rakenne: null, kentat: {}, virhe: 'Pohjaa ei löytynyt' }
+    return { pohja: null, versioId: null, rakenne: null, kentat: {}, virhe: 'Pohjaa ei löytynyt' }
   }
 
   const versiot = (pohjaRivi.lomakepohja_versiot ?? []).slice().sort((a, b) => b.versio - a.versio)
   const rakenneRaakana = versiot[0]?.rakenne ?? null
+  // Pala 2.24: tallenna myös versio-id (lomakepohja_versiot.id) jotta hoitokäynti
+  // voi viitata siihen snapshot-malliin (KayntiLomakeNakyma renderöi alkuperäisellä).
+  const versioId = versiot[0]?.id ?? null
   if (!rakenneRaakana) {
-    return { pohja: pohjaRivi, rakenne: null, kentat: {}, virhe: 'Pohjalla ei ole versiota' }
+    return { pohja: pohjaRivi, versioId: null, rakenne: null, kentat: {}, virhe: 'Pohjalla ei ole versiota' }
   }
   const rakenne = normalisoiPohjaRakenne(rakenneRaakana)
 

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
-import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas } from '../lib/db'
+import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas, arkistoiAsiakas, poistaAsiakas } from '../lib/db'
 import { muotoilePvm, muodostaCSV, lataaTiedosto, jaaNimi } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
+import KayntiLomakeNakyma from './KayntiLomakeNakyma'
 import PikamuokkausModaali from './PikamuokkausModaali'
 
 // Asiakasrekisteri jakautuu kahteen osioon:
@@ -87,6 +88,37 @@ export default function Asiakasrekisteri({
     if (!ok) return
     const tulos = await palautaAsiakas(asiakas.id)
     if (tulos.virhe) { alert('Palautus epäonnistui: ' + tulos.virhe); return }
+    setPaikallinenRefresh((n) => n + 1)
+  }
+
+  // Pala 2.18: arkistoi asiakas — pikanappi rivin lopussa.
+  // Pehmeä poisto (asiakkaat.arkistoitu = true), palautettavissa Arkisto-näkymästä.
+  async function arkistoi(asiakas) {
+    const ok = window.confirm(
+      `Arkistoidaanko ${asiakas.nimi || 'asiakas'}?\n\n` +
+      `Tiedot säilyvät tallessa, mutta asiakas piiloutuu rekisteristä. ` +
+      `Voit palauttaa hänet myöhemmin Arkisto-näkymästä.`
+    )
+    if (!ok) return
+    const tulos = await arkistoiAsiakas(asiakas.id)
+    if (tulos.virhe) { alert('Arkistointi epäonnistui: ' + tulos.virhe); return }
+    setPaikallinenRefresh((n) => n + 1)
+  }
+
+  // Pala 2.18: pysyvä poisto — vain arkisto-näkymässä saatavilla.
+  // CASCADE poistaa hoitokaynnit, lomakeversiot, itsehoito-ohjelman, asentokuvat
+  // jne. automaattisesti. Tämä on peruuttamaton.
+  async function poistaLopullisesti(asiakas) {
+    const ok = window.confirm(
+      `⚠ POISTA ASIAKAS LOPULLISESTI?\n\n` +
+      `${asiakas.nimi || 'Asiakas'} ja KAIKKI hänen tietonsa (hoitokäynnit, ` +
+      `lomakkeet, itsehoito, asentokuvat) poistuvat pysyvästi. ` +
+      `Tätä ei voi peruuttaa.\n\n` +
+      `Jatketaanko?`
+    )
+    if (!ok) return
+    const tulos = await poistaAsiakas(asiakas.id)
+    if (tulos.virhe) { alert('Poisto epäonnistui: ' + tulos.virhe); return }
     setPaikallinenRefresh((n) => n + 1)
   }
 
@@ -221,8 +253,55 @@ export default function Asiakasrekisteri({
               ✎
             </button>
           )}
+          {/* Pala 2.18: 🗄 arkistoi vahvistetut aktiiviset (ei vahvistamattomille) */}
+          {!arkistoTila && !korostettu && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); arkistoi(a) }}
+              title="Arkistoi asiakas (palautettavissa)"
+              aria-label="Arkistoi asiakas"
+              style={{
+                width: '32px', height: '32px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '8px', border: '1px solid #e2e8f0',
+                background: 'white', color: '#6b7280', fontSize: '14px',
+                cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              🗄
+            </button>
+          )}
+          {/* Pala 2.18: ❌ pysyvä poisto vain arkisto-näkymässä */}
+          {arkistoTila && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); poistaLopullisesti(a) }}
+              title="Poista lopullisesti (peruuttamatonta)"
+              aria-label="Poista lopullisesti"
+              style={{
+                width: '32px', height: '32px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '8px', border: '1px solid #fecaca',
+                background: 'white', color: '#dc2626', fontSize: '14px',
+                cursor: 'pointer', flexShrink: 0,
+              }}
+            >
+              ❌
+            </button>
+          )}
           <button
-            onClick={() => arkistoTila ? palauta(a) : onValitseAsiakas?.(a)}
+            onClick={() => {
+              if (arkistoTila) { palauta(a); return }
+              // Pala 2.22: vahvistetuilla joilla on käyntejä → avaa viimeisin
+              // (kaynnit[0] = uusin koska haeKayntienPaivamaarat palauttaa
+              // uusimmasta vanhimpaan). Vahvistamattomat (Tarkista) ja
+              // käynnittömät → vanha polku eli onValitseAsiakas → palveluvalinta.
+              if (!korostettu && kaynnit.length > 0) {
+                setAvoinKaynti({ lomakeVersioId: kaynnit[0].id, asiakas: a })
+                return
+              }
+              onValitseAsiakas?.(a)
+            }}
             style={{
               padding:      '7px 16px',
               borderRadius: '20px',
@@ -235,7 +314,9 @@ export default function Asiakasrekisteri({
               flexShrink:   0,
             }}
           >
-            {arkistoTila ? '↺ Palauta' : (korostettu ? 'Tarkista' : 'Avaa')}
+            {arkistoTila
+              ? '↺ Palauta'
+              : (korostettu ? 'Tarkista' : (kaynnit.length > 0 ? 'Avaa' : '+ Aloita käynti'))}
           </button>
         </div>
 
@@ -398,9 +479,12 @@ export default function Asiakasrekisteri({
         </div>
       )}
 
-      {/* Käyntimodaali — avautuu pillerin klikkauksesta */}
+      {/* Käyntimodaali — avautuu pillerin klikkauksesta tai Avaa-napista.
+          Pala 2.24: KayntiLomakeNakyma renderöi LomakeRenderoija:lla read-only
+          (alkuperäinen lomakerakenne). KayntiNakyma jää fallback:ksi vanhoille
+          käynneille joille lomakepohja_versio_id ei ole tallennettu. */}
       {avoinKaynti && (
-        <KayntiNakyma
+        <KayntiLomakeNakyma
           lomakeVersioId={avoinKaynti.lomakeVersioId}
           asiakas={avoinKaynti.asiakas}
           onSulje={() => setAvoinKaynti(null)}

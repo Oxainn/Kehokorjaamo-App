@@ -99,7 +99,7 @@ export default function HoitajanPalveluValinta({ auki, onValitse, onSulje }) {
                   <li key={p.id}>
                     <button
                       type="button"
-                      onClick={() => { onValitse(p); onSulje() }}
+                      onClick={() => onValitse(p)}
                       className="w-full text-left bg-white border-2 border-gray-200 hover:border-brand-500 hover:bg-brand-50 rounded-xl p-4 transition-colors flex flex-col gap-2 min-h-[120px]"
                     >
                       <div className="flex flex-col gap-1 flex-1">

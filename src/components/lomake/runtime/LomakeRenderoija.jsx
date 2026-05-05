@@ -6,7 +6,9 @@ import {
   tallennaKayntiVastauksilla,
   lukitseKaynti,
   avaaKayntiUudelleen,
+  paivitaAvoinAVersio,
 } from '../../../lib/db'
+import { jaaVastaukset } from '../../../lib/lomakeTallennus'
 import { LomakeKontekstiProvider } from '../../../lib/lomakeKonteksti'
 import NayttoYksiSivu from './nayttotyylit/NayttoYksiSivu'
 import NayttoCKerrallaan from './nayttotyylit/NayttoCKerrallaan'
@@ -359,6 +361,21 @@ export default function LomakeRenderoija({
     nykyinenVersioRef.current = tulos.versio ?? nykyinenVersioRef.current
     setTallennusTila('tallennettu')
     setViimeisinTallennus(new Date())
+
+    // Pala 2.23: päivitä myös avoin A-lomakeversio + lomake_sairaudet
+    // jotta KayntiNakyma näyttää lomakkeen alkuperäisessä muodossa kun
+    // hoitaja avaa olemassa olevan asiakkaan rekisteristä.
+    // Tehdään fire-and-forget — ei blokata pää-tallennusta jos tämä epäonnistuu.
+    if (asiakasId) {
+      const jaettu = jaaVastaukset(vastauksetSuoritushetkella ?? {})
+      paivitaAvoinAVersio(asiakasId, jaettu).then((res) => {
+        if (res?.virhe) {
+          console.warn('A-version päivitys epäonnistui:', res.virhe)
+        }
+      }).catch((e) => {
+        console.warn('A-version päivitys heitti virheen:', e)
+      })
+    }
   }
 
   // AB-T3b: kun uusi käynti aloitetaan, tyhjennä muuttuvat kentät vastauksista.

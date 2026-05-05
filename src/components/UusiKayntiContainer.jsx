@@ -17,6 +17,7 @@
 // 6. Kun hoitaja klikkaa "Tallenna käynti" → onTilaMuutos('valmis') → onValmis()
 
 import { useState, useEffect, useRef } from 'react'
+import { supabase } from '../services/supabase'
 import {
   luoTyhjaAsiakas,
   aloitaUusiKaynti,
@@ -126,6 +127,17 @@ export default function UusiKayntiContainer({
         setSetupTila('virhe')
         setSetupVirhe(`Lomakepohjan haku epäonnistui: ${pohjaTulos.virhe}`)
         return
+      }
+
+      // 4. Pala 2.24: tallenna hoitokayntiin lomakepohja_versio_id (snapshot).
+      //    KayntiLomakeNakyma käyttää tätä avatakseen käynnin alkuperäisellä
+      //    pohjalla. Fire-and-forget — ei blokata setupia jos epäonnistuu.
+      if (pohjaTulos.versioId && kayntiTulos.hoitokayntiId) {
+        const { error: vErr } = await supabase
+          .from('hoitokaynnit')
+          .update({ lomakepohja_versio_id: pohjaTulos.versioId })
+          .eq('id', kayntiTulos.hoitokayntiId)
+        if (vErr) console.warn('Lomakepohja-version tallennus hoitokayntiin epaonnistui:', vErr)
       }
 
       setAsiakasId(kayttoonAsiakasId)
