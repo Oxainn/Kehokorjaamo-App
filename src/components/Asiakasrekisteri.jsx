@@ -289,7 +289,18 @@ export default function Asiakasrekisteri({
             </button>
           )}
           <button
-            onClick={() => arkistoTila ? palauta(a) : onValitseAsiakas?.(a)}
+            onClick={() => {
+              if (arkistoTila) { palauta(a); return }
+              // Pala 2.22: vahvistetuilla joilla on käyntejä → avaa viimeisin
+              // (kaynnit[0] = uusin koska haeKayntienPaivamaarat palauttaa
+              // uusimmasta vanhimpaan). Vahvistamattomat (Tarkista) ja
+              // käynnittömät → vanha polku eli onValitseAsiakas → palveluvalinta.
+              if (!korostettu && kaynnit.length > 0) {
+                setAvoinKaynti({ lomakeVersioId: kaynnit[0].id, asiakas: a })
+                return
+              }
+              onValitseAsiakas?.(a)
+            }}
             style={{
               padding:      '7px 16px',
               borderRadius: '20px',
@@ -302,7 +313,9 @@ export default function Asiakasrekisteri({
               flexShrink:   0,
             }}
           >
-            {arkistoTila ? '↺ Palauta' : (korostettu ? 'Tarkista' : 'Avaa')}
+            {arkistoTila
+              ? '↺ Palauta'
+              : (korostettu ? 'Tarkista' : (kaynnit.length > 0 ? 'Avaa' : '+ Aloita käynti'))}
           </button>
         </div>
 
