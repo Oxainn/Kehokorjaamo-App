@@ -343,7 +343,7 @@ export default function Asiakasrekisteri({
           >
             {arkistoTila
               ? '↺ Palauta'
-              : (korostettu ? 'Tarkista' : '+ Aloita käynti')}
+              : (korostettu ? 'Tarkista' : (kaynnit.length > 0 ? 'Avaa' : 'Aloita käynti'))}
           </button>
         </div>
 
