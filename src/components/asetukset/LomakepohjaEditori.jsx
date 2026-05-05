@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../../services/supabase'
-import { haeKenttakirjasto, haePalvelutPohjalle, normalisoiPohjaRakenne } from '../../lib/db'
+import { haeKenttakirjasto, haePalvelutPohjalle, normalisoiPohjaRakenne, tallennaLomakepohjanVersio } from '../../lib/db'
 import LisaaKenttaModaali from './LisaaKenttaModaali'
 import LomakeRenderoija from '../lomake/runtime/LomakeRenderoija'
 
@@ -313,40 +313,19 @@ export default function LomakepohjaEditori({ pohja, rakenne, onTallennettu, onPe
         }
       }
 
-      // 2. Hae uusin versio-numero
-      const { data: viimeisin, error: hakuVirhe } = await supabase
-        .from('lomakepohja_versiot')
-        .select('versio')
-        .eq('pohja_id', pohja.id)
-        .order('versio', { ascending: false })
-        .limit(1)
-        .maybeSingle()
-      if (hakuVirhe) {
-        console.error('[LomakepohjaEditori] Versio-numeron haku epäonnistui:', hakuVirhe)
-        throw hakuVirhe
-      }
-      const seuraavaVersio = (viimeisin?.versio ?? 0) + 1
-
-      // 3. Luo uusi versio
+      // 2. Tallenna uusi versio aktiiviseksi (deaktivoi aiemmat saman pohjan versiot)
       const uusiRakenne = {
         formaatti_versio: rakenne?.formaatti_versio ?? 1,
         nayttotyyli,
         osiot: osiot.map((o, i) => ({ ...o, jarjestys: i + 1 })),
       }
-      const { error: insertVirhe } = await supabase
-        .from('lomakepohja_versiot')
-        .insert({
-          pohja_id:   pohja.id,
-          versio:     seuraavaVersio,
-          rakenne:    uusiRakenne,
-          aktiivinen: true,
-        })
-      if (insertVirhe) {
-        console.error('[LomakepohjaEditori] Version tallennus epäonnistui:', insertVirhe)
-        throw insertVirhe
+      const { virhe: tallennusVirhe } = await tallennaLomakepohjanVersio(pohja.id, uusiRakenne)
+      if (tallennusVirhe) {
+        console.error('[LomakepohjaEditori] Version tallennus epäonnistui:', tallennusVirhe)
+        throw new Error(tallennusVirhe)
       }
 
-      // 4. Palvelu↔pohja-suhde (1:N) hallitaan Asetukset → Palvelut -näkymässä,
+      // 3. Palvelu↔pohja-suhde (1:N) hallitaan Asetukset → Palvelut -näkymässä,
       //    ei enää editorissa. Pohja päivittyy tällöin automaattisesti niissä
       //    palveluissa joiden lomakepohja_id viittaa tähän pohjaan.
 

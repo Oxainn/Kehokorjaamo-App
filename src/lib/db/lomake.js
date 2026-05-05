@@ -555,6 +555,55 @@ export const haeLomakepohja = async (pohjaId) => {
   return { pohja: pohjaIlmanVersioita, rakenne, kentat, virhe: null }
 }
 
+// Tallentaa pohjalle uuden version aktiiviseksi ja deaktivoi kaikki aiemmat
+// versiot saman pohjan alta. Aiemmin INSERT tehtiin suoraan editorista ilman
+// vanhojen sulkemista, jolloin samalla pohja_id:llä saattoi kertyä useita
+// rinnakkaisia aktiivisia versioita (Live-DB:ssä havaittu 8 kpl yhdellä
+// pohjalla 2026-05-03). Ratkaisuna kaksivaiheinen UPDATE→INSERT samassa
+// funktiossa + DB-tason partial unique index turvaverkkona.
+export const tallennaLomakepohjanVersio = async (pohjaId, rakenne) => {
+  if (!pohjaId)  return { versio: null, virhe: 'Pohjan id puuttuu' }
+  if (!rakenne)  return { versio: null, virhe: 'Rakenne puuttuu' }
+
+  const { data: viimeisin, error: hakuVirhe } = await supabase
+    .from('lomakepohja_versiot')
+    .select('versio')
+    .eq('pohja_id', pohjaId)
+    .order('versio', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (hakuVirhe) {
+    console.error('Versio-numeron haku epäonnistui:', hakuVirhe)
+    return { versio: null, virhe: hakuVirhe.message }
+  }
+  const seuraavaVersio = (viimeisin?.versio ?? 0) + 1
+
+  const { error: deaktVirhe } = await supabase
+    .from('lomakepohja_versiot')
+    .update({ aktiivinen: false })
+    .eq('pohja_id', pohjaId)
+    .eq('aktiivinen', true)
+  if (deaktVirhe) {
+    console.error('Aiempien versioiden deaktivointi epäonnistui:', deaktVirhe)
+    return { versio: null, virhe: deaktVirhe.message }
+  }
+
+  const { error: insertVirhe } = await supabase
+    .from('lomakepohja_versiot')
+    .insert({
+      pohja_id:   pohjaId,
+      versio:     seuraavaVersio,
+      rakenne,
+      aktiivinen: true,
+    })
+  if (insertVirhe) {
+    console.error('Uuden version tallennus epäonnistui:', insertVirhe)
+    return { versio: null, virhe: insertVirhe.message }
+  }
+
+  return { versio: seuraavaVersio, virhe: null }
+}
+
 // Tallentaa lomakerenderöijän vastaukset asiakkaaksi + lomakeversioksi.
 // Logiikka:
 //   - Asiakas: upsert (uusi tai päivitys olemassaolevaan)
