@@ -20,7 +20,6 @@ import UudenAsiakkaanTarkistus from './UudenAsiakkaanTarkistus'
 // AB-T5c: uusi yhdistetyn lomakkeen flow "+ Uusi asiakas" -näkymälle
 import HoitajanPalveluValinta from './HoitajanPalveluValinta'
 import UusiKayntiContainer from './UusiKayntiContainer'
-import AvaaKayntiContainer from './AvaaKayntiContainer'
 import Hoitokirjaus from './Hoitokirjaus'
 import JulkinenLomake from './JulkinenLomake'
 import PalveluValinta from './PalveluValinta'
@@ -138,13 +137,6 @@ export default function App() {
   // set = UusiKayntiContainer renderöityy ja ohjaa lomakkeen avauksen.
   const [valittuPalvelu, setValittuPalvelu] = useState(null)
 
-  // KIIRE-FIX 3b: Asiakasrekisterin "+ Aloita käynti" -nappi käynnillisillä
-  // asettaa tämän → AvaaKayntiContainer renderöityy 'kaynti'-näkymässä ja
-  // avaa viimeisimmän hoitokäynnin muokkaustilassa edellisten vastausten
-  // päälle (ohittaa palveluvalinnan). Null = ei avattavaa käyntiä → vanha
-  // palveluvalinta-flow kun nakyma === 'kaynti'.
-  const [avattavaKaynti, setAvattavaKaynti] = useState(null)
-
   // Pala B9b — online/offline-tila + offline-jonon synkronointi
   const online = useOnline()
   const [jonoa, setJonoa] = useState(0)
@@ -186,7 +178,6 @@ export default function App() {
     setRekisteriAvain((n) => n + 1)
     setTestimoodi(false)
     setValittuPalvelu(null)   // AB-T5c: nollaa palveluvalinta poistuessa flow:sta
-    setAvattavaKaynti(null)   // KIIRE-FIX 3b: nollaa avattu käynti
     setNakyma('rekisteri')
   }
 
@@ -562,15 +553,13 @@ export default function App() {
           <Asiakasrekisteri
             hoitajaId={hoitajaId}
             refresh={rekisteriAvain}
-            onValitseAsiakas={(a) => {
+            onValitseAsiakas={(a, palvelu = null) => {
               setAsiakas(normalisoiAsiakas(a))
-              setNakyma('kaynti')
-            }}
-            onAvaaKaynti={(a, kaynti) => {
-              // KIIRE-FIX 3b: avaa olemassa oleva käynti suoraan
-              // muokkaustilassa AvaaKayntiContainer:in kautta.
-              setAsiakas(normalisoiAsiakas(a))
-              setAvattavaKaynti(kaynti)
+              // KIIRE-FIX 2: jos rekisteri pystyi päättelemään yksiselitteisen
+              // palvelun viimeisimmästä valmis-käynnistä, ohitetaan
+              // HoitajanPalveluValinta-modaali ja avataan UusiKayntiContainer
+              // suoraan kyseisellä palvelulla.
+              if (palvelu) setValittuPalvelu(palvelu)
               setNakyma('kaynti')
             }}
             onSiirryArkistoon={() => setNakyma('arkisto')}
@@ -587,21 +576,10 @@ export default function App() {
           />
         )}
 
-        {/* KIIRE-FIX 3b: KÄYNTI — käynnillinen asiakas, avataan viimeisin
-            hoitokäynti muokkaustilassa. avattavaKaynti asetetaan
-            Asiakasrekisterin onAvaaKaynti-callbackissa. */}
-        {nakyma === 'kaynti' && asiakas && asiakas.vahvistettu !== false && avattavaKaynti && (
-          <AvaaKayntiContainer
-            asiakas={asiakas}
-            kaynti={avattavaKaynti}
-            onValmis={paluuRekisteriin}
-            onPeruuta={paluuRekisteriin}
-          />
-        )}
         {/* AB-T6b: KÄYNTI — asiakas valittu rekisteristä.
             Vahvistettu + valittuPalvelu → container hallitsee oman yläpalkin.
             Container on erillinen lohko jotta App-yläpalkki ei näy. */}
-        {nakyma === 'kaynti' && asiakas && asiakas.vahvistettu !== false && !avattavaKaynti && valittuPalvelu && (
+        {nakyma === 'kaynti' && asiakas && asiakas.vahvistettu !== false && valittuPalvelu && (
           <UusiKayntiContainer
             asiakasId={asiakas.id}
             palvelu={valittuPalvelu}
@@ -610,7 +588,7 @@ export default function App() {
           />
         )}
         {/* Vahvistamaton-polku TAI ennen palvelun valintaa: App-yläpalkki + sisältö. */}
-        {nakyma === 'kaynti' && asiakas && !avattavaKaynti && (asiakas.vahvistettu === false || !valittuPalvelu) && (
+        {nakyma === 'kaynti' && asiakas && (asiakas.vahvistettu === false || !valittuPalvelu) && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 0 12px', borderBottom: '1px solid #e2e8f0', marginBottom: '16px' }}>
               <button

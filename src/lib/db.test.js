@@ -101,7 +101,6 @@ import {
   lukitseKaynti,
   avaaKayntiUudelleen,
   haeViimeisinKayntiPalvelulla,
-  haeViimeisinHoitokaynti,
 } from './db'
 
 describe('tallennaAsiakas', () => {
@@ -1417,55 +1416,5 @@ describe('haeViimeisinKayntiPalvelulla', () => {
     const tulos = await haeViimeisinKayntiPalvelulla('asiakas-1')
 
     expect(tulos).toEqual({ palvelu: null, ohitaPalveluvalinta: false })
-  })
-})
-
-// KIIRE-FIX 3b: Asiakasrekisterin "+ Aloita käynti" -napin polku
-// käynnillisillä asiakkailla. Funktio palauttaa null jos viimeisimmästä
-// käynnistä puuttuu lomakepohja_versio_id (vanha käynti ennen Pala 2.24:ää),
-// jolloin kutsuva komponentti ohjaa palveluvalinta-flow:hin varmuudeksi.
-describe('haeViimeisinHoitokaynti', () => {
-  beforeEach(() => {
-    apurit.fromVakooja.mockClear()
-    apurit.getUserVakooja.mockClear()
-    apurit.nollaa()
-  })
-
-  it('palauttaa käynnin jos lomakepohja_versio_id on asetettu', async () => {
-    apurit.lisaaTulos('hoitokaynnit', {
-      data: {
-        id: 'k1',
-        tila: 'luonnos',
-        lomakepohja_versio_id: 'v1',
-        vastaukset: { etunimi: 'Sara' },
-        versio: 3,
-        otsikko: 'Niska',
-        pvm: '2026-05-05T10:00:00Z',
-        lomake_versio_id: 'lv1',
-      },
-      error: null,
-    })
-
-    const tulos = await haeViimeisinHoitokaynti('asiakas-1')
-
-    expect(tulos).toMatchObject({ id: 'k1', tila: 'luonnos', lomakepohja_versio_id: 'v1' })
-    expect(tulos.vastaukset).toEqual({ etunimi: 'Sara' })
-  })
-
-  it('palauttaa null jos lomakepohja_versio_id puuttuu (vanha käynti)', async () => {
-    apurit.lisaaTulos('hoitokaynnit', {
-      data: {
-        id: 'k_vanha',
-        tila: 'valmis',
-        lomakepohja_versio_id: null,
-        vastaukset: {},
-        versio: 1,
-      },
-      error: null,
-    })
-
-    const tulos = await haeViimeisinHoitokaynti('asiakas-1')
-
-    expect(tulos).toBeNull()
   })
 })
