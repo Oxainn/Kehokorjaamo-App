@@ -5,7 +5,12 @@ import { useState, useMemo, useEffect } from 'react'
 import { luoUusiKentta } from '../../lib/db'
 import { MITTARIT } from '../../data/linjausmittarit'
 
-const KENTTATYYPIT = [
+// Pala 2.13: kenttätyypit jaettu kahteen listaan kohderyhman mukaan.
+// Asiakas-tyypit voivat silti olla hoitaja-osioissa (esim. tekstirivi
+// "Hoitajan oma huomio"), mutta luonnissa rooli kertoo mille listalle
+// LisaaKenttaModaalissa kenttä menee.
+
+const ASIAKKAAN_KENTTATYYPIT = [
   { arvo: 'infoteksti',     nimi: 'Infoteksti (näkyy lomakkeessa, ei syötettä)' },
   { arvo: 'tekstirivi',     nimi: 'Tekstirivi (lyhyt teksti)' },
   { arvo: 'tekstikentta',   nimi: 'Tekstikenttä (pitkä teksti, monirivinen)' },
@@ -18,12 +23,19 @@ const KENTTATYYPIT = [
   { arvo: 'checkbox_lista', nimi: 'Lista (rastit, useita valittavissa)' },
   { arvo: 'kehonkartta',    nimi: 'Kehonkartta (piirros)' },
   { arvo: 'allekirjoitus',  nimi: 'Allekirjoitus' },
+]
+
+const HOITAJAN_KENTTATYYPIT = [
   { arvo: 'kuvantaminen',             nimi: 'Kuvantaminen (4 asentokuvaa + AI-analyysi)' },
   { arvo: 'linjausmittari',           nimi: 'Linjausmittari (hoitajan asentokulma)' },
   { arvo: 'bodymap_havainnot',        nimi: 'BodyMap-havainnot (hoitajan löydökset)' },
   { arvo: 'itsehoito_valinnat',       nimi: 'Itsehoito-valinnat (käyntikohtainen)' },
   { arvo: 'ai_loydosanalyysi',        nimi: 'AI-löydösanalyysi (Claude-tulkinta)' },
   { arvo: 'edellisen_kaynnin_muista', nimi: 'Edellisen käynnin Muista-nosto' },
+  // Hoitaja voi käyttää myös yleisiä tekstikenttiä hoitajan-osioon — tähän
+  // listaan voidaan lisätä esim. tekstikentta jos tarve ilmenee.
+  { arvo: 'tekstikentta',   nimi: 'Tekstikenttä (hoitajan oma huomio)' },
+  { arvo: 'tekstirivi',     nimi: 'Tekstirivi (hoitajan lyhyt huomio)' },
 ]
 
 const VARIKOODAUS_VAIHTOEHDOT = [
@@ -53,6 +65,7 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
   const [otsikko,        setOtsikko]        = useState('')
   const [tunniste,       setTunniste]       = useState('')
   const [tunnisteMuokattu, setTunnisteMuokattu] = useState(false)
+  const [kohderyhma,     setKohderyhma]     = useState('asiakas')  // Pala 2.13
   const [tyyppi,         setTyyppi]         = useState('tekstirivi')
   const [apurivi,        setApurivi]        = useState('')
   const [placeholder,    setPlaceholder]    = useState('')
@@ -90,6 +103,17 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
   useEffect(() => {
     if (!tunnisteMuokattu) setTunniste(tunnisteOtsikosta(otsikko))
   }, [otsikko, tunnisteMuokattu])
+
+  // Pala 2.13: kun kohderyhma vaihtuu, varmista että tyyppi on sallitussa listassa.
+  // Jos käyttäjä on valinnut tekstirivin (asiakas) ja vaihtaa hoitajaksi, tekstirivi
+  // löytyy myös hoitajan listasta — tyyppi säilyy. Mutta esim. sähköposti EI ole
+  // hoitajan listassa → resetoi listan ensimmäiseen tyyppiin.
+  const sallitutTyypit = kohderyhma === 'hoitaja' ? HOITAJAN_KENTTATYYPIT : ASIAKKAAN_KENTTATYYPIT
+  useEffect(() => {
+    if (!sallitutTyypit.some((t) => t.arvo === tyyppi)) {
+      setTyyppi(sallitutTyypit[0].arvo)
+    }
+  }, [kohderyhma]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const validointi = useMemo(() => {
     if (tyyppi === 'numero') {
@@ -168,6 +192,7 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
         validointi,
         oletukset,
         pysyva,
+        kohderyhma,  // Pala 2.13
       })
       if (tulos.virhe) {
         setVirhe(tulos.virhe)
@@ -228,6 +253,55 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
             </p>
           </div>
 
+          {/* Pala 2.13: kohderyhma — kummalle roolille kenttä tehdään.
+              Tallentuu kenttakirjasto.kohderyhma -sarakkeeseen ja vaikuttaa
+              LisaaKenttaModaali:n ryhmittelyyn (asiakkaan / hoitajan kentät). */}
+          <div className="flex flex-col gap-2">
+            <label className={labelLuokka}>Kohderyhma *</label>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <label className={`flex items-start gap-2 p-3 rounded-lg border cursor-pointer transition-colors flex-1 ${
+                kohderyhma === 'asiakas'
+                  ? 'border-blue-300 bg-blue-50'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}>
+                <input
+                  type="radio"
+                  name="kohderyhma"
+                  value="asiakas"
+                  checked={kohderyhma === 'asiakas'}
+                  onChange={() => setKohderyhma('asiakas')}
+                  className="mt-0.5 accent-blue-600"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                    <span>👤</span><span>Asiakkaan kenttä</span>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">Asiakas täyttää itse</p>
+                </div>
+              </label>
+              <label className={`flex items-start gap-2 p-3 rounded-lg border cursor-pointer transition-colors flex-1 ${
+                kohderyhma === 'hoitaja'
+                  ? 'border-emerald-300 bg-emerald-50'
+                  : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}>
+                <input
+                  type="radio"
+                  name="kohderyhma"
+                  value="hoitaja"
+                  checked={kohderyhma === 'hoitaja'}
+                  onChange={() => setKohderyhma('hoitaja')}
+                  className="mt-0.5 accent-emerald-600"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
+                    <span>🧑‍⚕️</span><span>Hoitajan kenttä</span>
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">Hoitaja täyttää käynnissä</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1">
             <label className={labelLuokka}>Kenttätyyppi *</label>
             <select
@@ -235,10 +309,13 @@ export default function LuoUusiKenttaModaali({ onLuotu, onSulje }) {
               onChange={(e) => setTyyppi(e.target.value)}
               className={`${inputLuokka} bg-white`}
             >
-              {KENTTATYYPIT.map((t) => (
+              {sallitutTyypit.map((t) => (
                 <option key={t.arvo} value={t.arvo}>{t.nimi}</option>
               ))}
             </select>
+            <p className="text-xs text-gray-400">
+              Lista suodattuu kohderyhman mukaan.
+            </p>
           </div>
 
           <div className="flex flex-col gap-1">

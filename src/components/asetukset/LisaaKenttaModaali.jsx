@@ -25,18 +25,10 @@ const KENTTATYYPPI_NIMET = {
   edellisen_kaynnin_muista: 'Edellisen käynnin Muista-nosto',
 }
 
-// Pala 2.10: kenttätyypit jotka kuuluvat HOITAJAN kirjauspuolelle.
-// Käytetään ryhmittelyyn modaalin listalla — hoitajan kentät yläosaan,
-// asiakkaan kentät alaosaan. Kaikki muut tyypit (tekstirivi, kehonkartta,
-// allekirjoitus jne.) ovat asiakas-kenttiä oletuksena.
-const HOITAJAN_KENTTATYYPIT = new Set([
-  'kuvantaminen',
-  'linjausmittari',
-  'bodymap_havainnot',
-  'itsehoito_valinnat',
-  'ai_loydosanalyysi',
-  'edellisen_kaynnin_muista',
-])
+// Pala 2.14: ryhmittely käyttää nyt kenttäkirjasto.kohderyhma -saraketta.
+// HOITAJAN_KENTTATYYPIT-set poistettu — luokitus on eksplisiittinen DB:ssä.
+// Yhteensopivuus: jos kohderyhma puuttuu (vanha rivi tai virhe), oletus 'asiakas'
+// (tämä hoidetaan db/lomake.js haeKenttakirjasto:ssa).
 
 // Pala 2.10: yksittäisen kenttärivin renderöinti — sama kummassakin ryhmässä
 // (hoitaja/asiakas). Aiemmin koodi oli inline kerran, nyt eriytetty jotta
@@ -99,8 +91,10 @@ export default function LisaaKenttaModaali({ kenttakirjasto, kaytetytTunnisteet,
       k.tunniste.toLowerCase().includes(haku) ||
       (KENTTATYYPPI_NIMET[k.tyyppi] ?? '').toLowerCase().includes(haku)
     )
-    const hoitajan  = suodatetut.filter((k) => HOITAJAN_KENTTATYYPIT.has(k.tyyppi))
-    const asiakkaan = suodatetut.filter((k) => !HOITAJAN_KENTTATYYPIT.has(k.tyyppi))
+    // Pala 2.14: ryhmittely kohderyhma-arvon perusteella (asiakas/hoitaja).
+    // Vanhojen rivien yhteensopivuus: kohderyhma puuttuessa oletus 'asiakas'.
+    const hoitajan  = suodatetut.filter((k) => k.kohderyhma === 'hoitaja')
+    const asiakkaan = suodatetut.filter((k) => k.kohderyhma !== 'hoitaja')
     return {
       hoitajanKentat:    hoitajan,
       asiakkaanKentat:   asiakkaan,

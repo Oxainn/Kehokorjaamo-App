@@ -212,10 +212,14 @@ export const luoUusiKentta = async ({
   validointi = {},
   oletukset = {},
   pysyva = false,
+  kohderyhma = 'asiakas',  // Pala 2.13: 'asiakas' | 'hoitaja' — vaikuttaa LisaaKenttaModaali:n ryhmittelyyn
 }) => {
   if (!tunniste?.trim()) return { virhe: 'Tunniste puuttuu' }
   if (!tyyppi)           return { virhe: 'Kenttätyyppi puuttuu' }
   if (!otsikko?.trim())  return { virhe: 'Otsikko puuttuu' }
+  if (kohderyhma !== 'asiakas' && kohderyhma !== 'hoitaja') {
+    return { virhe: 'Kohderyhma pitää olla "asiakas" tai "hoitaja"' }
+  }
 
   const { data: { user }, error: userVirhe } = await supabase.auth.getUser()
   if (userVirhe || !user) return { virhe: 'Kirjautuminen vaaditaan' }
@@ -226,6 +230,7 @@ export const luoUusiKentta = async ({
       hoitaja_id:         user.id,
       kentta_id_tunniste: tunniste.trim(),
       kenttatyyppi:       tyyppi,
+      kohderyhma,         // Pala 2.13: 'asiakas' tai 'hoitaja'
       validointi,
       oletukset,
     })
@@ -306,11 +311,11 @@ export const paivitaKentanPysyvyys = async (kenttaId, pysyva) => {
 }
 
 // Hakee koko kenttäkirjaston editorin käyttöön — kentän tunniste + tyyppi + suomenkielinen otsikko.
-// Palautusmuoto: [{ id, tunniste, tyyppi, otsikko, apurivi, placeholder, validointi, oletukset, pysyva }]
+// Palautusmuoto: [{ id, tunniste, tyyppi, kohderyhma, otsikko, apurivi, placeholder, validointi, oletukset, pysyva }]
 export const haeKenttakirjasto = async () => {
   const { data, error } = await supabase
     .from('kenttakirjasto')
-    .select('id, kentta_id_tunniste, kenttatyyppi, validointi, oletukset, kentan_versiot(versio, kaannokset, aktiivinen, pysyva)')
+    .select('id, kentta_id_tunniste, kenttatyyppi, kohderyhma, validointi, oletukset, kentan_versiot(versio, kaannokset, aktiivinen, pysyva)')
     .order('kentta_id_tunniste')
 
   if (error) {
@@ -327,6 +332,7 @@ export const haeKenttakirjasto = async () => {
       id:          k.id,
       tunniste:    k.kentta_id_tunniste,
       tyyppi:      k.kenttatyyppi,
+      kohderyhma:  k.kohderyhma ?? 'asiakas',  // Pala 2.14: oletus asiakas yhteensopivuuden vuoksi
       otsikko:     fi.otsikko ?? k.kentta_id_tunniste,
       apurivi:     fi.apurivi ?? '',
       placeholder: fi.placeholder ?? '',
