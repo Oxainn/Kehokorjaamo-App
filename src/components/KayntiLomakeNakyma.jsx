@@ -192,12 +192,7 @@ export default function KayntiLomakeNakyma({ lomakeVersioId, asiakas, onSulje })
     <div style={overlayTyyli} onClick={onSulje} role="dialog" aria-modal="true">
       <div style={modaaliTyyli} onClick={(e) => e.stopPropagation()}>
         <div style={headerTyyli}>
-          <div>
-            <h2 style={otsikkoTyyli}>{otsikko}</h2>
-            <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>
-              Lukutila — alkuperäinen lomake
-            </p>
-          </div>
+          <h2 style={otsikkoTyyli}>{otsikko}</h2>
           <button type="button" onClick={onSulje} style={sulkeTyyli} aria-label="Sulje">
             ✕
           </button>
