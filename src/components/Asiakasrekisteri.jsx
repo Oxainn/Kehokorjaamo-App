@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
-import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas, arkistoiAsiakas, poistaAsiakas, haeViimeisinKayntiPalvelulla } from '../lib/db'
+import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas, arkistoiAsiakas, poistaAsiakas, haeViimeisinHoitokaynti } from '../lib/db'
 import { muotoilePvm, muodostaCSV, lataaTiedosto, jaaNimi } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
 import KayntiLomakeNakyma from './KayntiLomakeNakyma'
@@ -22,6 +22,7 @@ import PikamuokkausModaali from './PikamuokkausModaali'
 // `onSiirryArkistoon` / `onTakaisinRekisteriin`: callback-funktiot navigaatioon.
 export default function Asiakasrekisteri({
   onValitseAsiakas,
+  onAvaaKaynti,
   hoitajaId,
   refresh = 0,
   arkistoTila = false,
@@ -107,21 +108,25 @@ export default function Asiakasrekisteri({
     setPaikallinenRefresh((n) => n + 1)
   }
 
-  // KIIRE-FIX 2: asiakkaan klikkauksen polku — käynnillisillä ohitetaan
-  // palveluvalinta jos viimeisimmästä valmis-käynnistä voidaan päätellä
-  // yksiselitteinen palvelu (Y-strategia). Reuna-tapauksissa
-  // (haeViimeisinKayntiPalvelulla palauttaa ohitaPalveluvalinta=false)
-  // jätetään palvelu null:iksi → App.jsx avaa HoitajanPalveluValinta-modaalin.
-  async function aloitaUusiKaynti(a, kayntejaOlemassa) {
+  // KIIRE-FIX 3b: asiakkaan klikkaus avaa elävän lomakkeen muokkaustilassa
+  // (D-malli, YHDISTETTY-LOMAKE.md LISÄYS 2026-05-05). Reititys:
+  //   - Käynnillinen + viimeisin käynti löytyy + lomakepohja_versio_id ok
+  //     → onAvaaKaynti(asiakas, kaynti) → AvaaKayntiContainer App.jsx:ssä
+  //   - Muu (käynnitön TAI vanha käynti ilman versio_id:tä) → onValitseAsiakas
+  //     → palveluvalinta + uusi tyhjä lomake (vanha flow säilyy)
+  async function avaaTaiAloita(a, kayntejaOlemassa) {
     if (kaynnistettava === a.id) return        // suoja tuplaklikkaukselta
     setKaynnistettava(a.id)
     try {
       if (kayntejaOlemassa) {
-        const { palvelu, ohitaPalveluvalinta } = await haeViimeisinKayntiPalvelulla(a.id)
-        if (ohitaPalveluvalinta && palvelu) {
-          onValitseAsiakas?.(a, palvelu)
+        const kaynti = await haeViimeisinHoitokaynti(a.id)
+        if (kaynti) {
+          onAvaaKaynti?.(a, kaynti)
           return
         }
+        // Reuna: viimeisin käynti löytyy mutta lomakepohja_versio_id puuttuu
+        // (vanha käynti ennen Pala 2.24:ää) — haeViimeisinHoitokaynti
+        // palauttaa null näissä tapauksissa, jolloin pudotaan palveluvalintaan.
       }
       onValitseAsiakas?.(a)
     } finally {
@@ -317,11 +322,10 @@ export default function Asiakasrekisteri({
             onClick={() => {
               if (arkistoTila) { palauta(a); return }
               if (korostettu) { onValitseAsiakas?.(a); return }
-              // KIIRE-FIX 2: päänappi käynnistää aina UUDEN käynnin (ei enää
-              // read-only modaali "Avaa"-napissa). Vanhat käynnit avautuvat
-              // pillerinapeista alla. Käynnillisillä ohitetaan palveluvalinta
-              // jos viimeisin valmis-käynti viittaa yksiselitteiseen palveluun.
-              aloitaUusiKaynti(a, kaynnit.length > 0)
+              // KIIRE-FIX 3b: päänappi avaa viimeisimmän käynnin muokkaustilassa
+              // (jos käyntejä on). Vanhat käynnit avautuvat pillerinapeista
+              // read-only modaalina edelleen.
+              avaaTaiAloita(a, kaynnit.length > 0)
             }}
             disabled={kaynnistettava === a.id}
             style={{

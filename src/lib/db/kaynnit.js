@@ -491,6 +491,39 @@ export const haeViimeisinKayntiPalvelulla = async (asiakasId) => {
   return { palvelu: palvelut[0], ohitaPalveluvalinta: true }
 }
 
+// KIIRE-FIX 3b: hakee asiakkaan VIIMEISIMMÄN hoitokäynnin koko datan
+// (snapshot-pohjaa varten) — käytetään Asiakasrekisterin "+ Aloita käynti"
+// -napissa kun asiakkaalla on jo käyntejä. Avataan elävä lomake suoraan
+// muokkaustilassa edellisten vastausten päälle (D-malli, YHDISTETTY-LOMAKE.md
+// LISÄYS 2026-05-05).
+//
+// Palauttaa null jos:
+//   - asiakas-id puuttuu
+//   - käyntejä ei ole
+//   - viimeisimmästä käynnistä puuttuu lomakepohja_versio_id (vanha käynti
+//     ennen Pala 2.24:ää) — näissä tapauksissa kutsuva komponentti ohjaa
+//     palveluvalinta-flow:hin varmuudeksi.
+//
+// Sisältää tila-kentän jotta kutsuja voi tarvittaessa kutsua
+// avaaKayntiUudelleen jos käynti on lukittu (tila = 'valmis').
+export const haeViimeisinHoitokaynti = async (asiakasId) => {
+  if (!asiakasId) return null
+
+  const { data, error } = await supabase
+    .from('hoitokaynnit')
+    .select('id, tila, lomakepohja_versio_id, vastaukset, versio, otsikko, pvm, lomake_versio_id')
+    .eq('asiakas_id', asiakasId)
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) {
+    console.error('Viimeisimmän hoitokäynnin haku epäonnistui:', error)
+    return null
+  }
+  if (!data || !data.lomakepohja_versio_id) return null
+  return data
+}
+
 export const haeEdellinenValmiisKaynti = async (asiakasId, paitsiId = null) => {
   if (!asiakasId) return null
   let query = supabase
