@@ -1095,6 +1095,60 @@ describe('haeLomakepohja — osion rooli normalisointi (AB-T2a)', () => {
   })
 })
 
+// KIIRE-FIX 4b: success-polun versioId-paluu. Aiemmin lokaali muuttuja
+// jäi käyttämättä → kutsuvilla pohjaTulos.versioId oli undefined ja
+// versio_id-tallennus + KIIRE-FIX 4:n virhetarkistus toimivat väärin.
+describe('haeLomakepohja — versioId palautuu success-pathilla (KIIRE-FIX 4b)', () => {
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+  })
+
+  it('palauttaa korkeimman versio-numeron versio-id:n versioId-kentässä', async () => {
+    apurit.lisaaTulos('lomakepohjat', {
+      data: {
+        id:         'pohja-1',
+        nimi:       'Testipohja',
+        kuvaus:     null,
+        on_oletus:  false,
+        aktiivinen: true,
+        lomakepohja_versiot: [
+          { id: 'versio-1-id', versio: 1, rakenne: { formaatti_versio: 1, nayttotyyli: 'c', osiot: [] } },
+          { id: 'versio-3-id', versio: 3, rakenne: { formaatti_versio: 1, nayttotyyli: 'c', osiot: [] } },
+          { id: 'versio-2-id', versio: 2, rakenne: { formaatti_versio: 1, nayttotyyli: 'c', osiot: [] } },
+        ],
+      },
+      error: null,
+    })
+
+    const tulos = await haeLomakepohja('pohja-1')
+
+    expect(tulos.virhe).toBeNull()
+    expect(tulos.versioId).toBe('versio-3-id')
+    expect(tulos.rakenne).not.toBeNull()
+  })
+
+  it('virhepolku "Pohjalla ei ole versiota" — versioId on null', async () => {
+    apurit.lisaaTulos('lomakepohjat', {
+      data: {
+        id:         'pohja-1',
+        nimi:       'Testipohja',
+        kuvaus:     null,
+        on_oletus:  false,
+        aktiivinen: true,
+        lomakepohja_versiot: [],
+      },
+      error: null,
+    })
+
+    const tulos = await haeLomakepohja('pohja-1')
+
+    expect(tulos.virhe).toBe('Pohjalla ei ole versiota')
+    expect(tulos.versioId).toBeNull()
+  })
+})
+
 describe('tallennaKayntiVastauksilla (AB-T4a)', () => {
   let errorVakooja
 

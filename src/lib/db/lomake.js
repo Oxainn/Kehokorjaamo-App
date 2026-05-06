@@ -552,7 +552,13 @@ export const haeLomakepohja = async (pohjaId) => {
   }
 
   const { lomakepohja_versiot: _, ...pohjaIlmanVersioita } = pohjaRivi
-  return { pohja: pohjaIlmanVersioita, rakenne, kentat, virhe: null }
+  // KIIRE-FIX 4b: success-polku palauttaa versioId:n (lasketaan rivillä 516).
+  // Aiemmin se jäi pelkäksi lokaalimuuttujaksi, jolloin kutsuvilla
+  // (UusiKayntiContainer Pala 2.24:n versio_id-tallennus) versioId oli aina
+  // undefined → fire-and-forget -guard ei mennyt koskaan läpi ja KIIRE-FIX 4:n
+  // virhetarkistus laukesi väärin. Virhepolut (rivit 509, 518) palauttavat
+  // versioId:n jo entuudestaan; nyt myös onnistunut paluu on yhdenmukainen.
+  return { pohja: pohjaIlmanVersioita, versioId, rakenne, kentat, virhe: null }
 }
 
 // Tallentaa pohjalle uuden version aktiiviseksi ja deaktivoi kaikki aiemmat
