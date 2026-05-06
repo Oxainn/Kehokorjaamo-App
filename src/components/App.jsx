@@ -137,6 +137,13 @@ export default function App() {
   // set = UusiKayntiContainer renderöityy ja ohjaa lomakkeen avauksen.
   const [valittuPalvelu, setValittuPalvelu] = useState(null)
 
+  // KIIRE-FIX 6 (D-malli): käynnillisen asiakkaan päänappi avaa olemassa olevan
+  // hoitokäynnin muokkaustilassa. Asetetaan onAvaaKaynti-callbackissa →
+  // UusiKayntiContainer renderöityy olemassaKayntiId-propilla joka ohittaa
+  // luoTyhjaAsiakas + aloitaUusiKaynti -setupin ja lataa snapshotin
+  // hoitokaynnit.lomakepohja_versio_id:n kautta. Null = uuden käynnin polku.
+  const [olemassaKayntiId, setOlemassaKayntiId] = useState(null)
+
   // Pala B9b — online/offline-tila + offline-jonon synkronointi
   const online = useOnline()
   const [jonoa, setJonoa] = useState(0)
@@ -178,6 +185,7 @@ export default function App() {
     setRekisteriAvain((n) => n + 1)
     setTestimoodi(false)
     setValittuPalvelu(null)   // AB-T5c: nollaa palveluvalinta poistuessa flow:sta
+    setOlemassaKayntiId(null) // KIIRE-FIX 6: nollaa avattu käynti
     setNakyma('rekisteri')
   }
 
@@ -562,6 +570,14 @@ export default function App() {
               if (palvelu) setValittuPalvelu(palvelu)
               setNakyma('kaynti')
             }}
+            onAvaaKaynti={(a, kayntiId) => {
+              // KIIRE-FIX 6 (D-malli): käynnillisen asiakkaan klikkaus avaa
+              // viimeisimmän käynnin muokkaustilassa. UusiKayntiContainer
+              // ohittaa setup-vaiheet kun olemassaKayntiId on annettu.
+              setAsiakas(normalisoiAsiakas(a))
+              setOlemassaKayntiId(kayntiId)
+              setNakyma('kaynti')
+            }}
             onSiirryArkistoon={() => setNakyma('arkisto')}
           />
         )}
@@ -576,10 +592,21 @@ export default function App() {
           />
         )}
 
+        {/* KIIRE-FIX 6 (D-malli): KÄYNTI — käynnillisen asiakkaan klikkaus
+            avaa olemassa olevan käynnin LomakeRenderoijalla muokkaustilassa.
+            Container hoitaa avaaKayntiUudelleen-kutsun jos käynti on lukittu. */}
+        {nakyma === 'kaynti' && asiakas && asiakas.vahvistettu !== false && olemassaKayntiId && (
+          <UusiKayntiContainer
+            asiakasId={asiakas.id}
+            olemassaKayntiId={olemassaKayntiId}
+            onValmis={paluuRekisteriin}
+            onPeruuta={paluuRekisteriin}
+          />
+        )}
         {/* AB-T6b: KÄYNTI — asiakas valittu rekisteristä.
             Vahvistettu + valittuPalvelu → container hallitsee oman yläpalkin.
             Container on erillinen lohko jotta App-yläpalkki ei näy. */}
-        {nakyma === 'kaynti' && asiakas && asiakas.vahvistettu !== false && valittuPalvelu && (
+        {nakyma === 'kaynti' && asiakas && asiakas.vahvistettu !== false && !olemassaKayntiId && valittuPalvelu && (
           <UusiKayntiContainer
             asiakasId={asiakas.id}
             palvelu={valittuPalvelu}
@@ -588,7 +615,7 @@ export default function App() {
           />
         )}
         {/* Vahvistamaton-polku TAI ennen palvelun valintaa: App-yläpalkki + sisältö. */}
-        {nakyma === 'kaynti' && asiakas && (asiakas.vahvistettu === false || !valittuPalvelu) && (
+        {nakyma === 'kaynti' && asiakas && !olemassaKayntiId && (asiakas.vahvistettu === false || !valittuPalvelu) && (
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '0 0 12px', borderBottom: '1px solid #e2e8f0', marginBottom: '16px' }}>
               <button

@@ -774,3 +774,113 @@ export const avaaKayntiUudelleen = async (hoitokayntiId, syy = null) => {
 
   return { virhe: null, avattuKerralla: uusiLaskuri }
 }
+
+// KIIRE-FIX 6 (D-malli): Hae asiakkaan VIIMEISIN hoitokaynti (mikä tahansa tila).
+// Käytetään Asiakasrekisterin pääpainikkeen polkuun jossa käynnillisille
+// avataan viimeisin käynti muokkaustilassa. Jos viimeisimmästä puuttuu
+// lomakepohja_versio_id (vanha käynti ennen Pala 2.24:ää) palautetaan
+// kaynti=null jotta kutsuva pudottaa palveluvalinta + uusi käynti -polkuun.
+export const haeViimeisinHoitokaynti = async (asiakasId) => {
+  if (!asiakasId) return { kaynti: null, virhe: 'Asiakas-id puuttuu' }
+  const { data, error } = await supabase
+    .from('hoitokaynnit')
+    .select('id, tila, lomakepohja_versio_id, pvm')
+    .eq('asiakas_id', asiakasId)
+    .order('pvm', { ascending: false, nullsFirst: false })
+    .order('luotu', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (error) return { kaynti: null, virhe: error.message }
+  if (!data) return { kaynti: null, virhe: null }
+  if (!data.lomakepohja_versio_id) return { kaynti: null, virhe: null }
+  return { kaynti: data, virhe: null }
+}
+
+// KIIRE-FIX 6 (D-malli): Lataa olemassa olevan hoitokäynnin tiedot
+// LomakeRenderoijaa varten muokkaustilassa. Jos käynti on lukittu (tila='valmis')
+// avataan se uudelleen ennen palautusta. Palauttaa snapshot-pohjan rakenteen +
+// kenttäkirjaston tunnisteille + nykyiset vastaukset + tuoreen versionumeron
+// optimistista lukkoa varten.
+//
+// Polku:
+//   1. hoitokaynnit-rivi by id (vastaukset, lomakepohja_versio_id, versio, tila)
+//   2. jos tila='valmis' → avaaKayntiUudelleen + hae päivitetty versio
+//   3. lomakepohja_versiot.rakenne snapshot-id:llä (ei aktiivinen versio!)
+//   4. kenttakirjasto rakenteen tunnisteille (sama logiikka kuin haeLomakepohja)
+//
+// Reuna-tapaukset palauttavat virheen — kutsuvan vastuulla näyttää käyttäjälle:
+//   - käynti puuttuu, ei oikeutta lukea (RLS), lomakepohja_versio_id null
+//   - lomakepohjan versio poistettu (FK SET NULL pohjasta)
+//   - avaaKayntiUudelleen race "Joku muu on jo avannut käynnin"
+export const avaaOlemassaKaynti = async (kayntiId) => {
+  if (!kayntiId) return { virhe: 'Käynnin id puuttuu' }
+
+  const { data: kaynti, error: kErr } = await supabase
+    .from('hoitokaynnit')
+    .select('id, tila, lomakepohja_versio_id, vastaukset, versio, asiakas_id')
+    .eq('id', kayntiId)
+    .maybeSingle()
+  if (kErr || !kaynti) return { virhe: kErr?.message ?? 'Käyntiä ei löytynyt' }
+  if (!kaynti.lomakepohja_versio_id) {
+    return { virhe: 'Käynnistä puuttuu lomakepohjan versio (vanha käynti) — ei voi avata muokkaustilassa' }
+  }
+
+  let kaytettavaVersio = kaynti.versio
+  if (kaynti.tila === 'valmis') {
+    const tulos = await avaaKayntiUudelleen(kayntiId)
+    if (tulos.virhe) return { virhe: `Käynnin avaaminen uudelleen: ${tulos.virhe}` }
+    // avaaKayntiUudelleen kasvattaa versionumeroa yhdellä — hae tuore arvo
+    // jotta auto-saven optimistinen lukko ei laukea ensimmäisellä tallennuksella.
+    const { data: paivitetty } = await supabase
+      .from('hoitokaynnit')
+      .select('versio')
+      .eq('id', kayntiId)
+      .maybeSingle()
+    if (paivitetty?.versio != null) kaytettavaVersio = paivitetty.versio
+  }
+
+  const { data: versio, error: vErr } = await supabase
+    .from('lomakepohja_versiot')
+    .select('rakenne')
+    .eq('id', kaynti.lomakepohja_versio_id)
+    .maybeSingle()
+  if (vErr || !versio?.rakenne) return { virhe: 'Lomakepohjan version haku epäonnistui' }
+
+  const tunnisteet = []
+  for (const osio of (versio.rakenne?.osiot ?? [])) {
+    for (const kf of (osio.kenttat ?? [])) {
+      if (kf.kentta_id_tunniste) tunnisteet.push(kf.kentta_id_tunniste)
+    }
+  }
+  let kentat = {}
+  if (tunnisteet.length > 0) {
+    const { data: kenttaRivit, error: kErr2 } = await supabase
+      .from('kenttakirjasto')
+      .select('id, kentta_id_tunniste, kenttatyyppi, validointi, oletukset, kentan_versiot(versio, kaannokset, pysyva)')
+      .in('kentta_id_tunniste', tunnisteet)
+    if (kErr2) return { virhe: 'Kenttäkirjaston haku epäonnistui' }
+    for (const k of (kenttaRivit ?? [])) {
+      const v = (k.kentan_versiot ?? []).slice().sort((a, b) => b.versio - a.versio)[0]
+      kentat[k.kentta_id_tunniste] = {
+        id:         k.id,
+        tunniste:   k.kentta_id_tunniste,
+        tyyppi:     k.kenttatyyppi,
+        validointi: k.validointi ?? {},
+        oletukset:  k.oletukset ?? {},
+        kaannokset: v?.kaannokset ?? {},
+        pysyva:     v?.pysyva ?? false,
+      }
+    }
+  }
+
+  return {
+    virhe: null,
+    kaynti: {
+      id:         kaynti.id,
+      asiakasId:  kaynti.asiakas_id,
+      versio:     kaytettavaVersio,
+      vastaukset: kaynti.vastaukset ?? {},
+    },
+    valmiitTiedot: { rakenne: versio.rakenne, kentat },
+  }
+}

@@ -12,6 +12,7 @@ vi.mock('../lib/db', async () => {
     aloitaUusiKaynti:           vi.fn(),
     haeLomakepohja:             vi.fn(),
     paivitaAsiakkaanPerustiedot: vi.fn(),
+    avaaOlemassaKaynti:         vi.fn(),  // KIIRE-FIX 6 (D-malli)
     tallennaKayntiVastauksilla: vi.fn(),  // LomakeRenderoijan auto-save
   }
 })
@@ -38,6 +39,7 @@ import {
   aloitaUusiKaynti,
   haeLomakepohja,
   paivitaAsiakkaanPerustiedot,
+  avaaOlemassaKaynti,
 } from '../lib/db'
 import UusiKayntiContainer from './UusiKayntiContainer'
 
@@ -74,6 +76,16 @@ describe('UusiKayntiContainer (AB-T5b)', () => {
       virhe:    null,
     })
     paivitaAsiakkaanPerustiedot.mockResolvedValue({ virhe: null })
+    avaaOlemassaKaynti.mockResolvedValue({
+      virhe: null,
+      kaynti: {
+        id:         'olemassa-h-1',
+        asiakasId:  'asiakas-7',
+        versio:     5,
+        vastaukset: { etunimi: 'Pekka', kipu_taso: 4 },
+      },
+      valmiitTiedot: { rakenne: POHJA_TIEDOT.rakenne, kentat: POHJA_TIEDOT.kentat },
+    })
   })
 
   it('setup-ketju: luo asiakas → aloita käynti → hae pohja → renderöi LomakeRenderoija', async () => {
@@ -203,6 +215,64 @@ describe('UusiKayntiContainer (AB-T5b)', () => {
 
     render(<UusiKayntiContainer palvelu={PALVELU} onValmis={() => {}} onPeruuta={onPeruuta} />)
 
+    const peruutusNappi = await screen.findByRole('button', { name: /Takaisin rekisteriin/i })
+    peruutusNappi.click()
+    expect(onPeruuta).toHaveBeenCalledTimes(1)
+  })
+
+  // ─── KIIRE-FIX 6 (D-malli): olemassaKayntiId-polku ────────────────────────
+
+  it('KIIRE-FIX 6: olemassaKayntiId annettu → kutsuu avaaOlemassaKaynti, ohittaa uuden käynnin setupin', async () => {
+    render(
+      <UusiKayntiContainer
+        olemassaKayntiId="olemassa-h-1"
+        asiakasId="asiakas-7"
+        onValmis={() => {}}
+      />
+    )
+
+    await waitFor(() => {
+      expect(avaaOlemassaKaynti).toHaveBeenCalledWith('olemassa-h-1')
+    })
+    // Uusi-käynti-polun setup-funktioita EI kutsuta — käynti on jo olemassa
+    expect(luoTyhjaAsiakas).not.toHaveBeenCalled()
+    expect(aloitaUusiKaynti).not.toHaveBeenCalled()
+    expect(haeLomakepohja).not.toHaveBeenCalled()
+  })
+
+  it('KIIRE-FIX 6: olemassaKayntiId-polku ei vaadi palvelu-propia eikä anna virhettä', async () => {
+    // Uudessa-käynnin-polussa palvelun puuttuminen aiheuttaa heti virheen.
+    // Olemassa-polussa palvelu on tarpeeton — snapshot-pohja luetaan käynnin
+    // lomakepohja_versio_id:n kautta avaaOlemassaKaynti-funktion sisällä.
+    render(
+      <UusiKayntiContainer
+        olemassaKayntiId="olemassa-h-1"
+        onValmis={() => {}}
+      />
+    )
+
+    await waitFor(() => {
+      expect(avaaOlemassaKaynti).toHaveBeenCalled()
+    })
+    expect(screen.queryByText(/Palvelua tai lomakepohjaa ei valittu/i)).not.toBeInTheDocument()
+  })
+
+  it('KIIRE-FIX 6: jos avaaOlemassaKaynti palauttaa virheen → näyttää sen + Takaisin rekisteriin -nappi', async () => {
+    avaaOlemassaKaynti.mockResolvedValue({ virhe: 'Käyntiä ei löytynyt' })
+    const onPeruuta = vi.fn()
+
+    render(
+      <UusiKayntiContainer
+        olemassaKayntiId="puuttuva-id"
+        onValmis={() => {}}
+        onPeruuta={onPeruuta}
+      />
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText(/Käynnin avaaminen epäonnistui/i)).toBeInTheDocument()
+    })
+    expect(screen.getByText(/Käyntiä ei löytynyt/)).toBeInTheDocument()
     const peruutusNappi = await screen.findByRole('button', { name: /Takaisin rekisteriin/i })
     peruutusNappi.click()
     expect(onPeruuta).toHaveBeenCalledTimes(1)

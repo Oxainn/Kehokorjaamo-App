@@ -23,6 +23,7 @@ import {
   aloitaUusiKaynti,
   haeLomakepohja,
   paivitaAsiakkaanPerustiedot,
+  avaaOlemassaKaynti,
 } from '../lib/db'
 import { jaaVastaukset } from '../lib/lomakeTallennus'
 import LomakeRenderoija from './lomake/runtime/LomakeRenderoija'
@@ -65,6 +66,11 @@ function poimiIdentiteetti(vastaukset) {
 export default function UusiKayntiContainer({
   palvelu,
   asiakasId: annettuAsiakasId = null,   // AB-T6a: jos annettu, ohita luoTyhjaAsiakas
+  olemassaKayntiId = null,              // KIIRE-FIX 6 (D-malli): jos annettu, avaa
+                                        // tämä käynti muokkaustilassa eikä luo uutta.
+                                        // palvelu-prop ohitetaan tässä polussa
+                                        // (snapshot-pohja luetaan käynnin
+                                        // lomakepohja_versio_id:n kautta).
   onValmis,
   onPeruuta,
 }) {
@@ -72,23 +78,53 @@ export default function UusiKayntiContainer({
   const [hoitokayntiId, setHoitokayntiId] = useState(null)
   const [valmiitTiedot, setValmiitTiedot] = useState(null)
   const [vastaukset,  setVastaukset]  = useState({})
+  const [alkuVersio,  setAlkuVersio]  = useState(null)      // KIIRE-FIX 6: olemassa-käynnin versio optimistiselle lukolle
   const [setupTila,   setSetupTila]   = useState('lataa')   // 'lataa' | 'valmis' | 'virhe'
   const [setupVirhe,  setSetupVirhe]  = useState(null)
 
   // Identiteetti-synkronoinnin debounce-timer
   const identiteettiTimerRef = useRef(null)
 
-  // 1-3: setup ketjuna kun komponentti mounttaa (palvelu valittu)
+  // Setup ketjuna kun komponentti mounttaa. Kaksi polkua:
+  //   - olemassaKayntiId set → avaa käynti muokkaustilassa (KIIRE-FIX 6, D-malli)
+  //   - muutoin → uusi käynti palvelulla (AB-T5b/T6a)
   useEffect(() => {
+    let peruttu = false
+    setSetupTila('lataa')
+    setSetupVirhe(null)
+
+    // KIIRE-FIX 6: olemassa-käynti-polku. Skipataan luoTyhjaAsiakas /
+    // aloitaUusiKaynti / haeLomakepohja / versio_id-tallennus — käynti on jo
+    // luotu, snapshot-pohja luetaan sen lomakepohja_versio_id:n kautta.
+    if (olemassaKayntiId) {
+      ;(async () => {
+        const tulos = await avaaOlemassaKaynti(olemassaKayntiId)
+        if (peruttu) return
+        if (tulos.virhe) {
+          setSetupTila('virhe')
+          setSetupVirhe(`Käynnin avaaminen epäonnistui: ${tulos.virhe}`)
+          return
+        }
+        setAsiakasId(annettuAsiakasId ?? tulos.kaynti.asiakasId)
+        setHoitokayntiId(tulos.kaynti.id)
+        setVastaukset(tulos.kaynti.vastaukset)
+        setAlkuVersio(tulos.kaynti.versio)
+        setValmiitTiedot(tulos.valmiitTiedot)
+        setSetupTila('valmis')
+      })().catch((e) => {
+        if (peruttu) return
+        setSetupTila('virhe')
+        setSetupVirhe(`Käynnin avaaminen epäonnistui: ${e?.message ?? e}`)
+      })
+      return () => { peruttu = true }
+    }
+
+    // Uusi-käynti-polku — palvelu pakollinen
     if (!palvelu?.id || !palvelu?.lomakepohja_id) {
       setSetupTila('virhe')
       setSetupVirhe('Palvelua tai lomakepohjaa ei valittu')
       return
     }
-
-    let peruttu = false
-    setSetupTila('lataa')
-    setSetupVirhe(null)
 
     ;(async () => {
       // 1. Asiakas-id: joko annettu (T6a, olemassa oleva) tai luo tyhjä (T5b, uusi)
@@ -159,7 +195,7 @@ export default function UusiKayntiContainer({
     })()
 
     return () => { peruttu = true }
-  }, [palvelu?.id, palvelu?.lomakepohja_id, annettuAsiakasId])
+  }, [palvelu?.id, palvelu?.lomakepohja_id, annettuAsiakasId, olemassaKayntiId])
 
   // Identiteetti-synkronointi: kun nimi/sähköposti/jne muuttuu,
   // päivitä asiakkaat-tauluun (3s debounce)
@@ -194,7 +230,9 @@ export default function UusiKayntiContainer({
   if (setupTila === 'lataa') {
     return (
       <div style={tilaTyyli}>
-        Valmistellaan uutta käyntiä palvelulle <strong>{palvelu?.nimi ?? '—'}</strong>…
+        {olemassaKayntiId
+          ? 'Avataan käyntiä…'
+          : <>Valmistellaan uutta käyntiä palvelulle <strong>{palvelu?.nimi ?? '—'}</strong>…</>}
       </div>
     )
   }
@@ -218,14 +256,14 @@ export default function UusiKayntiContainer({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Yläpalkki: palvelun nimi + peruutus */}
+      {/* Yläpalkki: palvelun nimi tai olemassa-käynti-merkintä + peruutus */}
       <div className="flex items-center justify-between gap-3 pb-3 border-b border-gray-200">
         <div className="flex flex-col gap-0.5 min-w-0">
           <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-            Uusi käynti
+            {olemassaKayntiId ? 'Käynti' : 'Uusi käynti'}
           </span>
           <span className="text-base font-semibold text-gray-800 truncate">
-            {palvelu.nimi}
+            {palvelu?.nimi ?? '—'}
           </span>
         </div>
         {onPeruuta && (
@@ -245,7 +283,7 @@ export default function UusiKayntiContainer({
         onMuutos={setVastaukset}
         hoitokayntiId={hoitokayntiId}
         asiakasId={asiakasId}
-        alkuVersio={null}
+        alkuVersio={alkuVersio}
         tila="luonnos"
         onTilaMuutos={onTilaMuutos}
       />
