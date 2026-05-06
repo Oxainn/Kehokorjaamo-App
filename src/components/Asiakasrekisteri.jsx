@@ -78,6 +78,14 @@ export default function Asiakasrekisteri({
       ])
       const map = {}
       lista.forEach((a, i) => { map[a.id] = kayntiTulokset[i] ?? [] })
+      // [DIAG-3] tilapäinen — näytä mitä haeKayntienPaivamaarat palautti
+      console.log('[DIAG-3] kayntienMap latauksen jälkeen:',
+        Object.entries(map).map(([id, k]) => ({
+          asiakasId:    id,
+          kayntiRivit:  k.length,
+          esimerkkiId:  k[0]?.id ?? null,
+          voimassaAlk:  k[0]?.voimassa_alkaen ?? null,
+        })))
       setKayntienMap(map)
       setKontraindikaatiotMap(kontraindikaatiot)
       setArkistoMaara(arkistoMaaraTulos)
@@ -222,6 +230,21 @@ export default function Asiakasrekisteri({
 
   function AsiakasKortti({ a, korostettu }) {
     const kaynnit = kayntienMap[a.id] ?? []
+    // [DIAG-3] Tilapäinen diagnostiikka: KIIRE-FIX 6:n "Avaa"-nappi ei
+    // aktivoidu vaikka DB:ssä on hoitokäyntejä. Hypothesis: kayntienMap
+    // perustuu suljettuihin A-versioihin (voimassa_asti IS NOT NULL),
+    // mutta ensimmäisten käyntien A-versio on yleensä vielä avoin →
+    // kayntienMap jää tyhjäksi vaikka hoitokaynnit-rivi olisi valmis.
+    // Poistetaan kun korjaus tehty.
+    const _diagNappiTeksti = arkistoTila
+      ? '↺ Palauta'
+      : (korostettu ? 'Tarkista' : (kaynnit.length > 0 ? 'Avaa' : '+ Aloita käynti'))
+    console.log('[DIAG-3] Asiakas', a.nimi, '(id', a.id, '):',
+      'kayntejä=', kaynnit.length,
+      'kayntienMap-keys=', Object.keys(kayntienMap).length,
+      'nappiTeksti=', _diagNappiTeksti,
+      'korostettu=', korostettu,
+      'arkistoTila=', arkistoTila)
     const kontraindikaatiot = kontraindikaatiotMap.get(a.id) ?? []
     const onKontraindikaatio = kontraindikaatiot.length > 0
     // Värikoodi: korostettu (uusi asiakas) > kontraindikaatio > normaali
