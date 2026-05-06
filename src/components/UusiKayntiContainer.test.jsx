@@ -16,7 +16,22 @@ vi.mock('../lib/db', async () => {
   }
 })
 
-vi.mock('../services/supabase', () => ({ supabase: {} }))
+// KIIRE-FIX 4: hoitokaynnit-päivitys (lomakepohja_versio_id) odotetaan ja
+// virheet nostetaan näkyviin. Tällä haltijalla testit voivat säätää mitä
+// supabase.from('hoitokaynnit').update(...).eq(...) palauttaa.
+const { supabaseHaltija } = vi.hoisted(() => ({
+  supabaseHaltija: { paivitysVirhe: null },
+}))
+
+vi.mock('../services/supabase', () => ({
+  supabase: {
+    from: () => ({
+      update: () => ({
+        eq: () => Promise.resolve({ error: supabaseHaltija.paivitysVirhe }),
+      }),
+    }),
+  },
+}))
 
 import {
   luoTyhjaAsiakas,
@@ -44,6 +59,7 @@ const POHJA_TIEDOT = {
 describe('UusiKayntiContainer (AB-T5b)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    supabaseHaltija.paivitysVirhe = null
     luoTyhjaAsiakas.mockResolvedValue({ id: 'asiakas-1', virhe: null })
     aloitaUusiKaynti.mockResolvedValue({
       lomakeVersioId: 'v-1',
@@ -51,10 +67,11 @@ describe('UusiKayntiContainer (AB-T5b)', () => {
       virhe:          null,
     })
     haeLomakepohja.mockResolvedValue({
-      pohja:   { id: 'pohja-1' },
-      rakenne: POHJA_TIEDOT.rakenne,
-      kentat:  POHJA_TIEDOT.kentat,
-      virhe:   null,
+      pohja:    { id: 'pohja-1' },
+      versioId: 'pohja-v-1',
+      rakenne:  POHJA_TIEDOT.rakenne,
+      kentat:   POHJA_TIEDOT.kentat,
+      virhe:    null,
     })
     paivitaAsiakkaanPerustiedot.mockResolvedValue({ virhe: null })
   })
@@ -146,6 +163,49 @@ describe('UusiKayntiContainer (AB-T5b)', () => {
     expect(luoTyhjaAsiakas).not.toHaveBeenCalled()
     // Pohjaa ei haettu koska käynti kaatui
     expect(haeLomakepohja).not.toHaveBeenCalled()
+  })
+
+  // ─── KIIRE-FIX 4: lomakepohja_versio_id-tallennuksen virhetarkistus ───────
+
+  it('KIIRE-FIX 4: jos versio_id-tallennus epäonnistuu → näyttää virheen, ei jatka renderöintiin', async () => {
+    supabaseHaltija.paivitysVirhe = { message: 'permission denied' }
+
+    render(<UusiKayntiContainer palvelu={PALVELU} onValmis={() => {}} />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/Käynnin version tallennus epäonnistui/i)).toBeInTheDocument()
+    })
+    expect(screen.getByText(/permission denied/)).toBeInTheDocument()
+    // Lomake ei renderöidy: yläpalkin "Hieronta" ei löydy (vain virhetilan UI)
+    expect(screen.queryByText('Hieronta')).not.toBeInTheDocument()
+  })
+
+  it('KIIRE-FIX 4: jos haeLomakepohja palauttaa versioId=null ilman virhettä → setup-virhe', async () => {
+    haeLomakepohja.mockResolvedValue({
+      pohja:    { id: 'pohja-1' },
+      versioId: null,
+      rakenne:  POHJA_TIEDOT.rakenne,
+      kentat:   POHJA_TIEDOT.kentat,
+      virhe:    null,
+    })
+
+    render(<UusiKayntiContainer palvelu={PALVELU} onValmis={() => {}} />)
+
+    await waitFor(() => {
+      expect(screen.getByText(/Lomakepohjasta ei löytynyt versiota/i)).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Hieronta')).not.toBeInTheDocument()
+  })
+
+  it('KIIRE-FIX 4: virhetilassa "Takaisin rekisteriin" -nappi kutsuu onPeruuta:n', async () => {
+    supabaseHaltija.paivitysVirhe = { message: 'jokin virhe' }
+    const onPeruuta = vi.fn()
+
+    render(<UusiKayntiContainer palvelu={PALVELU} onValmis={() => {}} onPeruuta={onPeruuta} />)
+
+    const peruutusNappi = await screen.findByRole('button', { name: /Takaisin rekisteriin/i })
+    peruutusNappi.click()
+    expect(onPeruuta).toHaveBeenCalledTimes(1)
   })
 
   it('identiteetti-synkronointi: vastauksiin etunimi+sukunimi → 3s päästä paivitaAsiakkaanPerustiedot', async () => {

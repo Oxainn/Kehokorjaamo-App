@@ -129,15 +129,27 @@ export default function UusiKayntiContainer({
         return
       }
 
-      // 4. Pala 2.24: tallenna hoitokayntiin lomakepohja_versio_id (snapshot).
-      //    KayntiLomakeNakyma käyttää tätä avatakseen käynnin alkuperäisellä
-      //    pohjalla. Fire-and-forget — ei blokata setupia jos epäonnistuu.
-      if (pohjaTulos.versioId && kayntiTulos.hoitokayntiId) {
-        const { error: vErr } = await supabase
-          .from('hoitokaynnit')
-          .update({ lomakepohja_versio_id: pohjaTulos.versioId })
-          .eq('id', kayntiTulos.hoitokayntiId)
-        if (vErr) console.warn('Lomakepohja-version tallennus hoitokayntiin epaonnistui:', vErr)
+      // 4. Pala 2.24 + KIIRE-FIX 4: tallenna hoitokayntiin lomakepohja_versio_id
+      //    (snapshot). KayntiLomakeNakyma käyttää tätä avatakseen käynnin
+      //    alkuperäisellä pohjalla, ja Y-strategia (haeViimeisinKayntiPalvelulla)
+      //    rakentuu sen päälle. Aiempi fire-and-forget jätti epäonnistuneet
+      //    päivitykset hiljaa lokiin ja loi käyntejä ilman versio_id:tä → tämä
+      //    odottaa onnistumisen ja nostaa virheen näkyviin sen sijaan että
+      //    jatkaisi rikkinäisellä tilalla.
+      if (!pohjaTulos.versioId) {
+        setSetupTila('virhe')
+        setSetupVirhe('Lomakepohjasta ei löytynyt versiota — käyntiä ei voi avata')
+        return
+      }
+      const { error: vErr } = await supabase
+        .from('hoitokaynnit')
+        .update({ lomakepohja_versio_id: pohjaTulos.versioId })
+        .eq('id', kayntiTulos.hoitokayntiId)
+      if (peruttu) return
+      if (vErr) {
+        setSetupTila('virhe')
+        setSetupVirhe(`Käynnin version tallennus epäonnistui: ${vErr.message ?? vErr}`)
+        return
       }
 
       setAsiakasId(kayttoonAsiakasId)
