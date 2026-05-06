@@ -323,6 +323,10 @@ export const paivitaKentanPysyvyys = async (kenttaId, pysyva) => {
 //
 // Snapshot-malli: aloitaUusiKaynti sulkee tämän A-version → näkyy historiassa
 // "edellisenä käyntinä" sellaisena kuin se oli sulkemishetkellä.
+//
+// TODO (AB-T8): harkitse paivitaAvoinAVersio-kutsun poisto LomakeRenderoijasta
+// kokonaan — Pala 2.24:n snapshot-malli (hoitokaynnit.lomakepohja_versio_id)
+// korvasi alkuperäisen tarkoituksen.
 export const paivitaAvoinAVersio = async (asiakasId, { lomake = {}, sairaudet = [], lisakentat = {} }) => {
   if (!asiakasId) return { virhe: 'Asiakas-id puuttuu' }
 
@@ -347,8 +351,9 @@ export const paivitaAvoinAVersio = async (asiakasId, { lomake = {}, sairaudet = 
 
   // Päivitä A-versio (hoitoon_syy, kipu_taso, laakitys, diagnosoidut_sairaudet,
   // vammat_huomiot, harrastukset, lisakentat)
+  // KIIRE-FIX 5: 'paivitetty'-saraketta ei ole olemassa asiakastietolomake_versiot-
+  // taulussa (vain 'luotu') → kirjoittaminen tuotti HTTP 400 joka auto-saven jälkeen.
   const muutokset = {
-    paivitetty: new Date().toISOString(),
     ...lomake,
   }
   // lisakentat-jsonb: yhdistä uusi data — säilytä aiempi sisältö jos lomakeOsa
