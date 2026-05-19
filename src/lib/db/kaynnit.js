@@ -775,6 +775,46 @@ export const avaaKayntiUudelleen = async (hoitokayntiId, syy = null) => {
   return { virhe: null, avattuKerralla: uusiLaskuri }
 }
 
+// KIIRE-FIX 6b: Hae monen asiakkaan käyntien päivämäärät suoraan
+// hoitokaynnit-taulusta. Asiakasrekisterin käyntilaskenta luki aiemmin
+// asiakastietolomake_versiot-taulusta (suljetut A-versiot), mutta
+// ensimmäisen käynnin A-versio sulkeutuu vasta seuraavan käynnin
+// alkaessa → käynnillinen asiakas näkyi käynnittömänä. Tämä funktio
+// käyttää samaa lähdettä kuin haeViimeisinHoitokaynti ja KIIRE-FIX 6:n
+// klikki-handler, jolloin napin näkyvyys ja klikkauksen polku ovat
+// yhdenmukaiset.
+//
+// Suodatus: lomakepohja_versio_id IS NOT NULL — vain "ehjät" käynnit,
+// joista löytyy lomakepohjan versio (ks. avaaOlemassaKaynti reuna-
+// tapaukset vanhoille käynneille).
+//
+// Palauttaa: { asiakasId: [pvm, pvm, ...] } -mapin. Jokainen pvm on
+// hoitokaynnit.pvm-ISO-merkkijono uusimmasta vanhimpaan. Asiakkaalle
+// jolla ei ole ehjiä käyntejä palautuu tyhjä lista.
+export const haeKayntienPaivamaaratHoitokaynneista = async (asiakasIdLista) => {
+  const map = {}
+  if (!asiakasIdLista || asiakasIdLista.length === 0) return map
+  for (const id of asiakasIdLista) map[id] = []
+
+  const { data, error } = await supabase
+    .from('hoitokaynnit')
+    .select('asiakas_id, pvm')
+    .in('asiakas_id', asiakasIdLista)
+    .not('lomakepohja_versio_id', 'is', null)
+    .order('pvm', { ascending: false, nullsFirst: false })
+  if (error) {
+    console.error('Käyntien päivämäärien haku hoitokaynneista epäonnistui:', error)
+    return map
+  }
+
+  for (const r of (data ?? [])) {
+    if (!r.asiakas_id) continue
+    if (!map[r.asiakas_id]) map[r.asiakas_id] = []
+    map[r.asiakas_id].push(r.pvm)
+  }
+  return map
+}
+
 // KIIRE-FIX 6 (D-malli): Hae asiakkaan VIIMEISIN hoitokaynti (mikä tahansa tila).
 // Käytetään Asiakasrekisterin pääpainikkeen polkuun jossa käynnillisille
 // avataan viimeisin käynti muokkaustilassa. Jos viimeisimmästä puuttuu

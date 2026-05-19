@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../services/supabase'
-import { haeKayntienPaivamaarat, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas, arkistoiAsiakas, poistaAsiakas, haeViimeisinKayntiPalvelulla, haeViimeisinHoitokaynti } from '../lib/db'
+import { haeKayntienPaivamaaratHoitokaynneista, haeKontraindikaatiotAsiakkaille, haeArkistoidunMaara, palautaAsiakas, arkistoiAsiakas, poistaAsiakas, haeViimeisinKayntiPalvelulla, haeViimeisinHoitokaynti } from '../lib/db'
 import { muotoilePvm, muodostaCSV, lataaTiedosto, jaaNimi } from '../lib/muotoilu'
 import KayntiNakyma from './KayntiNakyma'
 import KayntiLomakeNakyma from './KayntiLomakeNakyma'
@@ -32,7 +32,11 @@ export default function Asiakasrekisteri({
   const [asiakkaat, setAsiakkaat] = useState([])
   const [haku, setHaku]           = useState('')
   const [lataa, setLataa]         = useState(true)
-  // Map: asiakkaan id → 4 uusinta käyntiriviä [{ id, voimassa_alkaen }]
+  // Map: asiakkaan id → käyntien pvm-merkkijonot uusimmasta vanhimpaan
+  // ([pvm, pvm, ...]). Lähde: hoitokaynnit-taulu (lomakepohja_versio_id
+  // IS NOT NULL). KIIRE-FIX 6b — sama lähde kuin pääpainikkeen klikki-
+  // handlerilla, jolloin "Avaa"-napin näkyvyys ja klikkauksen polku
+  // pysyvät yhdenmukaisina.
   const [kayntienMap, setKayntienMap] = useState({})
   // Map: asiakkaan id → kontraindikaatio-sairauksien nimet (jos yhtään)
   const [kontraindikaatiotMap, setKontraindikaatiotMap] = useState(new Map())
@@ -68,25 +72,15 @@ export default function Asiakasrekisteri({
       const lista = data ?? []
       setAsiakkaat(lista)
 
-      // Hae rinnan: jokaisen asiakkaan 4 viimeisintä käyntipäivää,
-      // kontraindikaatiot kaikille asiakkaille kerralla, ja arkistoitujen
-      // kokonaismäärä (jälkimmäinen vain normaalitilassa, ei arkistossa).
-      const [kayntiTulokset, kontraindikaatiot, arkistoMaaraTulos] = await Promise.all([
-        Promise.all(lista.map((a) => haeKayntienPaivamaarat(a.id, 4))),
+      // Hae rinnan: kaikkien asiakkaiden käyntipäivät yhdellä hoitokaynnit-
+      // kyselyllä, kontraindikaatiot kaikille asiakkaille kerralla, ja
+      // arkistoitujen kokonaismäärä (jälkimmäinen vain normaalitilassa).
+      const [kayntienPvmMap, kontraindikaatiot, arkistoMaaraTulos] = await Promise.all([
+        haeKayntienPaivamaaratHoitokaynneista(lista.map((a) => a.id)),
         haeKontraindikaatiotAsiakkaille(lista.map((a) => a.id)),
         arkistoTila ? Promise.resolve(0) : haeArkistoidunMaara(hoitajaId),
       ])
-      const map = {}
-      lista.forEach((a, i) => { map[a.id] = kayntiTulokset[i] ?? [] })
-      // [DIAG-3] tilapäinen — näytä mitä haeKayntienPaivamaarat palautti
-      console.log('[DIAG-3] kayntienMap latauksen jälkeen:',
-        Object.entries(map).map(([id, k]) => ({
-          asiakasId:    id,
-          kayntiRivit:  k.length,
-          esimerkkiId:  k[0]?.id ?? null,
-          voimassaAlk:  k[0]?.voimassa_alkaen ?? null,
-        })))
-      setKayntienMap(map)
+      setKayntienMap(kayntienPvmMap)
       setKontraindikaatiotMap(kontraindikaatiot)
       setArkistoMaara(arkistoMaaraTulos)
       setLataa(false)
@@ -230,21 +224,6 @@ export default function Asiakasrekisteri({
 
   function AsiakasKortti({ a, korostettu }) {
     const kaynnit = kayntienMap[a.id] ?? []
-    // [DIAG-3] Tilapäinen diagnostiikka: KIIRE-FIX 6:n "Avaa"-nappi ei
-    // aktivoidu vaikka DB:ssä on hoitokäyntejä. Hypothesis: kayntienMap
-    // perustuu suljettuihin A-versioihin (voimassa_asti IS NOT NULL),
-    // mutta ensimmäisten käyntien A-versio on yleensä vielä avoin →
-    // kayntienMap jää tyhjäksi vaikka hoitokaynnit-rivi olisi valmis.
-    // Poistetaan kun korjaus tehty.
-    const _diagNappiTeksti = arkistoTila
-      ? '↺ Palauta'
-      : (korostettu ? 'Tarkista' : (kaynnit.length > 0 ? 'Avaa' : '+ Aloita käynti'))
-    console.log('[DIAG-3] Asiakas', a.nimi, '(id', a.id, '):',
-      'kayntejä=', kaynnit.length,
-      'kayntienMap-keys=', Object.keys(kayntienMap).length,
-      'nappiTeksti=', _diagNappiTeksti,
-      'korostettu=', korostettu,
-      'arkistoTila=', arkistoTila)
     const kontraindikaatiot = kontraindikaatiotMap.get(a.id) ?? []
     const onKontraindikaatio = kontraindikaatiot.length > 0
     // Värikoodi: korostettu (uusi asiakas) > kontraindikaatio > normaali
@@ -391,21 +370,11 @@ export default function Asiakasrekisteri({
             gap:        '6px',
             paddingLeft: '54px',  // sama sisennys kuin avatarin oikealla puolella
           }}>
-            {kaynnit.map((k) => {
-              const pvm = muotoilePvm(k.voimassa_alkaen, '—')
-              const lyhytOtsikko = k.otsikko && k.otsikko.length > 18
-                ? `${k.otsikko.slice(0, 16)}…`
-                : (k.otsikko || '')
-              const osat = [pvm, lyhytOtsikko].filter(Boolean)
-              const sisalto = osat.join(' · ')
+            {kaynnit.slice(0, 4).map((pvmIso, i) => {
+              const pvm = muotoilePvm(pvmIso, '—')
               return (
-                <button
-                  key={k.id}
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setAvoinKaynti({ lomakeVersioId: k.id, asiakas: a })
-                  }}
+                <span
+                  key={`${pvmIso}-${i}`}
                   style={{
                     background:   '#f3f4f6',
                     color:        '#374151',
@@ -414,15 +383,12 @@ export default function Asiakasrekisteri({
                     borderRadius: '999px',
                     fontSize:     '12px',
                     fontWeight:   500,
-                    border:       'none',
-                    cursor:       'pointer',
                     whiteSpace:   'nowrap',
                   }}
-                  aria-label={`Avaa käynti ${pvm}${k.otsikko ? ` — ${k.otsikko}` : ''}`}
-                  title={k.otsikko ? `${pvm} — ${k.otsikko}` : pvm}
+                  title={pvm}
                 >
-                  {sisalto}
-                </button>
+                  {pvm}
+                </span>
               )
             })}
           </div>

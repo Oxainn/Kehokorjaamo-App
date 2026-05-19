@@ -101,6 +101,7 @@ import {
   lukitseKaynti,
   avaaKayntiUudelleen,
   haeViimeisinKayntiPalvelulla,
+  haeKayntienPaivamaaratHoitokaynneista,
 } from './db'
 
 describe('tallennaAsiakas', () => {
@@ -1470,5 +1471,54 @@ describe('haeViimeisinKayntiPalvelulla', () => {
     const tulos = await haeViimeisinKayntiPalvelulla('asiakas-1')
 
     expect(tulos).toEqual({ palvelu: null, ohitaPalveluvalinta: false })
+  })
+})
+
+describe('haeKayntienPaivamaaratHoitokaynneista', () => {
+  beforeEach(() => {
+    apurit.fromVakooja.mockClear()
+    apurit.getUserVakooja.mockClear()
+    apurit.nollaa()
+  })
+
+  it('ryhmittelee hoitokaynnit-rivit asiakas_id:n mukaan ja palauttaa pvm-merkkijonot', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data: [
+        { asiakas_id: 'a1', pvm: '2026-05-12' },
+        { asiakas_id: 'a1', pvm: '2026-04-10' },
+        { asiakas_id: 'a2', pvm: '2026-05-01' },
+      ],
+      error: null,
+    })
+
+    const tulos = await haeKayntienPaivamaaratHoitokaynneista(['a1', 'a2', 'a3'])
+
+    expect(tulos).toEqual({
+      a1: ['2026-05-12', '2026-04-10'],
+      a2: ['2026-05-01'],
+      a3: [],
+    })
+    expect(apurit.fromVakooja).toHaveBeenCalledWith('hoitokaynnit')
+  })
+
+  it('tyhjä asiakaslista palauttaa tyhjän objektin eikä kutsu Supabasea', async () => {
+    const tulos = await haeKayntienPaivamaaratHoitokaynneista([])
+
+    expect(tulos).toEqual({})
+    expect(apurit.fromVakooja).not.toHaveBeenCalled()
+  })
+
+  it('virhetilanteessa palauttaa tyhjän listan jokaiselle pyydetylle asiakkaalle', async () => {
+    apurit.lisaaTulos('hoitokaynnit', {
+      data: null,
+      error: { message: 'tietokantavirhe' },
+    })
+    const errorVakooja = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    const tulos = await haeKayntienPaivamaaratHoitokaynneista(['a1', 'a2'])
+
+    expect(tulos).toEqual({ a1: [], a2: [] })
+    expect(errorVakooja).toHaveBeenCalled()
+    errorVakooja.mockRestore()
   })
 })
